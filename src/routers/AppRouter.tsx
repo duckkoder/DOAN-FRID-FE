@@ -4,21 +4,21 @@ import AppLayout from "../layouts/AppLayout";
 import ProtectedRoute from "./ProtectedRoute";
 
 import AuthPage from "../pages/AuthPage/Authpage";
+import HomePage from "../pages/HomePage/HomePage";
 
 
 const router = createBrowserRouter(
   createRoutesFromElements(
     <>
-      // Public routes
       <Route path="/auth" element={<AuthPage />} />
-      // Protected routes
+      
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
+          <Route path="/" element={<HomePage />} />
           {/* Home */}
         </Route>
       </Route>
-{/* 
-      <Route path="*" element={<NotFound />} /> */}
+{/* <Route path="*" element={<NotFound />} /> */}
     </>,
   ),
 );

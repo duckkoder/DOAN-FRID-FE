@@ -8,9 +8,6 @@ export type User = {
   role?: number;
   avatar?: string;
   is_verified?: boolean;
-  created_at?: string;
-  updated_at?: string;
-  deleted_at?: string | null;
 };
 
 export type AuthTokens = {
@@ -22,7 +19,7 @@ export type AuthContextType = {
   user: User | null;
   tokens: AuthTokens;
   // rememberMe: when true, persist refresh token longer
-  login: (user: User | string, tokens?: AuthTokens, rememberMe?: boolean) => void;
+  login: (user: User , tokens?: AuthTokens, rememberMe?: boolean) => void;
   logout: () => void;
 };
 

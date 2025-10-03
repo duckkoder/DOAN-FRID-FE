@@ -1,13 +1,22 @@
 // AppLayout.tsx
 import React from "react";
 import { Outlet } from "react-router-dom";
+import Footer from "../components/Footer";
 
 const AppLayout: React.FC = () => {
   return (
-    <div className="w-full h-screen max-w-md flex flex-col bg-gradient-to-b from-[#f6edda] to-[#ffffff] rounded-xl mx-auto overflow-auto scrollbar-hide">
-      <main className="flex-1 overflow-y-auto">
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        background: "#f6f9fc",
+      }}
+    >
+      <main style={{ flex: 1 }}>
         <Outlet />
       </main>
+      <Footer />
     </div>
   );
 };

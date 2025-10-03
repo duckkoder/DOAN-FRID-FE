@@ -5,8 +5,14 @@ import Footer from "../components/Footer";
 
 const UserLayout: React.FC = () => {
   return (
-    <div className="w-full  min-h-screen max-w-md flex flex-col bg-gray-200 rounded-xl shadow-lg overflow-hidden">
-      <main className="flex-1">
+    <div 
+    style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        background: "#f6f9fc",
+      }}>
+      <main style={{ flex: 1 }}>
         <Outlet />
       </main>
       <Footer />
