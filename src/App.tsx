@@ -5,9 +5,10 @@ import router from "./routers/AppRouter";
 export default function App() {
   return (
     <AuthProvider>
-        <div className="relative min-h-screen w-full">
-          <RouterProvider router={router} />
-        </div>
+      {/* <div style={{ minHeight: "100vh", width: "100%", position: "relative" }}> */}
+      <div >
+        <RouterProvider router={router} />
+      </div>
     </AuthProvider>
   );
 }
