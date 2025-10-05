@@ -8,7 +8,7 @@ export const login = async (credentials: { username: string; password: string, i
         user: {
           id: 1,
           username: credentials.username,
-          role: "teacher",
+          role: credentials.username.includes("admin") ? "admin" : credentials.username.includes("teacher") ? "teacher" : "student",
           email: "teacher@example.com",
           avatar: "https://example.com/avatar.jpg",
           is_verified: true,
