@@ -10,9 +10,10 @@ import AdminStudentPage from "../pages/Admin/AdminStudentPage";
 import AdminModalAIPage from "../pages/Admin/AdminModalAIPage";
 
 import TeacherClassPage from "../pages/Teacher/TeacherClassPage";
-import TeacherAttendancePage from "../pages/Teacher/TeacherAttendancePage";
+
 import TeacherReportPage from "../pages/Teacher/TeacherReportPage";
 
+import StudentClassDetailPage from "../pages/Student/StudentClassDetailPage";
 import StudentClassPage from "../pages/Student/StudentClassPage";
 import StudentAttendancePage from "../pages/Student/StudentAttendancePage";
 import StudentReportPage from "../pages/Student/StudentReportPage";
@@ -20,7 +21,12 @@ import AdminHomePage from "../pages/Admin/AdminHomePage";
 import TeacherHomePage from "../pages/Teacher/TeacherHomePage";
 import StudentHomePage from "../pages/Student/StudentHomePage";
 import RoleLayout from "../layouts/RoleLayout";
+import TeacherLeaveRequestPage from "../pages/Teacher/TeacherLeaveRequestPage";
+import ClassDetailPage from "../pages/Teacher/ClassDetailPage";
+import ClassCreatePage from "../pages/Class/ClassCreatePage";
+import FaceRegisterPage from "../pages/Student/FaceRegisterPage";
 
+import NotFound from "../pages/NotFound/NotFound";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -43,21 +49,26 @@ const router = createBrowserRouter(
             <Route path="/teacher">
               <Route index element={<TeacherHomePage />} />
               <Route path="classes" element={<TeacherClassPage />} />
-              <Route path="attendance" element={<TeacherAttendancePage />} />
+              <Route path="class/:classId" element={<ClassDetailPage />} />
               <Route path="reports" element={<TeacherReportPage />} />
+              <Route path="leave-requests" element={<TeacherLeaveRequestPage />} />
+              <Route path="classes/create" element={<ClassCreatePage />} />
             </Route>
 
             {/* Route cho Học sinh */}
             <Route path="/student">
               <Route index element={<StudentHomePage />} />
               <Route path="classes" element={<StudentClassPage />} />
+              <Route path="class/:classId" element={<StudentClassDetailPage />} />
               <Route path="attendance" element={<StudentAttendancePage />} />
               <Route path="reports" element={<StudentReportPage />} />
+              <Route path="register-face" element={<FaceRegisterPage />} />
             </Route>
           </Route>
+          
         </Route>
       </Route>
-{/* <Route path="*" element={<NotFound />} /> */}
+      <Route path="*" element={<NotFound />} />
     </>,
   ),
 );

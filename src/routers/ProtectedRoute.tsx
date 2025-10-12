@@ -5,8 +5,11 @@ import IsNotAllowPAge from "../pages/AuthPage/IsNotAllowPAge";
 
 const roleRoutes: Record<string, string[]> = {
   admin: ["/admin", "/admin/teachers", "/admin/students", "/admin/modalai"],
-  teacher: ["/teacher", "/teacher/classes", "/teacher/attendance", "/teacher/reports"],
-  student: ["/student", "/student/classes", "/student/attendance", "/student/reports"],
+  teacher: ["/teacher", "/teacher/classes", "/teacher/class/:classId",
+     "/teacher/attendance", "/teacher/reports", "/teacher/leave-requests",
+     "/teacher/class/create"],
+  student: ["/student", "/student/classes", "/student/attendance", "/student/reports",
+    "/student/class/:classId", "/student/register-face"],
 };
 
 const ProtectedRoute: React.FC = () => {

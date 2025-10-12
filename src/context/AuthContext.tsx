@@ -1,13 +1,22 @@
 import { createContext } from "react";
 
 export type User = {
-  id: string;
-  username: string;
-  name?: string;
-  email?: string;
-  role?: number;
-  avatar?: string;
-  is_verified?: boolean;
+  id: number;
+  full_name: string;
+  email: string;
+  role: string;
+  is_active: boolean;
+  avatar_url?: string | null;
+  phone?: string | null;  
+  is_verified: boolean;
+  created_at: string;
+  // Teacher-specific fields
+  teacher_code?: string | null;
+  department?: string | null;
+  // Student-specific fields
+  student_code?: string | null;
+  major?: string | null;
+  academic_year?: number | null;
 };
 
 export type AuthTokens = {
@@ -18,8 +27,7 @@ export type AuthTokens = {
 export type AuthContextType = {
   user: User | null;
   tokens: AuthTokens;
-  // rememberMe: when true, persist refresh token longer
-  login: (user: User , tokens?: AuthTokens, rememberMe?: boolean) => void;
+  login: (user: User, tokens?: AuthTokens, rememberMe?: boolean) => void;
   logout: () => void;
 };
 
