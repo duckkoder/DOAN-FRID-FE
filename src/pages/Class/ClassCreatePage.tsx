@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   Form,
@@ -13,7 +13,8 @@ import {
   Steps,
   Divider,
   Tag,
-  Tooltip
+  Tooltip,
+  Alert
 } from "antd";
 import {
   ArrowLeftOutlined,
@@ -23,10 +24,18 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   PlusOutlined,
-  DeleteOutlined
+  DeleteOutlined,
+  ExclamationCircleOutlined
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import Breadcrumb from "../../components/Breadcrumb";
+import { 
+  createClass, 
+  convertFrontendScheduleToBackend,
+  type CreateClassRequest,
+  type ApiError
+} from "../../apis/classesAPIs/teacherClass";
+import { useAuth } from "../../hooks/useAuth";
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -38,12 +47,12 @@ const TIME_SLOTS = [
   { period: 2, start: "08:00", end: "08:50" },
   { period: 3, start: "09:00", end: "09:50" },
   { period: 4, start: "10:00", end: "10:50" },
-  { period: 5, start: "11:00", end: "11:50" }, // Kết thúc buổi sáng 12:00
+  { period: 5, start: "11:00", end: "11:50" },
   { period: 6, start: "13:00", end: "13:50" },
   { period: 7, start: "14:00", end: "14:50" },
   { period: 8, start: "15:00", end: "15:50" },
   { period: 9, start: "16:00", end: "16:50" },
-  { period: 10, start: "17:00", end: "17:50" }, // Kết thúc buổi chiều 18:00
+  { period: 10, start: "17:00", end: "17:50" },
 ];
 
 interface TimeSession {
@@ -75,6 +84,28 @@ const ClassCreatePage: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
+  const [teacherId, setTeacherId] = useState<number | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<any>(null);
+  
+  // ✅ Temporary selected periods for each day (before splitting)
+  const [dayPeriods, setDayPeriods] = useState<Record<number, number[]>>({});
+  
+  const userStr = useAuth().user;
+  console.log('Authenticated user:', userStr);
+  
+  useEffect(() => {
+    const getUserInfo = () => {
+      try {
+        if (userStr) {
+          setTeacherId(userStr.teacher_id || null);
+        }
+      } catch (error) {
+        console.error('Failed to get user info:', error);
+      }
+    };
+    getUserInfo();
+  }, [userStr]);
 
   const breadcrumbItems = [
     { title: "Dashboard", href: "/teacher" },
@@ -110,79 +141,90 @@ const ClassCreatePage: React.FC = () => {
     }
   ];
 
-  // Add new session for a day
-  const addSession = (day: number) => {
-    const newSchedules = [...formData.schedules];
-    const daySchedule = newSchedules.find(s => s.day === day);
+  // Clear error when step changes
+  useEffect(() => {
+    setErrorMessage(null);
+    setErrorDetails(null);
+  }, [currentStep]);
+
+  // ✅ Split periods into consecutive groups
+  const splitPeriodsIntoSessions = (periods: number[]): number[][] => {
+    if (periods.length === 0) return [];
     
-    if (daySchedule) {
-      daySchedule.sessions.push({
-        id: `${day}-${Date.now()}`,
-        periods: []
-      });
-    } else {
-      newSchedules.push({
-        day,
-        sessions: [{
-          id: `${day}-${Date.now()}`,
-          periods: []
-        }]
-      });
+    // Sort periods
+    const sorted = [...periods].sort((a, b) => a - b);
+    
+    const sessions: number[][] = [];
+    let currentSession: number[] = [sorted[0]];
+    
+    for (let i = 1; i < sorted.length; i++) {
+      // Check if current period is consecutive to the previous one
+      if (sorted[i] === sorted[i - 1] + 1) {
+        currentSession.push(sorted[i]);
+      } else {
+        // Not consecutive, start a new session
+        sessions.push(currentSession);
+        currentSession = [sorted[i]];
+      }
     }
     
-    setFormData(prev => ({ ...prev, schedules: newSchedules }));
-  };
-
-  // Remove session
-  const removeSession = (day: number, sessionId: string) => {
-    const newSchedules = formData.schedules.map(schedule => {
-      if (schedule.day === day) {
-        return {
-          ...schedule,
-          sessions: schedule.sessions.filter(s => s.id !== sessionId)
-        };
-      }
-      return schedule;
-    }).filter(schedule => schedule.sessions.length > 0);
+    // Push the last session
+    sessions.push(currentSession);
     
-    setFormData(prev => ({ ...prev, schedules: newSchedules }));
+    return sessions;
   };
 
-  // Update session periods
-  const updateSessionPeriods = (day: number, sessionId: string, periods: number[]) => {
-    const newSchedules = formData.schedules.map(schedule => {
-      if (schedule.day === day) {
-        return {
-          ...schedule,
-          sessions: schedule.sessions.map(session => 
-            session.id === sessionId ? { ...session, periods } : session
-          )
-        };
-      }
-      return schedule;
-    });
-    
-    setFormData(prev => ({ ...prev, schedules: newSchedules }));
-  };
-
-  // Handle day selection
+  // ✅ Handle day selection
   const handleDayChange = (days: number[]) => {
     setSelectedDays(days);
     
-    // Remove schedules for unselected days
-    const newSchedules = formData.schedules.filter(s => days.includes(s.day));
-    
-    // Add empty schedules for newly selected days
-    days.forEach(day => {
-      if (!newSchedules.find(s => s.day === day)) {
-        newSchedules.push({
-          day,
-          sessions: [{
-            id: `${day}-${Date.now()}`,
-            periods: []
-          }]
-        });
+    // Remove periods for unselected days
+    const newDayPeriods = { ...dayPeriods };
+    Object.keys(newDayPeriods).forEach(dayStr => {
+      const day = parseInt(dayStr);
+      if (!days.includes(day)) {
+        delete newDayPeriods[day];
       }
+    });
+    
+    setDayPeriods(newDayPeriods);
+    
+    // Update schedules
+    updateSchedulesFromPeriods(newDayPeriods);
+  };
+
+  // ✅ Handle period selection for a day
+  const handlePeriodChange = (day: number, periods: number[]) => {
+    const newDayPeriods = {
+      ...dayPeriods,
+      [day]: periods
+    };
+    
+    setDayPeriods(newDayPeriods);
+    updateSchedulesFromPeriods(newDayPeriods);
+  };
+
+  // ✅ Update schedules based on selected periods
+  const updateSchedulesFromPeriods = (periods: Record<number, number[]>) => {
+    const newSchedules: ClassSchedule[] = [];
+    
+    Object.entries(periods).forEach(([dayStr, selectedPeriods]) => {
+      const day = parseInt(dayStr);
+      
+      if (selectedPeriods.length === 0) return;
+      
+      // Split periods into consecutive sessions
+      const sessionGroups = splitPeriodsIntoSessions(selectedPeriods);
+      
+      const sessions: TimeSession[] = sessionGroups.map((group, index) => ({
+        id: `${day}-${index}-${Date.now()}`,
+        periods: group
+      }));
+      
+      newSchedules.push({
+        day,
+        sessions
+      });
     });
     
     setFormData(prev => ({ ...prev, schedules: newSchedules }));
@@ -196,11 +238,19 @@ const ClassCreatePage: React.FC = () => {
     const firstSlot = TIME_SLOTS.find(t => t.period === sortedPeriods[0]);
     const lastSlot = TIME_SLOTS.find(t => t.period === sortedPeriods[sortedPeriods.length - 1]);
     
+    if (sortedPeriods.length === 1) {
+      return `${firstSlot?.start} - ${firstSlot?.end} (Tiết ${sortedPeriods[0]})`;
+    }
+    
     return `${firstSlot?.start} - ${lastSlot?.end} (Tiết ${sortedPeriods.join(', ')})`;
   };
 
   const handleNext = async () => {
     try {
+      // Clear previous errors
+      setErrorMessage(null);
+      setErrorDetails(null);
+
       if (currentStep === 0) {
         const values = await form.validateFields(['subject', 'description']);
         setFormData(prev => ({ ...prev, ...values }));
@@ -232,23 +282,119 @@ const ClassCreatePage: React.FC = () => {
 
   const handlePrev = () => {
     setCurrentStep(prev => prev - 1);
+    setErrorMessage(null);
+    setErrorDetails(null);
   };
 
   const handleSubmit = async () => {
+    if (!teacherId) {
+      setErrorMessage('Không tìm thấy thông tin giáo viên. Vui lòng đăng nhập lại!');
+      message.error('Không tìm thấy thông tin giáo viên!');
+      return;
+    }
+
     setLoading(true);
+    setErrorMessage(null);
+    setErrorDetails(null);
+
     try {
-      console.log('Submitting class data:', formData);
+      // Convert frontend schedule format to backend format
+      const backendSchedule = convertFrontendScheduleToBackend(
+        formData.schedules,
+        formData.room
+      );
+
+      console.log('Frontend schedules:', formData.schedules);
+      console.log('Backend schedule:', backendSchedule);
+
+      // Prepare request data
+      const requestData: CreateClassRequest = {
+        class_name: formData.subject,
+        teacher_id: teacherId,
+        location: formData.room || null,
+        description: formData.description || null,
+        schedule: backendSchedule
+      };
+
+      console.log('Creating class with data:', requestData);
+
+      // Call API
+      const response = await createClass(requestData);
+
+      console.log('Class created successfully:', response);
+
+      message.success({
+        content: 'Tạo lớp học thành công!',
+        duration: 2,
+      });
+
+      // Navigate to class details
+      setTimeout(() => {
+        navigate(`/teacher/class/${response.data.class.id}`);
+      }, 1000);
+
+    } catch (error: any) {
+      console.error('Failed to create class:', error);
       
-      // TODO: Call API to create class
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // ✅ Handle ApiError from createClass
+      const apiError = error as ApiError;
       
-      message.success('Tạo lớp học thành công!');
-      navigate('/teacher/classes');
-    } catch (error) {
-      message.error('Có lỗi xảy ra khi tạo lớp học');
+      let displayMessage = 'Có lỗi xảy ra khi tạo lớp học';
+      let details = null;
+
+      if (apiError.message) {
+        displayMessage = apiError.message;
+      }
+
+      if (apiError.errors) {
+        details = apiError.errors;
+        console.error('Error details:', details);
+      }
+
+      // Set error state for display in UI
+      setErrorMessage(displayMessage);
+      setErrorDetails(details);
+
+      // Show error toast
+      message.error({
+        content: displayMessage,
+        duration: 5,
+      });
+
+      // Scroll to top to show error alert
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setLoading(false);
     }
+  };
+
+  // ✅ Render error details helper
+  const renderErrorDetails = () => {
+    if (!errorDetails) return null;
+
+    // If errors is an object with field-specific errors
+    if (typeof errorDetails === 'object' && !Array.isArray(errorDetails)) {
+      return (
+        <div style={{ marginTop: 12 }}>
+          <Text strong>Chi tiết lỗi:</Text>
+          <ul style={{ marginTop: 8, marginBottom: 0 }}>
+            {Object.entries(errorDetails).map(([field, messages]) => (
+              <li key={field}>
+                {Array.isArray(messages) ? messages.join(', ') : String(messages)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      );
+    }
+
+    // If errors is a string or other
+    return (
+      <div style={{ marginTop: 12 }}>
+        <Text strong>Chi tiết: </Text>
+        <Text>{String(errorDetails)}</Text>
+      </div>
+    );
   };
 
   const renderStepContent = () => {
@@ -333,10 +479,11 @@ const ClassCreatePage: React.FC = () => {
               </Select>
             </div>
 
-            {/* Schedule for each selected day */}
+            {/* ✅ Period Selection for each selected day */}
             {selectedDays.sort().map(day => {
               const dayLabel = weekDays.find(d => d.value === day)?.label;
               const daySchedule = formData.schedules.find(s => s.day === day);
+              const selectedPeriods = dayPeriods[day] || [];
               
               return (
                 <Card
@@ -351,63 +498,70 @@ const ClassCreatePage: React.FC = () => {
                       <Text strong>{dayLabel}</Text>
                     </Space>
                   }
-                  extra={
-                    <Button
-                      type="dashed"
-                      icon={<PlusOutlined />}
-                      onClick={() => addSession(day)}
-                      size="small"
-                    >
-                      Thêm buổi học
-                    </Button>
-                  }
                 >
-                  {daySchedule?.sessions.map((session, index) => (
-                    <div key={session.id} style={{ marginBottom: 16 }}>
-                      <Row gutter={16} align="middle">
-                        <Col span={4}>
-                          <Text strong>Buổi {index + 1}:</Text>
-                        </Col>
-                        <Col span={18}>
-                          <Select
-                            mode="multiple"
-                            size="large"
-                            placeholder="Chọn các tiết học"
-                            style={{ width: '100%' }}
-                            value={session.periods}
-                            onChange={(periods) => updateSessionPeriods(day, session.id, periods)}
+                  {/* ✅ Period Selector */}
+                  <div style={{ marginBottom: 16 }}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                      Chọn các tiết học:
+                    </Text>
+                    <Select
+                      mode="multiple"
+                      size="large"
+                      placeholder="Chọn các tiết học (tự động chia buổi nếu không liên tiếp)"
+                      style={{ width: '100%' }}
+                      value={selectedPeriods}
+                      onChange={(periods) => handlePeriodChange(day, periods)}
+                    >
+                      {TIME_SLOTS.map(slot => (
+                        <Option key={slot.period} value={slot.period}>
+                          Tiết {slot.period} ({slot.start} - {slot.end})
+                        </Option>
+                      ))}
+                    </Select>
+                  </div>
+
+                  {/* ✅ Auto-split sessions display */}
+                  {daySchedule && daySchedule.sessions.length > 0 && (
+                    <div>
+                      <Divider orientation="left" style={{ margin: '12px 0' }}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          Các buổi học (tự động chia)
+                        </Text>
+                      </Divider>
+                      
+                      <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                        {daySchedule.sessions.map((session, index) => (
+                          <Card 
+                            key={session.id}
+                            size="small"
+                            style={{ 
+                              background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+                              border: '1px solid #bae6fd'
+                            }}
                           >
-                            {TIME_SLOTS.map(slot => (
-                              <Option key={slot.period} value={slot.period}>
-                                Tiết {slot.period} ({slot.start} - {slot.end})
-                              </Option>
-                            ))}
-                          </Select>
-                          {session.periods.length > 0 && (
-                            <div style={{ marginTop: 8 }}>
+                            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                              <Text strong style={{ color: '#0369a1' }}>
+                                Buổi {index + 1}
+                              </Text>
                               <Tag color="blue" icon={<ClockCircleOutlined />}>
                                 {formatTimeRange(session.periods)}
                               </Tag>
-                            </div>
-                          )}
-                        </Col>
-                        <Col span={2}>
-                          {daySchedule.sessions.length > 1 && (
-                            <Tooltip title="Xóa buổi học">
-                              <Button
-                                danger
-                                icon={<DeleteOutlined />}
-                                onClick={() => removeSession(day, session.id)}
-                              />
-                            </Tooltip>
-                          )}
-                        </Col>
-                      </Row>
-                      {index < daySchedule.sessions.length - 1 && (
-                        <Divider style={{ margin: '16px 0' }} />
+                            </Space>
+                          </Card>
+                        ))}
+                      </Space>
+
+                      {daySchedule.sessions.length > 1 && (
+                        <Alert
+                          message="Lưu ý"
+                          description={`Hệ thống đã tự động chia thành ${daySchedule.sessions.length} buổi học vì các tiết không liên tiếp nhau.`}
+                          type="info"
+                          showIcon
+                          style={{ marginTop: 12 }}
+                        />
                       )}
                     </div>
-                  ))}
+                  )}
                 </Card>
               );
             })}
@@ -425,6 +579,27 @@ const ClassCreatePage: React.FC = () => {
       case 2:
         return (
           <div>
+            {/* ✅ Error Alert at top of review step */}
+            {errorMessage && (
+              <Alert
+                message="Lỗi khi tạo lớp học"
+                description={
+                  <div>
+                    {renderErrorDetails()}
+                  </div>
+                }
+                type="error"
+                icon={<ExclamationCircleOutlined />}
+                showIcon
+                closable
+                onClose={() => {
+                  setErrorMessage(null);
+                  setErrorDetails(null);
+                }}
+                style={{ marginBottom: 24 }}
+              />
+            )}
+
             <Card style={{ marginBottom: 24 }}>
               <Title level={4} style={{ marginBottom: 16, color: '#2563eb' }}>
                 📚 Thông tin môn học
@@ -481,7 +656,7 @@ const ClassCreatePage: React.FC = () => {
                 ℹ️ Lưu ý
               </Title>
               <Text>
-                Sau khi tạo lớp học, bạn có thể thêm sinh viên thông qua mã lớp hoặc mời trực tiếp.
+                Sau khi tạo lớp học, bạn sẽ được chuyển đến trang chi tiết lớp học để thêm sinh viên.
               </Text>
             </Card>
           </div>
@@ -580,9 +755,14 @@ const ClassCreatePage: React.FC = () => {
                   icon={<SaveOutlined />}
                   loading={loading}
                   onClick={handleSubmit}
-                  style={{ borderRadius: 8 }}
+                  disabled={!!errorMessage}
+                  style={{ 
+                    borderRadius: 8,
+                    background: errorMessage ? '#d1d5db' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    border: 'none'
+                  }}
                 >
-                  Tạo lớp học
+                  {loading ? 'Đang tạo lớp học...' : 'Tạo lớp học'}
                 </Button>
               )}
             </div>

@@ -12,9 +12,11 @@ export type User = {
   created_at: string;
   // Teacher-specific fields
   teacher_code?: string | null;
+  teacher_id?: number | null;
   department?: string | null;
   // Student-specific fields
   student_code?: string | null;
+  student_id?: number | null;
   major?: string | null;
   academic_year?: number | null;
 };

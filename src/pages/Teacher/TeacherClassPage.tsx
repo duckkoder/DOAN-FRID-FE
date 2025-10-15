@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   Typography, 
   Card, 
@@ -6,12 +6,14 @@ import {
   Col, 
   Timeline, 
   Tag, 
-  Button, 
-  Switch,
+  Button,
   Space,
   Avatar,
   Statistic,
-  Select
+  Select,
+  Spin,
+  Empty,
+  message
 } from "antd";
 import { 
   CalendarOutlined,
@@ -25,115 +27,129 @@ import {
 import { useNavigate } from "react-router-dom";
 import Breadcrumb from "../../components/Breadcrumb";
 import dayjs from 'dayjs';
+import 'dayjs/locale/vi';
+import isoWeek from 'dayjs/plugin/isoWeek';
+import weekday from 'dayjs/plugin/weekday';
+import { 
+  getClassesList, 
+  type ClassListItem
+} from "../../apis/classesAPIs/teacherClass";
+
+dayjs.extend(isoWeek);
+dayjs.extend(weekday);
+dayjs.locale('vi');
 
 const { Title, Text } = Typography;
 
 interface ClassSession {
-  id: string;
+  id: number;
   subject: string;
+  name: string;
   time: string;
-  duration: string;
+  endTime: string;
   room: string;
   studentCount: number;
-  maxStudents: number;
-  status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
-  day: number; // 1-7 (Monday-Sunday)
+  status: 'active' | 'inactive';
+  day: number;
+  classCode: string;
+  periods: string;
+  sessionIndex: number;
+}
+
+interface TimeSlot {
+  time: string;
+  endTime: string;
+  label: string;
+  isEmpty: boolean;
+  classes?: ClassSession[];
 }
 
 const TeacherClassPage: React.FC = () => {
-  const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
-  const [selectedWeek, setSelectedWeek] = useState<string>('current');
   const [currentTime, setCurrentTime] = useState(dayjs());
+  const [classes, setClasses] = useState<ClassSession[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<'active' | 'inactive' | null>(null);
   const navigate = useNavigate();
 
-  // Update current time every minute
+  // Time slots mapping
+  const TIME_SLOTS: Record<number, string> = {
+    1: "07:00", 2: "08:00", 3: "09:00", 4: "10:00", 5: "11:00",
+    6: "13:00", 7: "14:00", 8: "15:00", 9: "16:00", 10: "17:00"
+  };
+
+  const END_TIME_SLOTS: Record<number, string> = {
+    1: "07:50", 2: "08:50", 3: "09:50", 4: "10:50", 5: "11:50",
+    6: "13:50", 7: "14:50", 8: "15:50", 9: "16:50", 10: "17:50"
+  };
+
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(dayjs());
-    }, 60000);
+    const timer = setInterval(() => setCurrentTime(dayjs()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  // Dữ liệu mẫu lớp học
-  const classes: ClassSession[] = [
-    {
-      id: "1",
-      subject: "Advanced Java Programming",
-      time: "07:30",
-      duration: "120",
-      room: "A101",
-      studentCount: 35,
-      maxStudents: 40,
-      status: 'upcoming',
-      day: 1 // Monday
-    },
-    {
-      id: "2", 
-      subject: "Database Design",
-      time: "09:45",
-      duration: "120",
-      room: "B203",
-      studentCount: 28,
-      maxStudents: 35,
-      status: 'upcoming',
-      day: 1
-    },
-    {
-      id: "3",
-      subject: "Web Development",
-      time: "13:30",
-      duration: "120", 
-      room: "C304",
-      studentCount: 32,
-      maxStudents: 40,
-      status: 'upcoming',
-      day: 1
-    },
-    {
-      id: "4",
-      subject: "Advanced Java Programming", 
-      time: "07:30",
-      duration: "120",
-      room: "A101",
-      studentCount: 35,
-      maxStudents: 40,
-      status: 'upcoming',
-      day: 2 // Tuesday
-    },
-    {
-      id: "5",
-      subject: "Artificial Intelligence",
-      time: "15:45",
-      duration: "120",
-      room: "D405",
-      studentCount: 25,
-      maxStudents: 30,
-      status: 'upcoming',
-      day: 3 // Wednesday
-    },
-    {
-      id: "6",
-      subject: "Database Design",
-      time: "09:45", 
-      duration: "120",
-      room: "B203",
-      studentCount: 28,
-      maxStudents: 35,
-      status: 'upcoming',
-      day: 4 // Thursday
-    },
-    {
-      id: "7",
-      subject: "Web Development",
-      time: "13:30",
-      duration: "120",
-      room: "C304", 
-      studentCount: 32,
-      maxStudents: 40,
-      status: 'upcoming',
-      day: 5 // Friday
+  useEffect(() => {
+    fetchClasses();
+  }, [filterStatus]);
+
+  const fetchClasses = async () => {
+    setLoading(true);
+    try {
+      const response = await getClassesList(filterStatus || undefined);
+      console.log('Fetched classes:', response);
+      if (response.success && response.data.classes) {
+        const transformedClasses = transformApiDataToSessions(response.data.classes);
+        setClasses(transformedClasses);
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch classes:', error);
+      message.error('Không thể tải danh sách lớp học');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const transformApiDataToSessions = (apiClasses: ClassListItem[]): ClassSession[] => {
+    const sessions: ClassSession[] = [];
+
+    const dayMapping: Record<string, number> = {
+      'monday': 1, 'tuesday': 2, 'wednesday': 3, 'thursday': 4,
+      'friday': 5, 'saturday': 6, 'sunday': 7
+    };
+
+    apiClasses.forEach(cls => {
+      if (!cls.schedule) return;
+
+      Object.entries(cls.schedule).forEach(([day, periods]) => {
+        if (!periods || !Array.isArray(periods) || periods.length === 0) return;
+        
+        const dayNumber = dayMapping[day];
+        if (!dayNumber) return;
+
+        (periods as string[]).forEach((periodRange, sessionIndex) => {
+          const [start, end] = periodRange.split('-').map(Number);
+          
+          if (isNaN(start) || isNaN(end) || !TIME_SLOTS[start]) return;
+          
+          sessions.push({
+            id: cls.id,
+            subject: cls.subject || cls.name,
+            name: cls.name,
+            time: TIME_SLOTS[start],
+            endTime: END_TIME_SLOTS[end] || "18:00",
+            room: cls.location || 'N/A',
+            studentCount: cls.studentCount,
+            status: cls.status,
+            day: dayNumber,
+            classCode: cls.classCode,
+            periods: periodRange,
+            sessionIndex: sessionIndex
+          });
+        });
+      });
+    });
+
+    return sessions;
+  };
 
   const breadcrumbItems = [
     { title: "Dashboard", href: "/teacher" },
@@ -141,345 +157,220 @@ const TeacherClassPage: React.FC = () => {
   ];
 
   const weekDays = [
-    { key: 1, name: 'Thứ 2', shortName: 'T2' },
-    { key: 2, name: 'Thứ 3', shortName: 'T3' },
-    { key: 3, name: 'Thứ 4', shortName: 'T4' },
-    { key: 4, name: 'Thứ 5', shortName: 'T5' },
-    { key: 5, name: 'Thứ 6', shortName: 'T6' },
-    { key: 6, name: 'Thứ 7', shortName: 'T7' },
-    { key: 7, name: 'Chủ nhật', shortName: 'CN' }
+    { key: 1, name: 'Thứ 2' }, { key: 2, name: 'Thứ 3' },
+    { key: 3, name: 'Thứ 4' }, { key: 4, name: 'Thứ 5' },
+    { key: 5, name: 'Thứ 6' }, { key: 6, name: 'Thứ 7' },
+    { key: 7, name: 'Chủ nhật' }
   ];
 
-  const timeSlots = [
-    { time: '07:30', label: '7:30 - 9:30' },
-    { time: '09:45', label: '9:45 - 11:45' },
-    { time: '13:30', label: '13:30 - 15:30' },
-    { time: '15:45', label: '15:45 - 17:45' }
-  ];
-
-  // Function to navigate to class detail
-  const handleClassClick = (classItem: ClassSession) => {
-    navigate(`/teacher/class/${classItem.id}`, { 
-      state: { 
-        classData: classItem,
-        fromPage: 'class-management'
-      } 
-    });
-  };
-
-  // Function to navigate to create class
-  const handleCreateClass = () => {
-    navigate('/teacher/classes/create');
-  };
-
-  // Function to determine class status based on current time
   const getClassStatus = (classItem: ClassSession) => {
-    const currentDayOfWeek = currentTime.day() === 0 ? 7 : currentTime.day(); // Convert Sunday from 0 to 7
+    const currentDayOfWeek = currentTime.day() === 0 ? 7 : currentTime.day();
     const currentTimeStr = currentTime.format('HH:mm');
     
-    const classStartTime = classItem.time;
-    const classEndTime = getEndTime(classItem.time, classItem.duration);
-    
-    // If it's not the same day, determine based on day comparison
+    if (classItem.status === 'inactive') return 'cancelled';
     if (classItem.day !== currentDayOfWeek) {
       return classItem.day < currentDayOfWeek ? 'completed' : 'upcoming';
     }
     
-    // Same day - check time
-    if (currentTimeStr < classStartTime) {
-      return 'upcoming';
-    } else if (currentTimeStr >= classStartTime && currentTimeStr <= classEndTime) {
-      return 'ongoing';
-    } else {
-      return 'completed';
-    }
+    if (currentTimeStr < classItem.time) return 'upcoming';
+    if (currentTimeStr >= classItem.time && currentTimeStr <= classItem.endTime) return 'ongoing';
+    return 'completed';
   };
 
   const getStatusConfig = (status: string) => {
-    switch(status) {
-      case 'upcoming':
-        return { color: '#3b82f6', text: 'Sắp diễn ra' };
-      case 'ongoing':
-        return { color: '#10b981', text: 'Đang diễn ra' };
-      case 'completed':
-        return { color: '#64748b', text: 'Đã kết thúc' };
-      case 'cancelled':
-        return { color: '#ef4444', text: 'Đã hủy' };
-      default:
-        return { color: '#64748b', text: 'Không xác định' };
+    const configs: Record<string, { color: string; text: string }> = {
+      upcoming: { color: '#3b82f6', text: 'Sắp diễn ra' },
+      ongoing: { color: '#10b981', text: 'Đang diễn ra' },
+      completed: { color: '#64748b', text: 'Đã kết thúc' },
+      cancelled: { color: '#ef4444', text: 'Đã hủy' }
+    };
+    return configs[status] || { color: '#64748b', text: 'Không xác định' };
+  };
+
+  // ✅ Memoize để tránh re-render không cần thiết
+  const getClassesForDay = useMemo(() => {
+    const classesByDay: Record<number, ClassSession[]> = {};
+    
+    for (let day = 1; day <= 7; day++) {
+      classesByDay[day] = classes
+        .filter(cls => cls.day === day)
+        .sort((a, b) => {
+          if (a.time !== b.time) return a.time.localeCompare(b.time);
+          return a.sessionIndex - b.sessionIndex;
+        });
     }
-  };
+    
+    return classesByDay;
+  }, [classes]);
 
-  const getEndTime = (startTime: string, duration: string) => {
-    const start = dayjs(`2024-01-01 ${startTime}`);
-    const end = start.add(parseInt(duration), 'minute');
-    return end.format('HH:mm');
-  };
+  // ✅ Simplified time slot generation
+  const generateTimeSlotsForDay = (day: number): TimeSlot[] => {
+    const dayClasses = getClassesForDay[day] || [];
+    
+    if (dayClasses.length === 0) {
+      return [
+        { time: '07:00', endTime: '12:00', label: '07:00 - 12:00', isEmpty: true },
+        { time: '13:00', endTime: '18:00', label: '13:00 - 18:00', isEmpty: true }
+      ];
+    }
 
-  const getClassesForDay = (day: number) => {
-    return classes.filter(cls => cls.day === day).sort((a, b) => a.time.localeCompare(b.time));
-  };
-
-  // Timeline View Component
-  const TimelineView = () => (
-    <div style={{ overflowX: 'auto' }}>
-      <div style={{ display: 'flex', gap: 16, minWidth: '1400px', paddingBottom: 16 }}>
-        {weekDays.map(day => {
-          const dayClasses = getClassesForDay(day.key);
-          const currentDayOfWeek = currentTime.day() === 0 ? 7 : currentTime.day();
-          const isToday = day.key === currentDayOfWeek;
-          
-          return (
-            <div key={day.key} style={{ flex: '0 0 200px' }}>
-              <Card 
-                title={
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <CalendarOutlined />
-                    <Text strong style={{ color: isToday ? '#10b981' : '#374151' }}>
-                      {day.name}
-                    </Text>
-                    {isToday && (
-                      <Tag color="#10b981" size="small">Hôm nay</Tag>
-                    )}
-                    <Text type="secondary">({dayClasses.length})</Text>
-                  </div>
-                }
-                style={{ 
-                  borderRadius: 12,
-                  height: '100%',
-                  minHeight: 500,
-                  border: isToday ? '2px solid #10b981' : '1px solid #e5e7eb'
-                }}
-                bodyStyle={{ padding: 16 }}
-              >
-                <Timeline mode="left" style={{ marginTop: 8 }}>
-                  {timeSlots.map(slot => {
-                    const classInSlot = dayClasses.find(cls => cls.time === slot.time);
-                    const actualStatus = classInSlot ? getClassStatus(classInSlot) : null;
-                    
-                    // Check if this time slot has passed today
-                    const slotEndTime = slot.time === '07:30' ? '09:30' : 
-                                      slot.time === '09:45' ? '11:45' :
-                                      slot.time === '13:30' ? '15:30' : '17:45';
-                    
-                    const isSlotPassed = isToday && currentTime.format('HH:mm') > slotEndTime;
-                    
-                    return (
-                      <Timeline.Item
-                        key={slot.time}
-                        color={classInSlot ? getStatusConfig(actualStatus).color : (isSlotPassed ? '#d1d5db' : '#e5e7eb')}
-                        dot={classInSlot ? <ClockCircleOutlined /> : null}
-                      >
-                        <div style={{ marginBottom: 16 }}>
-                          <Text strong style={{ 
-                            color: isSlotPassed && !classInSlot ? '#9ca3af' : '#374151',
-                            fontSize: 12
-                          }}>
-                            {slot.label}
-                          </Text>
-                          
-                          {classInSlot ? (
-                            <Card 
-                              size="small" 
-                              hoverable
-                              onClick={() => handleClassClick(classInSlot)}
-                              style={{ 
-                                marginTop: 8,
-                                background: actualStatus === 'ongoing' 
-                                  ? 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)'
-                                  : actualStatus === 'completed'
-                                  ? 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)'
-                                  : 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
-                                border: `1px solid ${getStatusConfig(actualStatus).color}30`,
-                                opacity: actualStatus === 'completed' ? 0.7 : 1,
-                                cursor: 'pointer',
-                                transition: 'all 0.3s ease',
-                                transform: 'scale(1)'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.transform = 'scale(1.02)';
-                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.transform = 'scale(1)';
-                                e.currentTarget.style.boxShadow = 'none';
-                              }}
-                            >
-                              <div style={{ marginBottom: 8 }}>
-                                <Text strong style={{ 
-                                  fontSize: 13,
-                                  color: actualStatus === 'completed' ? '#64748b' : '#1f2937'
-                                }}>
-                                  {classInSlot.subject}
-                                </Text>
-                                <br />
-                                <Space>
-                                  <Tag color={getStatusConfig(actualStatus).color} size="small">
-                                    {getStatusConfig(actualStatus).text}
-                                  </Tag>
-                                  {actualStatus === 'ongoing' && (
-                                    <Tag color="#ef4444" size="small">
-                                      🔴 LIVE
-                                    </Tag>
-                                  )}
-                                </Space>
-                              </div>
-                              
-                              <Space direction="vertical" size={2}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                  <EnvironmentOutlined style={{ color: '#64748b', fontSize: 10 }} />
-                                  <Text type="secondary" style={{ fontSize: 11 }}>
-                                    Phòng {classInSlot.room}
-                                  </Text>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                  <UserOutlined style={{ color: '#64748b', fontSize: 10 }} />
-                                  <Text type="secondary" style={{ fontSize: 11 }}>
-                                    {classInSlot.studentCount}/{classInSlot.maxStudents} SV
-                                  </Text>
-                                </div>
-                              </Space>
-
-                              <div style={{ 
-                                marginTop: 8, 
-                                paddingTop: 8, 
-                                borderTop: '1px solid #e5e7eb',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 4
-                              }}>
-                                <Text style={{ fontSize: 10, color: '#6b7280' }}>
-                                  Click để xem chi tiết
-                                </Text>
-                                <ArrowRightOutlined style={{ fontSize: 10, color: '#6b7280' }} />
-                              </div>
-                            </Card>
-                          ) : (
-                            <div style={{ 
-                              marginTop: 8,
-                              padding: 8,
-                              background: isSlotPassed ? '#f9fafb' : '#f9fafb',
-                              borderRadius: 6,
-                              border: '1px dashed #d1d5db',
-                              opacity: isSlotPassed ? 0.5 : 1
-                            }}>
-                              <Text type="secondary" style={{ fontSize: 11 }}>
-                                {isSlotPassed ? 'Đã qua' : 'Trống'}
-                              </Text>
-                            </div>
-                          )}
-                        </div>
-                      </Timeline.Item>
-                    );
-                  })}
-                </Timeline>
-              </Card>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-
-  // List View Component  
-  const ListView = () => {
-    const classesWithStatus = classes.map(cls => ({
-      ...cls,
-      actualStatus: getClassStatus(cls)
-    }));
-
-    const upcomingClasses = classesWithStatus
-      .filter(cls => cls.actualStatus === 'upcoming' || cls.actualStatus === 'ongoing')
-      .sort((a, b) => {
-        if (a.day !== b.day) return a.day - b.day;
-        return a.time.localeCompare(b.time);
+    const slots: TimeSlot[] = [];
+    
+    dayClasses.forEach(cls => {
+      slots.push({
+        time: cls.time,
+        endTime: cls.endTime,
+        label: `${cls.time} - ${cls.endTime}`,
+        isEmpty: false,
+        classes: [cls]
       });
+    });
+
+    return slots;
+  };
+
+  const formatPeriod = (period: string) => `Tiết ${period}`;
+
+  const TimelineView = () => {
+    if (loading) {
+      return (
+        <div style={{ textAlign: 'center', padding: 48 }}>
+          <Spin size="large" />
+          <Text type="secondary" style={{ marginTop: 16 }}>Đang tải...</Text>
+        </div>
+      );
+    }
+
+    if (classes.length === 0) {
+      return (
+        <Empty description="Chưa có lớp học nào" image={Empty.PRESENTED_IMAGE_SIMPLE}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/teacher/classes/create')}>
+            Tạo lớp học đầu tiên
+          </Button>
+        </Empty>
+      );
+    }
+
+    const currentDayOfWeek = currentTime.day() === 0 ? 7 : currentTime.day();
 
     return (
-      <Row gutter={[16, 16]}>
-        {upcomingClasses.map(cls => (
-          <Col xs={24} sm={12} lg={8} key={cls.id}>
-            <Card
-              hoverable
-              onClick={() => handleClassClick(cls)}
-              style={{ 
-                borderRadius: 12,
-                border: `2px solid ${getStatusConfig(cls.actualStatus).color}20`,
-                cursor: 'pointer'
-              }}
-              bodyStyle={{ padding: 20 }}
-            >
-              <div style={{ marginBottom: 12 }}>
-                <Text strong style={{ fontSize: 16, color: '#1f2937' }}>
-                  {cls.subject}
-                </Text>
-                <br />
-                <Space style={{ marginTop: 4 }}>
-                  <Tag color={getStatusConfig(cls.actualStatus).color}>
-                    {getStatusConfig(cls.actualStatus).text}
-                  </Tag>
-                  {cls.actualStatus === 'ongoing' && (
-                    <Tag color="#ef4444" size="small">
-                      🔴 LIVE
-                    </Tag>
-                  )}
-                </Space>
-              </div>
-
-              <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <CalendarOutlined style={{ color: '#6b7280' }} />
-                  <Text>{weekDays.find(d => d.key === cls.day)?.name}</Text>
-                </div>
-                
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <ClockCircleOutlined style={{ color: '#6b7280' }} />
-                  <Text>{cls.time} - {getEndTime(cls.time, cls.duration)}</Text>
-                </div>
-                
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <EnvironmentOutlined style={{ color: '#6b7280' }} />
-                  <Text>Phòng {cls.room}</Text>
-                </div>
-                
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <UserOutlined style={{ color: '#6b7280' }} />
-                  <Text>{cls.studentCount}/{cls.maxStudents} sinh viên</Text>
-                </div>
-              </Space>
-
-              <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #e5e7eb' }}>
-                <Button 
-                  type="primary" 
-                  block
-                  icon={<ArrowRightOutlined />}
-                  style={{
-                    background: cls.actualStatus === 'ongoing' ? '#10b981' : undefined,
-                    borderColor: cls.actualStatus === 'ongoing' ? '#10b981' : undefined
+      <div style={{ overflowX: 'auto' }}>
+        <div style={{ display: 'flex', gap: 16, minWidth: '1400px', paddingBottom: 16 }}>
+          {weekDays.map(day => {
+            const dayClasses = getClassesForDay[day.key] || [];
+            const timeSlots = generateTimeSlotsForDay(day.key);
+            const isToday = day.key === currentDayOfWeek;
+            
+            return (
+              <div key={day.key} style={{ flex: '0 0 200px' }}>
+                <Card 
+                  title={
+                    <Space>
+                      <CalendarOutlined />
+                      <Text strong style={{ color: isToday ? '#10b981' : '#374151' }}>
+                        {day.name}
+                      </Text>
+                      {isToday && <Tag color="#10b981" size="small">Hôm nay</Tag>}
+                      <Text type="secondary">({dayClasses.length})</Text>
+                    </Space>
+                  }
+                  style={{ 
+                    borderRadius: 12,
+                    minHeight: 500,
+                    border: isToday ? '2px solid #10b981' : '1px solid #e5e7eb'
                   }}
+                  bodyStyle={{ padding: 16 }}
                 >
-                  {cls.actualStatus === 'ongoing' ? 'Vào lớp học' : 'Xem chi tiết'}
-                </Button>
+                  <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                    {timeSlots.map((slot, idx) => (
+                      <div key={idx}>
+                        <Text strong style={{ fontSize: 12, color: '#374151' }}>
+                          {slot.label}
+                        </Text>
+                        
+                        {!slot.isEmpty && slot.classes ? (
+                          slot.classes.map((cls) => {
+                            const actualStatus = getClassStatus(cls);
+                            const statusConfig = getStatusConfig(actualStatus);
+                            
+                            return (
+                              <Card 
+                                key={`${cls.id}-${cls.sessionIndex}`}
+                                size="small"
+                                hoverable
+                                onClick={() => navigate(`/teacher/class/${cls.id}`, { state: { classId: cls.id } }) }
+                                style={{ 
+                                  marginTop: 8,
+                                  background: actualStatus === 'ongoing' 
+                                    ? 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)'
+                                    : '#f8fafc',
+                                  border: `1px solid ${statusConfig.color}30`,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                                  <Text strong style={{ fontSize: 13 }}>{cls.subject}</Text>
+                                  
+                                  <Text type="secondary" style={{ fontSize: 11 }}>{cls.name}</Text>
+                                  
+                                  <Space wrap size={4}>
+                                    <Tag color={statusConfig.color} size="small">{statusConfig.text}</Tag>
+                                    {actualStatus === 'ongoing' && <Tag color="#ef4444" size="small">🔴 LIVE</Tag>}
+                                  </Space>
+                                  
+                                  <Space direction="vertical" size={2}>
+                                    <Text type="secondary" style={{ fontSize: 11 }}>
+                                      <ClockCircleOutlined /> {cls.time} - {cls.endTime}
+                                    </Text>
+                                    <Text type="secondary" style={{ fontSize: 11 }}>
+                                      <BookOutlined /> {formatPeriod(cls.periods)}
+                                    </Text>
+                                    <Text type="secondary" style={{ fontSize: 11 }}>
+                                      <EnvironmentOutlined /> Phòng {cls.room}
+                                    </Text>
+                                    <Text type="secondary" style={{ fontSize: 11 }}>
+                                      <UserOutlined /> {cls.studentCount} SV
+                                    </Text>
+                                  </Space>
+                                </Space>
+                              </Card>
+                            );
+                          })
+                        ) : (
+                          <div style={{ 
+                            marginTop: 8, padding: 8, background: '#f9fafb',
+                            borderRadius: 6, border: '1px dashed #d1d5db'
+                          }}>
+                            <Text type="secondary" style={{ fontSize: 11 }}>Trống</Text>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </Space>
+                </Card>
               </div>
-            </Card>
-          </Col>
-        ))}
-      </Row>
+            );
+          })}
+        </div>
+      </div>
     );
   };
 
   // Statistics
-  const classesWithStatus = classes.map(cls => ({
-    ...cls,
-    actualStatus: getClassStatus(cls)
-  }));
-
-  const totalClasses = classes.length;
-  const upcomingClasses = classesWithStatus.filter(c => c.actualStatus === 'upcoming').length;
-  const ongoingClasses = classesWithStatus.filter(c => c.actualStatus === 'ongoing').length;
-  const totalStudents = classes.reduce((sum, cls) => sum + cls.studentCount, 0);
-  const avgStudentsPerClass = (totalStudents / totalClasses).toFixed(0);
+  const uniqueClasses = useMemo(() => Array.from(new Set(classes.map(c => c.id))), [classes]);
+  const totalClasses = uniqueClasses.length;
+  
+  const statistics = useMemo(() => {
+    const classesWithStatus = classes.map(cls => ({ ...cls, actualStatus: getClassStatus(cls) }));
+    return {
+      upcoming: classesWithStatus.filter(c => c.actualStatus === 'upcoming').length,
+      ongoing: classesWithStatus.filter(c => c.actualStatus === 'ongoing').length,
+      total: totalClasses,
+      avgStudents: totalClasses > 0 
+        ? (uniqueClasses.reduce((sum, id) => sum + (classes.find(c => c.id === id)?.studentCount || 0), 0) / totalClasses).toFixed(0)
+        : 0
+    };
+  }, [classes, uniqueClasses, totalClasses]);
 
   return (
     <div style={{ 
@@ -487,131 +378,74 @@ const TeacherClassPage: React.FC = () => {
       background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)", 
       padding: "32px 48px" 
     }}>
-      {/* Breadcrumb */}
       <Breadcrumb items={breadcrumbItems} />
 
-      {/* Header */}
-      <div style={{ 
-        display: "flex", 
-        justifyContent: "space-between", 
-        alignItems: "flex-start", 
-        marginBottom: 32 
-      }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 }}>
         <div style={{ flex: 1 }}>
-          <Title level={1} style={{ 
-            marginBottom: 8, 
-            color: "#2563eb",
-            fontSize: 36,
-            fontWeight: 700
-          }}>
+          <Title level={1} style={{ marginBottom: 8, color: "#2563eb", fontSize: 36, fontWeight: 700 }}>
             📚 Class Management
           </Title>
-          <Text style={{ 
-            fontSize: 18, 
-            color: "#64748b"
-          }}>
-            Quản lý lịch học và thông tin các lớp học
-          </Text>
+          <Text style={{ fontSize: 18, color: "#64748b" }}>Quản lý lịch học và thông tin các lớp học</Text>
           <br />
-          <Text style={{ 
-            fontSize: 14, 
-            color: "#10b981",
-            fontWeight: 500
-          }}>
+          <Text style={{ fontSize: 14, color: "#10b981", fontWeight: 500 }}>
             🕐 Hiện tại: {currentTime.format('dddd, DD/MM/YYYY HH:mm')}
           </Text>
         </div>
 
-        <Space size={16}>
+        <Space size={16} wrap>
           <Button 
-            type="primary"
-            icon={<PlusOutlined />}
-            size="large"
-            onClick={handleCreateClass}
+            type="primary" icon={<PlusOutlined />} size="large"
+            onClick={() => navigate('/teacher/classes/create')}
             style={{ 
-              borderRadius: 8,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              border: 'none',
-              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
-              fontWeight: 600
+              borderRadius: 8, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              border: 'none', boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)', fontWeight: 600
             }}
           >
             Tạo lớp học mới
           </Button>
           
           <Select
-            value={selectedWeek}
-            onChange={setSelectedWeek}
-            style={{ width: 150 }}
-            size="large"
+            value={filterStatus || 'all'}
+            onChange={(value) => setFilterStatus(value === 'all' ? null : value as 'active' | 'inactive')}
+            style={{ width: 150 }} size="large"
           >
-            <Select.Option value="current">Tuần hiện tại</Select.Option>
-            <Select.Option value="next">Tuần tới</Select.Option>
+            <Select.Option value="all">Tất cả</Select.Option>
+            <Select.Option value="active">Đang hoạt động</Select.Option>
+            <Select.Option value="inactive">Đã tắt</Select.Option>
           </Select>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Text>Timeline</Text>
-            <Switch 
-              checked={viewMode === 'list'}
-              onChange={(checked) => setViewMode(checked ? 'list' : 'timeline')}
-            />
-            <Text>List</Text>
-          </div>
         </Space>
       </div>
 
-      {/* Statistics */}
       <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
-            <Statistic
-              title="Tổng lớp học"
-              value={totalClasses}
-              prefix={<BookOutlined />}
-              valueStyle={{ color: '#2563eb', fontSize: 24 }}
-            />
+            <Statistic title="Tổng lớp học" value={statistics.total} prefix={<BookOutlined />} 
+              valueStyle={{ color: '#2563eb', fontSize: 24 }} />
           </Card>
         </Col>
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
-            <Statistic
-              title="Đang diễn ra"
-              value={ongoingClasses}
-              prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#10b981', fontSize: 24 }}
-            />
+            <Statistic title="Ca đang diễn ra" value={statistics.ongoing} prefix={<ClockCircleOutlined />}
+              valueStyle={{ color: '#10b981', fontSize: 24 }} />
           </Card>
         </Col>
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
-            <Statistic
-              title="Sắp diễn ra"
-              value={upcomingClasses}
-              prefix={<CalendarOutlined />}
-              valueStyle={{ color: '#f59e42', fontSize: 24 }}
-            />
+            <Statistic title="Ca sắp diễn ra" value={statistics.upcoming} prefix={<CalendarOutlined />}
+              valueStyle={{ color: '#f59e0b', fontSize: 24 }} />
           </Card>
         </Col>
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
-            <Statistic
-              title="TB sinh viên/lớp"
-              value={avgStudentsPerClass}
+            <Statistic title="TB sinh viên/lớp" value={statistics.avgStudents}
               prefix={<Avatar size="small" icon={<UserOutlined />} />}
-              valueStyle={{ color: '#8b5cf6', fontSize: 24 }}
-            />
+              valueStyle={{ color: '#8b5cf6', fontSize: 24 }} />
           </Card>
         </Col>
       </Row>
 
-      {/* Content */}
-      <Card style={{
-        borderRadius: 16,
-        boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-        border: "none",
-        padding: 16
-      }}>
-        {viewMode === 'timeline' ? <TimelineView /> : <ListView />}
+      <Card style={{ borderRadius: 16, boxShadow: "0 4px 20px rgba(0,0,0,0.08)", border: "none", padding: 16 }}>
+        <TimelineView />
       </Card>
     </div>
   );

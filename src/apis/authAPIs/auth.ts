@@ -33,6 +33,8 @@ export interface UserResponse {
   created_at: string;
   // Role-specific info
   teacher_code?: string | null;
+  teacher_id?: number | null;
+  student_id?: number | null;
   department?: string | null;
   student_code?: string | null;
   major?: string | null;
