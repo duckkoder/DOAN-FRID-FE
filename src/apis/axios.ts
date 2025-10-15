@@ -188,6 +188,18 @@ api.interceptors.response.use(
 
     if (!original) return Promise.reject(error);
 
+    // ✅ CHECK: Nếu là auth endpoints → KHÔNG refresh, return error luôn
+    const isAuthEndpoint =
+      original.url?.includes("/auth/login") ||
+      original.url?.includes("/auth/register") ||
+      original.url?.includes("/auth/refresh");
+
+    if (isAuthEndpoint) {
+      // ❌ Đây là login/register/refresh fail → KHÔNG cần refresh token
+      return Promise.reject(error);
+    }
+
+    // ✅ Chỉ refresh cho NON-auth endpoints khi gặp 401
     if (status === 401 && !original._retry) {
       original._retry = true;
       try {
@@ -196,17 +208,14 @@ api.interceptors.response.use(
         (original.headers as AxiosHeaders).set("Authorization", `Bearer ${access}`);
         return api(original);
       } catch (e) {
-        // Nếu request gốc là login thì KHÔNG redirect
-        if (original.url?.includes("/auth")) {
-          return Promise.reject(e);
-        }
-
+        // Refresh failed → clear và redirect
         try {
           deleteCookie(AUTH_COOKIE);
         } catch {
           /* ignore */
         }
         volatileAccessToken = null;
+        persistedAuthCache = null;
 
         const next = encodeURIComponent(
           (typeof window !== "undefined"

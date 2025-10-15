@@ -1,86 +1,221 @@
 import React from "react";
 import { Menu } from "antd";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
-  PieChartOutlined,
-  FileTextOutlined,
+  DashboardOutlined,
   TeamOutlined,
   UserOutlined,
-  BookOutlined,
+  FileTextOutlined,
+  CalendarOutlined,
   LogoutOutlined,
-  BarChartOutlined,
-  CheckCircleOutlined
+  RobotOutlined,
+  CameraOutlined,
 } from "@ant-design/icons";
 
-const iconMap: Record<string, React.ReactNode> = {
-  Dashboard: <PieChartOutlined />,
-  Attendance: <CheckCircleOutlined />,
-  Absence: <FileTextOutlined />,
-  Report: <BarChartOutlined />,
-  Teacher: <TeamOutlined />,
-  Student: <UserOutlined />,
-  Subject: <BookOutlined />,
-  Logout: <LogoutOutlined />
-};
-
-type Section = {
+type LeftBarItem = {
+  key: string;
   label: string;
-  items: { key: string; label: string; icon?: React.ReactNode; path?: string }[];
+  path: string;
+  action?: string;
 };
 
-interface LeftBarProps {
-  sections: Section[];
-  onMenuClick?: (key: string, path?: string) => void;
-}
+type LeftBarSection = {
+  label: string;
+  items: LeftBarItem[];
+};
 
-const LeftBar: React.FC<LeftBarProps> = ({ sections, onMenuClick }) => {
+type LeftBarProps = {
+  sections: LeftBarSection[];
+  onLogout?: () => void;
+};
+
+const iconMap: Record<string, React.ReactNode> = {
+  dashboard: <DashboardOutlined />,
+  teachers: <TeamOutlined />,
+  students: <UserOutlined />,
+  class: <CalendarOutlined />,
+  classes: <CalendarOutlined />,
+  report: <FileTextOutlined />,
+  reports: <FileTextOutlined />,
+  leave: <FileTextOutlined />,
+  attendance: <CalendarOutlined />,
+  registerFace: <CameraOutlined />,
+  modalai: <RobotOutlined />,
+  logout: <LogoutOutlined />,
+};
+
+const LeftBar: React.FC<LeftBarProps> = ({ sections, onLogout }) => {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleClick = (key: string, path?: string) => {
-    if (path) {
-      navigate(path);
+  const handleMenuClick = (item: LeftBarItem) => {
+    if (item.action === "logout") {
+      onLogout?.();
+    } else {
+      navigate(item.path);
     }
-    onMenuClick?.(key, path);
   };
 
+  const menuItems = sections.map((section, sectionIndex) => ({
+    key: `section-${sectionIndex}`,
+    label: section.label,
+    type: "group" as const,
+    children: section.items.map((item) => ({
+      key: item.key,
+      label: item.label,
+      icon: iconMap[item.key] || <DashboardOutlined />,
+      onClick: () => handleMenuClick(item),
+      danger: item.action === "logout",
+    })),
+  }));
+
+  const selectedKey = sections
+    .flatMap((s) => s.items)
+    .find((item) => location.pathname === item.path)?.key;
+
   return (
-    <div style={{
-      width: 240,
-      background: "#fff",
-      borderRight: "2px solid #a78bfa",
-      minHeight: "100vh",
-      paddingTop: 16,
-      boxSizing: "border-box"
-    }}>
-      {sections.map((section, idx) => (
-        <div key={section.label} style={{ marginBottom: 24 }}>
-          <div style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#a78bfa",
-            margin: "12px 0 8px 18px",
-            letterSpacing: 1
-          }}>
-            {section.label.toUpperCase()}
-          </div>
-          <Menu
-            mode="inline"
-            style={{ border: "none", background: "transparent" }}
-            selectable={false}
-          >
-            {section.items.map(item => (
-              <Menu.Item
-                key={item.key}
-                icon={item.icon || iconMap[item.label] || <PieChartOutlined />}
-                onClick={() => handleClick(item.key, item.path)}
-                style={{ fontWeight: 500, color: "#2563eb", borderRadius: 8, margin: "2px 0" }}
-              >
-                {item.label}
-              </Menu.Item>
-            ))}
-          </Menu>
-        </div>
-      ))}
+    <div
+      style={{
+        width: 260,
+        minWidth: 260,
+        maxWidth: 260,
+        flexShrink: 0, // Không cho co lại
+        background: "#fff",
+        borderRight: "1px solid #e8e8e8",
+        height: "100%",
+        overflow: "hidden", // Tránh content làm tràn
+      }}
+    >
+      <style>
+        {`
+          /* Group title */
+          .ant-menu-item-group-title {
+            padding: 16px 24px 8px 24px !important;
+            font-size: 11px !important;
+            font-weight: 600 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
+            color: #8c8c8c !important;
+            margin-top: 8px !important;
+          }
+
+          /* Menu item base */
+          .ant-menu-item {
+            margin: 4px 12px !important;
+            border-radius: 8px !important;
+            padding: 10px 16px !important;
+            height: auto !important;
+            transition: all 0.2s ease !important;
+            white-space: nowrap !important; /* Không wrap text */
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+          }
+
+          /* Icon và Text */
+          .ant-menu-item .anticon {
+            font-size: 16px !important;
+            margin-right: 12px !important;
+            transition: color 0.2s ease !important;
+            flex-shrink: 0 !important; /* Icon không co lại */
+          }
+
+          .ant-menu-item .ant-menu-title-content {
+            font-size: 14px !important;
+            font-weight: 500 !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+          }
+
+          /* Hover - Nhẹ nhàng */
+          .ant-menu-item:hover {
+            background: #e6f4ff !important;
+          }
+
+          .ant-menu-item:hover .anticon {
+            color: #1890ff !important;
+          }
+
+          .ant-menu-item:hover .ant-menu-title-content {
+            color: #1890ff !important;
+          }
+
+          /* Selected/Active item */
+          .ant-menu-item-selected {
+            background: #1890ff !important;
+            color: #ffffff !important;
+          }
+
+          .ant-menu-item-selected .anticon,
+          .ant-menu-item-selected .ant-menu-title-content {
+            color: #ffffff !important;
+          }
+
+          .ant-menu-item-selected::before {
+            content: '' !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            width: 4px !important;
+            height: 20px !important;
+            background: #ffffff !important;
+            border-radius: 0 2px 2px 0 !important;
+          }
+
+          /* Logout hover */
+          .ant-menu-item-danger:hover:not(.ant-menu-item-selected) {
+            background: #fff1f0 !important;
+            color: #ff4d4f !important;
+          }
+
+          .ant-menu-item-danger:hover:not(.ant-menu-item-selected) .anticon {
+            color: #ff4d4f !important;
+          }
+
+          .ant-menu-item-danger:hover:not(.ant-menu-item-selected) .ant-menu-title-content {
+            color: #ff4d4f !important;
+          }
+
+          /* Remove default styles */
+          .ant-menu-inline {
+            border-right: none !important;
+            width: 260px !important; /* Fix cứng width */
+          }
+
+          .ant-menu-inline .ant-menu-item::after {
+            border-right: none !important;
+          }
+
+          /* Scrollbar */
+          .ant-menu-inline::-webkit-scrollbar {
+            width: 6px;
+          }
+
+          .ant-menu-inline::-webkit-scrollbar-thumb {
+            background: #d9d9d9;
+            border-radius: 3px;
+          }
+
+          .ant-menu-inline::-webkit-scrollbar-thumb:hover {
+            background: #bfbfbf;
+          }
+        `}
+      </style>
+
+      <Menu
+        mode="inline"
+        selectedKeys={selectedKey ? [selectedKey] : []}
+        style={{ 
+          height: "100%",
+          width: 260, // Fix cứng width
+          borderRight: 0,
+          background: "transparent",
+          paddingTop: 8,
+          paddingBottom: 8,
+        }}
+        items={menuItems}
+      />
     </div>
   );
 };

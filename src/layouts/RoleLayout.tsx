@@ -1,8 +1,11 @@
 import React, { useContext } from "react";
-import { Outlet, Navigate } from "react-router-dom";
+import { Outlet, Navigate, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import { logout as apiLogout } from "../apis/authAPIs/auth";
+import getRefreshToken from "../apis/axios";
 import Header from "../components/Header";
 import LeftBar from "../components/LeftBar";
+import { message } from "antd";
 
 const leftBarConfig = {
   "admin": [ // Admin
@@ -17,34 +20,29 @@ const leftBarConfig = {
     {
       label: "Actions",
       items: [
-        { key: "logout", label: "Logout", path: "/auth" }
+        { key: "logout", label: "Logout", path: "/auth", action: "logout" }
       ]
     }
   ],
   "teacher": [ // Teacher
     {
-      label: "Track",
-      items: [
-        { key: "attendance", label: "Attendance", path: "/teacher/attendance" }
-      ]
-    },
-    {
       label: "Analyse",
       items: [
-        { key: "dashboard", label: "Dashboard", path: "/teacher/classes" },
-        { key: "report", label: "Report", path: "/teacher/reports" }
+        { key: "dashboard", label: "Dashboard", path: "/teacher" },
       ]
     },
     {
       label: "Manage",
       items: [
-        { key: "student", label: "Student", path: "/teacher/student" }
+        { key: "class", label: "Class", path: "/teacher/classes" },
+        { key: "report", label: "Report", path: "/teacher/reports" },
+        { key: "leave", label: "Leave Request", path: "/teacher/leave-requests" }
       ]
     },
     {
       label: "Actions",
       items: [
-        { key: "logout", label: "Logout", path: "/auth" }
+        { key: "logout", label: "Logout", path: "/auth", action: "logout" }
       ]
     }
   ],
@@ -52,46 +50,74 @@ const leftBarConfig = {
     {
       label: "Track",
       items: [
+        { key: "classes", label: "Classes", path: "/student/classes" },
         { key: "attendance", label: "Attendance", path: "/student/attendance" }
       ]
     },
     {
       label: "Analyse",
       items: [
-        { key: "dashboard", label: "Dashboard", path: "/student/classes" },
+        { key: "dashboard", label: "Dashboard", path: "/student" },
         { key: "report", label: "Report", path: "/student/reports" }
       ]
     },
     {
       label: "Actions",
       items: [
-        { key: "logout", label: "Logout", path: "/auth" }
+        { key: "registerFace", label: "Register Face", path: "/student/register-face" },
+        { key: "logout", label: "Logout", path: "/auth", action: "logout" }
       ]
     }
   ]
 };
 
 const RoleLayout: React.FC = () => {
-  const { user } = useContext(AuthContext);
+  const auth = useContext(AuthContext);
+  const navigate = useNavigate();
+  const user = auth?.user;
 
   if (!user) return <Navigate to="/auth" />;
 
-  // Điều hướng về đúng trang home theo role
-  if (window.location.pathname === "/") {
-    if (user.role === "admin") return <Navigate to="/admin" />;
-    if (user.role === "teacher") return <Navigate to="/teacher" />;
-    if (user.role === "student") return <Navigate to="/student" />;
-  }
+  // Handler cho logout
+  const handleLogout = async () => {
+    try {
+      const refreshToken = getRefreshToken();
+      
+      if (refreshToken) {
+        // Call logout API
+        await apiLogout({ refresh_token: refreshToken });
+      }
+      
+      // Clear auth context
+      auth?.logout();
+      
+      message.success("Đăng xuất thành công!");
+      
+      // Redirect to login
+      navigate("/auth");
+      
+    } catch (error) {
+      console.error("Logout error:", error);
+      
+      // Vẫn clear auth và redirect dù API fail
+      auth?.logout();
+      message.warning("Đã đăng xuất");
+      navigate("/auth");
+    }
+  };
 
   // Chọn leftBarSections và username theo role
-  const leftBarSections = leftBarConfig[user.role as 1 | 2 | 3] || [];
-  const username = user.name || user.username || "User";
+  const leftBarSections = leftBarConfig[user.role as "admin" | "teacher" | "student"] || [];
+  const username = user.full_name;
 
   return (
     <div style={{ minHeight: "100vh", background: "#f6f9fc", display: "flex", flexDirection: "column" }}>
       <Header username={username} />
       <div style={{ display: "flex", flex: 1 }}>
-        <LeftBar sections={leftBarSections} />
+        <LeftBar 
+          sections={leftBarSections} 
+          onLogout={handleLogout}
+        />
         <div style={{ flex: 1 }}>
           <Outlet />
         </div>
