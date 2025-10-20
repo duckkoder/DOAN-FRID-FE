@@ -51,6 +51,8 @@ import {
   type UpdateClassRequest,
   type ApiError
 } from "../../apis/classesAPIs/teacherClass";
+import AttendanceCamera from "../../components/AttendanceCamera";
+import type { EndSessionResponse } from "../../apis/attendanceAPIs/attendanceAPIs";
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -199,6 +201,9 @@ const ClassDetailPage: React.FC = () => {
   const [isAttendanceModalVisible, setIsAttendanceModalVisible] = useState(false);
   const [selectedAttendanceSession, setSelectedAttendanceSession] = useState<UpcomingSession | null>(null);
   const [upcomingSessions, setUpcomingSessions] = useState<UpcomingSession[]>([]);
+  
+  // ✅ Add state for attendance camera
+  const [isAttendanceCameraVisible, setIsAttendanceCameraVisible] = useState(false);
 
   const weekDays = [
     { value: 1, label: "Thứ 2" },
@@ -461,10 +466,10 @@ const ClassDetailPage: React.FC = () => {
           status: cls.status === "inactive" ? "inactive" : "active",
           teacher: cls.teacher || "N/A",
           teacherId: cls.teacherId || 0,
-          maxStudents: cls.maxStudents || 30,
+          maxStudents: 30, // Default value
           studentCount: cls.students || 0,
-          schedule: cls.schedule || {},
-          attendanceStats: refreshedData.data.attendanceStats
+          schedule: cls.schedule as Record<string, string[]> || {},
+          attendanceStats: refreshedData.data.attendance
         };
         setClassData(mapped);
       }
@@ -608,19 +613,57 @@ const ClassDetailPage: React.FC = () => {
     setIsAttendanceModalVisible(true);
   };
 
-  // ✅ Handle start attendance
+  // ✅ Handle start attendance with camera
   const handleStartAttendance = () => {
     if (!selectedAttendanceSession) {
       message.warning('Vui lòng chọn buổi học để bắt đầu điểm danh!');
       return;
     }
 
-    // TODO: Navigate to attendance page or start attendance session
-    message.info(`Bắt đầu điểm danh cho ${selectedAttendanceSession.dayLabel}, ${selectedAttendanceSession.periods}`);
-    console.log('Selected session:', selectedAttendanceSession);
-    
-    // Close modal
+    // Close selection modal
     setIsAttendanceModalVisible(false);
+    
+    // Open camera modal
+    setIsAttendanceCameraVisible(true);
+  };
+
+  // ✅ Handle session end
+  const handleSessionEnd = async (result: EndSessionResponse) => {
+    message.success(
+      `Kết thúc phiên điểm danh!\nTổng: ${result.total_students} | ` +
+      `Có mặt: ${result.present_count} | Trễ: ${result.late_count} | Vắng: ${result.absent_count}`
+    );
+    
+    setIsAttendanceCameraVisible(false);
+    
+    // ✅ Fetch lại dữ liệu lớp học để cập nhật trạng thái và thống kê
+    if (classId) {
+      try {
+        const res: GetClassDetailsResponse = await getClassDetails(classId);
+        const cls = res?.data?.class;
+        if (cls) {
+          const mapped: ClassData = {
+            id: cls.id,
+            subject: cls.subject || "Không tên",
+            classCode: cls.classCode || "",
+            description: cls.description || "",
+            room: cls.room || "N/A",
+            status: cls.status === "inactive" ? "inactive" : "active",
+            teacher: cls.teacher || "N/A",
+            teacherId: cls.teacherId || 0,
+            maxStudents: 30, // Default value
+            studentCount: cls.students || 0,
+            schedule: cls.schedule as Record<string, string[]> || {},
+            attendanceStats: res.data.attendance
+          };
+          setClassData(mapped);
+          message.success('Đã cập nhật thông tin lớp học!');
+        }
+      } catch (err: any) {
+        console.error("Failed to refresh class details:", err);
+        message.warning('Không thể cập nhật thông tin lớp học. Vui lòng làm mới trang.');
+      }
+    }
   };
 
   // Fetch class details when page loads / classId changes
@@ -654,10 +697,10 @@ const ClassDetailPage: React.FC = () => {
           status: cls.status === "inactive" ? "inactive" : "active",
           teacher: cls.teacher || "N/A",
           teacherId: cls.teacherId || 0,
-          maxStudents: cls.maxStudents || 30,
+          maxStudents: 30, // Default value, backend doesn't have this field
           studentCount: cls.students || 0,
-          schedule: cls.schedule || {},
-          attendanceStats: res.data.attendanceStats
+          schedule: cls.schedule as Record<string, string[]> || {},
+          attendanceStats: res.data.attendance
         };
 
         setClassData(mapped);
@@ -1928,6 +1971,16 @@ const ClassDetailPage: React.FC = () => {
           )}
         </div>
       </Modal>
+
+      {/* Attendance Camera Modal */}
+      {classData && (
+        <AttendanceCamera
+          classId={classData.id}
+          visible={isAttendanceCameraVisible}
+          onClose={() => setIsAttendanceCameraVisible(false)}
+          onSessionEnd={handleSessionEnd}
+        />
+      )}
     </div>
   );
 };
