@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Typography, 
   Card, 
@@ -11,128 +11,217 @@ import {
   Form,
   Input,
   message,
+  Spin,
+  Empty,
+  Alert,
+  Divider,
   Tooltip
 } from "antd";
 import { 
   PlusOutlined, 
-  StarOutlined, 
-  StarFilled, 
-  UserOutlined,
   CalendarOutlined,
-  EyeOutlined
+  EyeOutlined,
+  ReloadOutlined,
+  ExclamationCircleOutlined,
+  EnvironmentOutlined,
+  BookOutlined,
+  ClockCircleOutlined,
+  UserOutlined,
+  FileTextOutlined
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import Breadcrumb from "../../components/Breadcrumb";
+import { 
+  joinClass, 
+  getStudentClasses,
+  validateClassCode,
+  type StudentClassItem,
+  type ApiError 
+} from "../../apis/classesAPIs/studentClass";
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 
 interface ClassData {
-  id: string;
+  id: number;
   name: string;
   teacher: string;
   students: number;
-  schedule: string;
-  isPinned: boolean;
-  status: 'active' | 'completed' | 'upcoming';
+  schedule: Record<string, string[]>;
+  status: 'active' | 'inactive';
+  classCode: string;
+  location: string | null;
+  description: string | null;
+  createdAt: string;
 }
+
+// ✅ Time slots mapping
+const TIME_SLOTS: Record<number, { start: string; end: string }> = {
+  1: { start: "07:00", end: "07:50" },
+  2: { start: "08:00", end: "08:50" },
+  3: { start: "09:00", end: "09:50" },
+  4: { start: "10:00", end: "10:50" },
+  5: { start: "11:00", end: "11:50" },
+  6: { start: "13:00", end: "13:50" },
+  7: { start: "14:00", end: "14:50" },
+  8: { start: "15:00", end: "15:50" },
+  9: { start: "16:00", end: "16:50" },
+  10: { start: "17:00", end: "17:50" },
+};
 
 const StudentClassPage: React.FC = () => {
   const navigate = useNavigate();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
-  const [classes, setClasses] = useState<ClassData[]>([
-    {
-      id: "1",
-      name: "Advanced Java Programming",
-      teacher: "Dr. Nguyen Van A",
-      students: 45,
-      schedule: "Mon, Wed, Fri - 9:00 AM",
-      isPinned: true,
-      status: 'active'
-    },
-    {
-      id: "2", 
-      name: "Database Design",
-      teacher: "Prof. Tran Thi B",
-      students: 38,
-      schedule: "Tue, Thu - 2:00 PM",
-      isPinned: false,
-      status: 'active'
-    },
-    {
-      id: "3",
-      name: "Web Development",
-      teacher: "Mr. Le Van C",
-      students: 52,
-      schedule: "Mon, Wed - 3:30 PM",
-      isPinned: false,
-      status: 'upcoming'
-    }
-  ]);
+  
+  // ✅ State management
+  const [classes, setClasses] = useState<ClassData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [joinLoading, setJoinLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [joinError, setJoinError] = useState<string | null>(null);
 
   const breadcrumbItems = [
     { title: "Dashboard", href: "/student" },
     { title: "Classes" }
   ];
 
-  const handleJoinClass = (values: any) => {
-    console.log("Join class with code:", values.classCode);
-    message.success("Đã gửi yêu cầu tham gia lớp học!");
-    setIsModalVisible(false);
-    form.resetFields();
+  // ✅ Fetch student classes on mount
+  useEffect(() => {
+    fetchClasses();
+  }, []);
+
+  // ✅ Fetch classes from API
+  const fetchClasses = async (statusFilter?: 'active' | 'inactive') => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await getStudentClasses(statusFilter);
+      
+      const mappedClasses: ClassData[] = response.data.classes.map((cls: StudentClassItem) => ({
+        id: cls.id,
+        name: cls.className,
+        teacher: cls.teacherName,
+        students: 0,
+        schedule: cls.schedule,
+        status: cls.isActive ? 'active' : 'inactive',
+        classCode: cls.classCode,
+        location: cls.location,
+        description: cls.description,
+        createdAt: cls.createdAt
+      }));
+
+      setClasses(mappedClasses);
+    } catch (err: any) {
+      console.error('Failed to fetch classes:', err);
+      const apiError = err as ApiError;
+      const errorMsg = apiError.message || 'Không thể tải danh sách lớp học';
+      setError(errorMsg);
+      message.error(errorMsg);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const togglePin = (classId: string) => {
-    setClasses(prev => 
-      prev.map(cls => 
-        cls.id === classId 
-          ? { ...cls, isPinned: !cls.isPinned }
-          : cls
-      )
-    );
-    message.success("Đã cập nhật trạng thái ghim lớp học!");
+  // ✅ Handle join class
+  const handleJoinClass = async (values: { classCode: string }) => {
+    const classCode = values.classCode.trim().toUpperCase();
+
+    if (!validateClassCode(classCode)) {
+      message.error('Mã lớp học không hợp lệ! Mã phải có 9 ký tự (A-Z, 0-9)');
+      return;
+    }
+
+    setJoinLoading(true);
+    setJoinError(null);
+
+    try {
+      const response = await joinClass(classCode);
+      
+      message.success({
+        content: response.message || 'Đã tham gia lớp học thành công!',
+        duration: 3
+      });
+
+      setIsModalVisible(false);
+      form.resetFields();
+      await fetchClasses();
+    } catch (err: any) {
+      console.error('Failed to join class:', err);
+      const apiError = err as ApiError;
+      
+      let errorMsg = apiError.message || 'Không thể tham gia lớp học';
+      
+      if (apiError.statusCode === 404) {
+        errorMsg = 'Không tìm thấy lớp học với mã này!';
+      } else if (apiError.statusCode === 400) {
+        errorMsg = apiError.message || 'Bạn đã tham gia lớp học này rồi!';
+      }
+
+      setJoinError(errorMsg);
+      message.error(errorMsg);
+    } finally {
+      setJoinLoading(false);
+    }
   };
 
+  // ✅ View class details
   const handleViewClassDetail = (classItem: ClassData) => {
-    // Navigate to class detail page with class data
-    navigate(`/student/class/${classItem.id}`, { 
-      state: { 
-        classData: {
-          id: classItem.id,
-          subject: classItem.name,
-          teacher: classItem.teacher,
-          students: classItem.students,
-          schedule: classItem.schedule,
-          status: classItem.status
-        }
-      } 
-    });
+    navigate(`/student/class/${classItem.id}`);
   };
 
+  // ✅ Get status display
   const getStatusColor = (status: string) => {
     switch(status) {
       case 'active': return '#10b981';
-      case 'completed': return '#64748b';
-      case 'upcoming': return '#f59e42';
+      case 'inactive': return '#64748b';
       default: return '#64748b';
     }
   };
 
   const getStatusText = (status: string) => {
     switch(status) {
-      case 'active': return 'Đang học';
-      case 'completed': return 'Đã hoàn thành';
-      case 'upcoming': return 'Sắp bắt đầu';
+      case 'active': return 'Đang hoạt động';
+      case 'inactive': return 'Không hoạt động';
       default: return 'Không xác định';
     }
   };
 
-  // Sắp xếp: lớp ghim lên đầu
-  const sortedClasses = [...classes].sort((a, b) => {
-    if (a.isPinned && !b.isPinned) return -1;
-    if (!a.isPinned && b.isPinned) return 1;
-    return 0;
-  });
+  // ✅ Format schedule to simple string
+  const formatScheduleSimple = (schedule: Record<string, string[]>) => {
+    const dayMapping: Record<string, string> = {
+      monday: 'T2',
+      tuesday: 'T3',
+      wednesday: 'T4',
+      thursday: 'T5',
+      friday: 'T6',
+      saturday: 'T7',
+      sunday: 'CN'
+    };
+
+    const scheduleParts: string[] = [];
+
+    Object.entries(schedule).forEach(([day, periodRanges]) => {
+      if (!periodRanges || periodRanges.length === 0) return;
+
+      const dayLabel = dayMapping[day] || day;
+      const periods = periodRanges.map(range => {
+        const [start, end] = range.split('-').map(Number);
+        return start === end ? `${start}` : `${start}-${end}`;
+      }).join(', ');
+      
+      scheduleParts.push(`${dayLabel}: ${periods}`);
+    });
+
+    return scheduleParts.length > 0 ? scheduleParts.join(' • ') : 'Chưa có lịch học';
+  };
+
+  // ✅ Handle modal close
+  const handleModalClose = () => {
+    setIsModalVisible(false);
+    setJoinError(null);
+    form.resetFields();
+  };
 
   return (
     <div style={{ 
@@ -157,7 +246,7 @@ const StudentClassPage: React.FC = () => {
             fontSize: 36,
             fontWeight: 700
           }}>
-            📚 My Classes
+            📚 Lớp học của tôi
           </Title>
           <Text style={{ 
             fontSize: 18, 
@@ -166,138 +255,261 @@ const StudentClassPage: React.FC = () => {
             Quản lý và theo dõi các lớp học bạn đã tham gia
           </Text>
         </div>
-        <Button 
-          type="primary" 
-          icon={<PlusOutlined />}
-          size="large"
-          onClick={() => setIsModalVisible(true)}
-          style={{ 
-            borderRadius: 8, 
-            height: 48,
-            fontSize: 16
-          }}
-        >
-          Tham gia lớp học
-        </Button>
+        <Space>
+          <Button 
+            icon={<ReloadOutlined />}
+            size="large"
+            onClick={() => fetchClasses()}
+            loading={loading}
+            style={{ borderRadius: 8, height: 48 }}
+          >
+            Làm mới
+          </Button>
+          <Button 
+            type="primary" 
+            icon={<PlusOutlined />}
+            size="large"
+            onClick={() => setIsModalVisible(true)}
+            style={{ 
+              borderRadius: 8, 
+              height: 48,
+              fontSize: 16
+            }}
+          >
+            Tham gia lớp học
+          </Button>
+        </Space>
       </div>
 
-      {/* Classes Grid */}
-      <Row gutter={[24, 24]}>
-        {sortedClasses.map((classItem) => (
-          <Col xs={24} md={12} lg={8} key={classItem.id}>
-            <Card
-              style={{
-                borderRadius: 16,
-                boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-                border: classItem.isPinned ? "2px solid #f59e42" : "none",
-                background: "linear-gradient(135deg, #fff 0%, #f8fafc 100%)",
-                transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                position: "relative"
-              }}
-              hoverable
+      {/* Error Alert */}
+      {error && (
+        <Alert
+          message="Lỗi tải dữ liệu"
+          description={error}
+          type="error"
+          showIcon
+          closable
+          onClose={() => setError(null)}
+          style={{ marginBottom: 24 }}
+        />
+      )}
+
+      {/* Loading State */}
+      {loading ? (
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          minHeight: 400 
+        }}>
+          <Spin size="large" tip="Đang tải danh sách lớp học..." />
+        </div>
+      ) : classes.length === 0 ? (
+        /* Empty State */
+        <Card style={{ 
+          borderRadius: 16, 
+          textAlign: 'center', 
+          padding: '60px 20px',
+          background: 'linear-gradient(135deg, #fff 0%, #f8fafc 100%)'
+        }}>
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={
+              <div>
+                <Text style={{ fontSize: 16, color: '#64748b' }}>
+                  Bạn chưa tham gia lớp học nào
+                </Text>
+                <br />
+                <Text type="secondary">
+                  Nhấn nút "Tham gia lớp học" để bắt đầu!
+                </Text>
+              </div>
+            }
+          >
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />}
+              size="large"
+              onClick={() => setIsModalVisible(true)}
+              style={{ marginTop: 16 }}
             >
-              {/* Pin Badge */}
-              {classItem.isPinned && (
-                <div style={{
-                  position: "absolute",
-                  top: 12,
-                  right: 12,
-                  background: "#f59e42",
-                  color: "#fff",
-                  padding: "4px 8px",
-                  borderRadius: 4,
-                  fontSize: 12,
-                  fontWeight: 600
-                }}>
-                  📌 Ghim
-                </div>
-              )}
-
-              <div style={{ marginTop: classItem.isPinned ? 20 : 0 }}>
-                <div style={{ 
-                  display: "flex", 
-                  justifyContent: "space-between", 
-                  alignItems: "flex-start",
-                  marginBottom: 12
-                }}>
-                  <Title level={4} style={{ 
-                    margin: 0, 
-                    color: "#374151",
-                    fontSize: 18
-                  }}>
-                    {classItem.name}
-                  </Title>
-                  <Tooltip title={classItem.isPinned ? "Bỏ ghim" : "Ghim lớp học"}>
-                    <Button 
-                      type="text" 
-                      icon={classItem.isPinned ? <StarFilled /> : <StarOutlined />}
-                      onClick={() => togglePin(classItem.id)}
-                      style={{ 
-                        color: classItem.isPinned ? "#f59e42" : "#64748b",
-                        padding: 4
-                      }}
-                    />
-                  </Tooltip>
-                </div>
-
-                <Space direction="vertical" size={8} style={{ width: "100%" }}>
-                  <Text style={{ color: "#64748b" }}>
-                    👨‍🏫 {classItem.teacher}
-                  </Text>
-                  
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <UserOutlined style={{ color: "#64748b" }} />
-                    <Text style={{ color: "#64748b" }}>
-                      {classItem.students} học sinh
-                    </Text>
-                  </div>
-                  
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <CalendarOutlined style={{ color: "#64748b" }} />
-                    <Text style={{ color: "#64748b" }}>
-                      {classItem.schedule}
-                    </Text>
-                  </div>
-
-                  <Tag 
-                    color={getStatusColor(classItem.status)}
-                    style={{ 
-                      marginTop: 8,
-                      borderRadius: 4,
-                      fontWeight: 500
-                    }}
-                  >
-                    {getStatusText(classItem.status)}
-                  </Tag>
-                </Space>
-
-                <Button 
-                  type="primary" 
-                  block 
-                  icon={<EyeOutlined />}
-                  onClick={() => handleViewClassDetail(classItem)}
-                  style={{ 
-                    marginTop: 16,
-                    borderRadius: 8,
-                    height: 40
+              Tham gia lớp học ngay
+            </Button>
+          </Empty>
+        </Card>
+      ) : (
+        /* Classes Grid */
+        <Row gutter={[24, 24]}>
+          {classes.map((classItem) => {
+            const scheduleText = formatScheduleSimple(classItem.schedule);
+            
+            return (
+              <Col xs={24} md={12} lg={8} key={classItem.id}>
+                <Card
+                  style={{
+                    borderRadius: 16,
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+                    border: "1px solid #e5e7eb",
+                    background: "linear-gradient(135deg, #fff 0%, #f8fafc 100%)",
+                    transition: "all 0.3s ease",
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column'
+                  }}
+                  hoverable
+                  bodyStyle={{ 
+                    padding: 24,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: '100%'
                   }}
                 >
-                  Xem chi tiết
-                </Button>
-              </div>
-            </Card>
-          </Col>
-        ))}
-      </Row>
+                  {/* Header */}
+                  <div style={{ marginBottom: 16 }}>
+                    <Title level={4} style={{ 
+                      margin: 0, 
+                      marginBottom: 8,
+                      color: "#1f2937",
+                      fontSize: 20,
+                      fontWeight: 600
+                    }}>
+                      <BookOutlined style={{ marginRight: 8, color: '#2563eb' }} />
+                      {classItem.name}
+                    </Title>
+                    
+                    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                      <Tag 
+                        color={getStatusColor(classItem.status)}
+                        style={{ 
+                          borderRadius: 6,
+                          fontWeight: 500,
+                          padding: '4px 12px'
+                        }}
+                      >
+                        {getStatusText(classItem.status)}
+                      </Tag>
+                      <Tag 
+                        color="blue"
+                        style={{ 
+                          borderRadius: 6,
+                          fontWeight: 500,
+                          padding: '4px 12px'
+                        }}
+                      >
+                        {classItem.classCode}
+                      </Tag>
+                    </div>
+                  </div>
+
+                  <Divider style={{ margin: '16px 0' }} />
+
+                  {/* Info Section */}
+                  <Space direction="vertical" size={12} style={{ width: "100%", marginBottom: 16, flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <UserOutlined style={{ color: "#2563eb", fontSize: 16 }} />
+                      <Text strong style={{ color: "#374151", fontSize: 14 }}>
+                        {classItem.teacher}
+                      </Text>
+                    </div>
+                    
+                    {classItem.location && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <EnvironmentOutlined style={{ color: "#10b981", fontSize: 16 }} />
+                        <Text style={{ color: "#64748b", fontSize: 14 }}>
+                          Phòng {classItem.location}
+                        </Text>
+                      </div>
+                    )}
+
+                    {/* Simple Schedule */}
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                      <CalendarOutlined style={{ color: "#f59e0b", fontSize: 16, marginTop: 2 }} />
+                      <Text style={{ color: "#64748b", fontSize: 13, lineHeight: 1.6 }}>
+                        {scheduleText}
+                      </Text>
+                    </div>
+
+                    {/* Description */}
+                    {classItem.description && (
+                      <div style={{ 
+                        background: '#f9fafb',
+                        padding: '12px',
+                        borderRadius: 8,
+                        border: '1px solid #e5e7eb',
+                        marginTop: 4
+                      }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
+                          <FileTextOutlined style={{ color: "#64748b", fontSize: 14, marginTop: 2 }} />
+                          <Text strong style={{ color: "#64748b", fontSize: 13 }}>
+                            Mô tả:
+                          </Text>
+                        </div>
+                        <Paragraph 
+                          ellipsis={{ rows: 3, expandable: false }}
+                          style={{ 
+                            margin: 0, 
+                            color: '#6b7280',
+                            fontSize: 13,
+                            lineHeight: 1.6,
+                            paddingLeft: 22
+                          }}
+                        >
+                          {classItem.description}
+                        </Paragraph>
+                      </div>
+                    )}
+                  </Space>
+
+                  {/* Action Button */}
+                  <Button 
+                    type="primary" 
+                    block 
+                    icon={<EyeOutlined />}
+                    onClick={() => handleViewClassDetail(classItem)}
+                    size="large"
+                    style={{ 
+                      borderRadius: 8,
+                      height: 44,
+                      fontWeight: 500,
+                      marginTop: 'auto'
+                    }}
+                  >
+                    Xem chi tiết
+                  </Button>
+                </Card>
+              </Col>
+            );
+          })}
+        </Row>
+      )}
 
       {/* Join Class Modal */}
       <Modal
-        title="Tham gia lớp học"
+        title={
+          <Space>
+            <PlusOutlined style={{ color: '#1890ff' }} />
+            <Text strong>Tham gia lớp học</Text>
+          </Space>
+        }
         open={isModalVisible}
-        onCancel={() => setIsModalVisible(false)}
+        onCancel={handleModalClose}
         footer={null}
-        style={{ borderRadius: 16 }}
+        width={500}
+        destroyOnClose
       >
+        {joinError && (
+          <Alert
+            message="Không thể tham gia lớp học"
+            description={joinError}
+            type="error"
+            icon={<ExclamationCircleOutlined />}
+            showIcon
+            closable
+            onClose={() => setJoinError(null)}
+            style={{ marginBottom: 16 }}
+          />
+        )}
+
         <Form
           form={form}
           layout="vertical"
@@ -307,27 +519,49 @@ const StudentClassPage: React.FC = () => {
           <Form.Item
             label="Mã lớp học"
             name="classCode"
-            rules={[{ required: true, message: "Vui lòng nhập mã lớp học!" }]}
+            rules={[
+              { required: true, message: "Vui lòng nhập mã lớp học!" },
+              { len: 9, message: "Mã lớp học phải có 9 ký tự!" },
+              { 
+                pattern: /^[A-Z0-9]+$/, 
+                message: "Mã lớp học chỉ chứa chữ in hoa và số!" 
+              }
+            ]}
+            tooltip="Mã lớp học gồm 9 ký tự (A-Z, 0-9) do giáo viên cung cấp"
           >
             <Input 
-              placeholder="Nhập mã lớp học từ giáo viên"
+              placeholder="Ví dụ: ABC123XYZ"
               size="large"
+              maxLength={9}
+              style={{ textTransform: 'uppercase' }}
             />
           </Form.Item>
+
+          <Alert
+            message="Lưu ý"
+            description="Nhập chính xác mã lớp học mà giáo viên đã cung cấp. Mã gồm 9 ký tự chữ và số."
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+
           <Form.Item style={{ marginBottom: 0 }}>
-            <Space>
+            <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+              <Button 
+                onClick={handleModalClose}
+                size="large"
+                disabled={joinLoading}
+              >
+                Hủy
+              </Button>
               <Button 
                 type="primary" 
                 htmlType="submit"
                 size="large"
+                loading={joinLoading}
+                icon={!joinLoading && <PlusOutlined />}
               >
-                Tham gia
-              </Button>
-              <Button 
-                onClick={() => setIsModalVisible(false)}
-                size="large"
-              >
-                Hủy
+                {joinLoading ? 'Đang tham gia...' : 'Tham gia'}
               </Button>
             </Space>
           </Form.Item>
