@@ -298,7 +298,7 @@ const TeacherClassPage: React.FC = () => {
                                 key={`${cls.id}-${cls.sessionIndex}`}
                                 size="small"
                                 hoverable
-                                onClick={() => navigate(`/teacher/class/${cls.id}`, { state: { classId: cls.id } }) }
+                                onClick={() => navigate(`/teacher/class/${cls.id}`)}
                                 style={{ 
                                   marginTop: 8,
                                   background: actualStatus === 'ongoing' 

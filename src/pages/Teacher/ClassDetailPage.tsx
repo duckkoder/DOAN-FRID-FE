@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   Typography, 
   Card, 
@@ -161,12 +161,18 @@ interface UpcomingSession {
 }
 
 const ClassDetailPage: React.FC = () => {
-  const location = useLocation();
   const navigate = useNavigate();
-  const params = useParams();
-  const stateClassId = location.state?.classId;
-  const paramId = params.id ? parseInt(params.id, 10) : undefined;
-  const classId = stateClassId ?? paramId;
+  const params = useParams<{ classId: string }>();
+  
+  // ✅ Ưu tiên lấy từ URL params, sau đó mới đến location.state
+  const classId = useMemo(() => {
+    // Lấy từ URL param trước
+    if (params.classId) {
+      const parsed = parseInt(params.classId, 10);
+      if (!isNaN(parsed)) return parsed;
+    }
+    return null;
+  }, [params.classId]);
 
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
@@ -621,7 +627,7 @@ const ClassDetailPage: React.FC = () => {
   useEffect(() => {
     const fetchClass = async () => {
       if (!classId) {
-        setClassError("Không tìm thấy classId. Vui lòng thử lại.");
+        setClassError("Không tìm thấy ID lớp học. Vui lòng thử lại.");
         return;
       }
 
@@ -629,7 +635,7 @@ const ClassDetailPage: React.FC = () => {
       setClassError(null);
 
       try {
-        const res: GetClassDetailsResponse = await getClassDetails(Number(classId));
+        const res: GetClassDetailsResponse = await getClassDetails(classId);
 
         console.log("Fetched class details:", res);
         
@@ -666,7 +672,7 @@ const ClassDetailPage: React.FC = () => {
     };
 
     fetchClass();
-  }, [classId]);
+  }, [classId]); // ✅ Chỉ phụ thuộc vào classId
 
   // If loading, show simple loading state
   if (loadingClass) {
