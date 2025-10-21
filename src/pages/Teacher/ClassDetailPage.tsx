@@ -51,6 +51,12 @@ import {
   type UpdateClassRequest,
   type ApiError
 } from "../../apis/classesAPIs/teacherClass";
+import AttendanceCamera from "../../components/AttendanceCamera";
+import type { 
+  EndSessionResponse,
+  SessionWithStats,
+  getClassSessions as getClassSessionsAPI
+} from "../../apis/attendanceAPIs/attendanceAPIs";
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -199,6 +205,13 @@ const ClassDetailPage: React.FC = () => {
   const [isAttendanceModalVisible, setIsAttendanceModalVisible] = useState(false);
   const [selectedAttendanceSession, setSelectedAttendanceSession] = useState<UpcomingSession | null>(null);
   const [upcomingSessions, setUpcomingSessions] = useState<UpcomingSession[]>([]);
+  
+  // ✅ Add state for attendance camera
+  const [isAttendanceCameraVisible, setIsAttendanceCameraVisible] = useState(false);
+
+  // ✅ Add state for attendance history
+  const [attendanceSessions, setAttendanceSessions] = useState<SessionWithStats[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState<boolean>(false);
 
   const weekDays = [
     { value: 1, label: "Thứ 2" },
@@ -461,10 +474,10 @@ const ClassDetailPage: React.FC = () => {
           status: cls.status === "inactive" ? "inactive" : "active",
           teacher: cls.teacher || "N/A",
           teacherId: cls.teacherId || 0,
-          maxStudents: cls.maxStudents || 30,
+          maxStudents: 30, // Default value
           studentCount: cls.students || 0,
-          schedule: cls.schedule || {},
-          attendanceStats: refreshedData.data.attendanceStats
+          schedule: cls.schedule as Record<string, string[]> || {},
+          attendanceStats: refreshedData.data.attendance
         };
         setClassData(mapped);
       }
@@ -608,19 +621,68 @@ const ClassDetailPage: React.FC = () => {
     setIsAttendanceModalVisible(true);
   };
 
-  // ✅ Handle start attendance
+  // ✅ Handle start attendance with camera
   const handleStartAttendance = () => {
     if (!selectedAttendanceSession) {
       message.warning('Vui lòng chọn buổi học để bắt đầu điểm danh!');
       return;
     }
 
-    // TODO: Navigate to attendance page or start attendance session
-    message.info(`Bắt đầu điểm danh cho ${selectedAttendanceSession.dayLabel}, ${selectedAttendanceSession.periods}`);
-    console.log('Selected session:', selectedAttendanceSession);
-    
-    // Close modal
+    // Close selection modal
     setIsAttendanceModalVisible(false);
+    
+    // Open camera modal
+    setIsAttendanceCameraVisible(true);
+  };
+
+  // ✅ Handle session end
+  const handleSessionEnd = async (result: EndSessionResponse) => {
+    message.success(
+      `Kết thúc phiên điểm danh!\nTổng: ${result.total_students} | ` +
+      `Có mặt: ${result.present_count} | Trễ: ${result.late_count} | Vắng: ${result.absent_count}`
+    );
+    
+    setIsAttendanceCameraVisible(false);
+    
+    // ✅ Reload attendance sessions để cập nhật lịch sử
+    if (classId) {
+      try {
+        const { getClassSessions: getClassSessionsAPI } = await import('../../apis/attendanceAPIs/attendanceAPIs');
+        const response = await getClassSessionsAPI(classId, undefined, 0, 100);
+        setAttendanceSessions(response.sessions);
+      } catch (error: any) {
+        console.error('Failed to reload attendance sessions:', error);
+      }
+    }
+    
+    // ✅ Fetch lại dữ liệu lớp học để cập nhật trạng thái và thống kê
+    if (classId) {
+      try {
+        const res: GetClassDetailsResponse = await getClassDetails(classId);
+        const cls = res?.data?.class;
+        if (cls) {
+          const mapped: ClassData = {
+            id: cls.id,
+            subject: cls.subject || "Không tên",
+            classCode: cls.classCode || "",
+            description: cls.description || "",
+            room: cls.room || "N/A",
+            status: cls.status === "inactive" ? "inactive" : "active",
+            teacher: cls.teacher || "N/A",
+            teacherId: cls.teacherId || 0,
+            maxStudents: 30, // Default value
+            studentCount: cls.students || 0,
+            schedule: cls.schedule as Record<string, string[]> || {},
+            attendanceStats: res.data.attendance
+          };
+          setClassData(mapped);
+          message.success('Đã cập nhật thông tin lớp học!');
+        }
+      } catch (err: any) {
+        console.error("Failed to refresh class details:", err);
+        message.warning('Không thể cập nhật thông tin lớp học. Vui lòng làm mới trang.');
+      }
+    }
   };
 
   // Fetch class details when page loads / classId changes
@@ -654,10 +716,10 @@ const ClassDetailPage: React.FC = () => {
           status: cls.status === "inactive" ? "inactive" : "active",
           teacher: cls.teacher || "N/A",
           teacherId: cls.teacherId || 0,
-          maxStudents: cls.maxStudents || 30,
+          maxStudents: 30, // Default value, backend doesn't have this field
           studentCount: cls.students || 0,
-          schedule: cls.schedule || {},
-          attendanceStats: res.data.attendanceStats
+          schedule: cls.schedule as Record<string, string[]> || {},
+          attendanceStats: res.data.attendance
         };
 
         setClassData(mapped);
@@ -673,6 +735,27 @@ const ClassDetailPage: React.FC = () => {
 
     fetchClass();
   }, [classId]); // ✅ Chỉ phụ thuộc vào classId
+
+  // ✅ Fetch attendance sessions when classId changes or tab switches to attendance
+  useEffect(() => {
+    const fetchAttendanceSessions = async () => {
+      if (!classId || activeTab !== 'attendance') return;
+
+      setLoadingSessions(true);
+      try {
+        const { getClassSessions: getClassSessionsAPI } = await import('../../apis/attendanceAPIs/attendanceAPIs');
+        const response = await getClassSessionsAPI(classId, undefined, 0, 100);
+        setAttendanceSessions(response.sessions);
+      } catch (error: any) {
+        console.error('Failed to load attendance sessions:', error);
+        message.error('Không thể tải lịch sử điểm danh');
+      } finally {
+        setLoadingSessions(false);
+      }
+    };
+
+    fetchAttendanceSessions();
+  }, [classId, activeTab]);
 
   // If loading, show simple loading state
   if (loadingClass) {
@@ -729,7 +812,6 @@ const ClassDetailPage: React.FC = () => {
     },
   ];
 
-  const attendanceSessions: AttendanceSession[] = [];
   const leaveRequests: LeaveRequest[] = [];
 
   // Mock data for students
@@ -966,14 +1048,14 @@ const ClassDetailPage: React.FC = () => {
 
   const sessionColumns = [
     {
-      title: 'Buổi học',
+      title: 'Phiên điểm danh',
       key: 'session',
-      render: (record: AttendanceSession) => (
+      render: (record: SessionWithStats) => (
         <div>
-          <Text strong>Buổi {record.sessionNumber}</Text>
+          <Text strong>{record.session_name || `Phiên #${record.id}`}</Text>
           <br />
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {dayjs(record.date).format('DD/MM/YYYY')}
+            {dayjs(record.start_time).format('DD/MM/YYYY HH:mm')}
           </Text>
         </div>
       )
@@ -989,50 +1071,66 @@ const ClassDetailPage: React.FC = () => {
     },
     {
       title: 'Có mặt',
-      dataIndex: 'presentCount',
       key: 'presentCount',
       align: 'center' as const,
-      render: (count: number, record: AttendanceSession) => (
-        record.status === 'completed' ? 
-          <Tag color="#10b981">{count}</Tag> : 
+      render: (record: SessionWithStats) => (
+        record.status === 'finished' && record.statistics ? 
+          <Tag color="#10b981">{record.statistics.present_count}</Tag> : 
           <Text type="secondary">-</Text>
       )
     },
     {
       title: 'Vắng',
-      dataIndex: 'absentCount', 
-      key: 'absentCount',
+      key: 'absentCount', 
       align: 'center' as const,
-      render: (count: number, record: AttendanceSession) => (
-        record.status === 'completed' ? 
-          <Tag color="#ef4444">{count}</Tag> : 
+      render: (record: SessionWithStats) => (
+        record.status === 'finished' && record.statistics ? 
+          <Tag color="#ef4444">{record.statistics.absent_count}</Tag> : 
           <Text type="secondary">-</Text>
       )
     },
     {
       title: 'Muộn',
-      dataIndex: 'lateCount',
-      key: 'lateCount', 
+      key: 'lateCount',
       align: 'center' as const,
-      render: (count: number, record: AttendanceSession) => (
-        record.status === 'completed' ? 
-          <Tag color="#f59e0b">{count}</Tag> : 
+      render: (record: SessionWithStats) => (
+        record.status === 'finished' && record.statistics ? 
+          <Tag color="#f59e0b">{record.statistics.late_count}</Tag> : 
+          <Text type="secondary">-</Text>
+      )
+    },
+    {
+      title: 'Tỷ lệ (%)',
+      key: 'attendance_rate',
+      align: 'center' as const,
+      render: (record: SessionWithStats) => (
+        record.status === 'finished' && record.statistics ? 
+          <Text strong style={{ color: getAttendanceColor(record.statistics.attendance_rate) }}>
+            {record.statistics.attendance_rate.toFixed(1)}%
+          </Text> : 
           <Text type="secondary">-</Text>
       )
     },
     {
       title: 'Thao tác',
       key: 'actions',
-      render: (record: AttendanceSession) => (
+      render: (record: SessionWithStats) => (
         <Space>
           {record.status === 'ongoing' && (
             <Button type="primary" size="small">
               Điểm danh
             </Button>
           )}
-          {record.status === 'completed' && (
-            <Button size="small" icon={<EditOutlined />}>
-              Sửa
+          {record.status === 'finished' && (
+            <Button 
+              size="small" 
+              icon={<EyeOutlined />}
+              onClick={() => {
+                // Navigate to session detail or show modal
+                navigate(`/teacher/attendance/${record.id}`);
+              }}
+            >
+              Chi tiết
             </Button>
           )}
         </Space>
@@ -1369,10 +1467,14 @@ const ClassDetailPage: React.FC = () => {
                 dataSource={attendanceSessions}
                 columns={sessionColumns}
                 rowKey="id"
+                loading={loadingSessions}
                 pagination={{
                   pageSize: 10,
                   showTotal: (total, range) => 
-                    `${range[0]}-${range[1]} của ${total} buổi học`
+                    `${range[0]}-${range[1]} của ${total} phiên điểm danh`
+                }}
+                locale={{
+                  emptyText: loadingSessions ? 'Đang tải...' : 'Chưa có phiên điểm danh nào'
                 }}
               />
             </Card>
@@ -1928,6 +2030,16 @@ const ClassDetailPage: React.FC = () => {
           )}
         </div>
       </Modal>
+
+      {/* Attendance Camera Modal */}
+      {classData && (
+        <AttendanceCamera
+          classId={classData.id}
+          visible={isAttendanceCameraVisible}
+          onClose={() => setIsAttendanceCameraVisible(false)}
+          onSessionEnd={handleSessionEnd}
+        />
+      )}
     </div>
   );
 };

@@ -167,7 +167,7 @@ const StudentClassPage: React.FC = () => {
 
   // ✅ View class details
   const handleViewClassDetail = (classItem: ClassData) => {
-    navigate(`/student/class/${classItem.id}`);
+    navigate(`/student/classes/${classItem.id}`);
   };
 
   // ✅ Get status display
