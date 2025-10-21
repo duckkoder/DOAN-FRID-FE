@@ -45,6 +45,7 @@ const SessionDetailPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [sessionData, setSessionData] = useState<SessionAttendanceResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState<boolean>(false);
 
   // Fetch session details
   useEffect(() => {
@@ -143,24 +144,6 @@ const SessionDetailPage: React.FC = () => {
         )
     },
     {
-      title: "Độ tin cậy",
-      dataIndex: "confidence_score",
-      key: "confidence_score",
-      width: 120,
-      align: "center" as const,
-      render: (score: number | null) =>
-        score ? (
-          <Progress
-            type="circle"
-            percent={Math.round(score * 100)}
-            width={50}
-            strokeColor={score >= 0.8 ? "#10b981" : score >= 0.6 ? "#f59e0b" : "#ef4444"}
-          />
-        ) : (
-          <Text type="secondary">-</Text>
-        )
-    },
-    {
       title: "Ghi chú",
       dataIndex: "notes",
       key: "notes",
@@ -170,13 +153,19 @@ const SessionDetailPage: React.FC = () => {
   ];
 
   // Handle export Excel
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (!sessionData) {
       message.error("Không có dữ liệu để xuất");
       return;
     }
 
+    setExporting(true);
+    const loadingMsg = message.loading("Đang tạo file Excel...", 0);
+
     try {
+      // Delay nhỏ để UI kịp render loading state
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       const { session, records, statistics } = sessionData;
 
       // Tạo dữ liệu cho Excel
@@ -196,7 +185,7 @@ const SessionDetailPage: React.FC = () => {
         [`Tỷ lệ: ${statistics.attendance_rate.toFixed(2)}%`],
         [],
         // Header bảng
-        ["STT", "Mã sinh viên", "Họ và tên", "Trạng thái", "Thời gian", "Độ tin cậy", "Ghi chú"]
+        ["STT", "Mã sinh viên", "Họ và tên", "Trạng thái", "Thời gian", "Ghi chú"]
       ];
 
       // Thêm dữ liệu sinh viên
@@ -207,7 +196,6 @@ const SessionDetailPage: React.FC = () => {
           record.student_name,
           getStatusConfig(record.status).text,
           record.recorded_at ? dayjs(record.recorded_at).format("HH:mm:ss - DD/MM/YYYY") : "Chưa điểm danh",
-          record.confidence_score ? `${(record.confidence_score * 100).toFixed(0)}%` : "-",
           record.notes || "-"
         ]);
       });
@@ -224,18 +212,21 @@ const SessionDetailPage: React.FC = () => {
         { wch: 25 }, // Tên
         { wch: 12 }, // Trạng thái
         { wch: 20 }, // Thời gian
-        { wch: 12 }, // Độ tin cậy
-        { wch: 30 }  // Ghi chú
+        { wch: 35 }  // Ghi chú
       ];
 
       // Xuất file
       const fileName = `DiemDanh_${session.id}_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`;
       XLSX.writeFile(wb, fileName);
 
-      message.success("Xuất Excel thành công!");
+      loadingMsg(); // Tắt loading message
+      message.success("Xuất Excel thành công!", 2);
     } catch (error) {
+      loadingMsg(); // Tắt loading message
       console.error("Export Excel error:", error);
       message.error("Có lỗi khi xuất Excel");
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -433,12 +424,16 @@ const SessionDetailPage: React.FC = () => {
             type="primary"
             icon={<FileExcelOutlined />}
             onClick={handleExportExcel}
+            loading={exporting}
+            disabled={exporting}
             style={{
-              background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+              background: exporting 
+                ? "#94a3b8" 
+                : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
               border: "none"
             }}
           >
-            Xuất Excel
+            {exporting ? "Đang xuất..." : "Xuất Excel"}
           </Button>
         }
       >
