@@ -3,14 +3,20 @@ import axios, { AxiosHeaders, type AxiosInstance, type InternalAxiosRequestConfi
 import { getCookie, setCookie, deleteCookie } from "../utils/cookies";
 import { decryptString, encryptString } from "../utils/crypto";
 
+// ========================================
+// CONSTANTS
+// ========================================
 const AUTH_COOKIE = "authState";
-const baseURL = import.meta.env.VITE_API_BASE_URL as string;
-const COOKIE_SECRET =
-  (import.meta.env?.VITE_AUTH_COOKIE_SECRET as string) || "dev-local-secret-please-change";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+const COOKIE_SECRET = (import.meta.env?.VITE_AUTH_COOKIE_SECRET as string) || "dev-local-secret-please-change";
 const REQUEST_TIMEOUT_MS = 15_000;
 const REFRESH_TIMEOUT_MS = 10_000;
-const CLOCK_SKEW_MS = 30_000; // if token expires within 30s, proactively refresh
+const CLOCK_SKEW_MS = 300 * 1000; // ✅ 300 seconds (refresh when 300s left)
+const COOKIE_EXPIRY_DAYS = 7; // Match refresh token expiry
 
+// ========================================
+// TYPES
+// ========================================
 interface Tokens {
   accessToken?: string | null;
   refreshToken?: string | null;
@@ -21,11 +27,25 @@ interface PersistedAuthShape {
   tokens?: Tokens;
 }
 
-// in-memory state to avoid repeated cookie decrypts
+interface RefreshResult {
+  access: string;
+  refresh?: string | null;
+}
+
+// ========================================
+// IN-MEMORY STATE
+// ========================================
 let volatileAccessToken: string | null = null;
 let persistedAuthCache: PersistedAuthShape | null = null;
-let inflightRefresh: Promise<{ access: string; refresh?: string | null }> | null = null;
+let inflightRefresh: Promise<RefreshResult> | null = null;
 
+// ========================================
+// UTILITY FUNCTIONS
+// ========================================
+
+/**
+ * Check if running in HTTPS or production environment
+ */
 function isHttpsOrProd(): boolean {
   return (
     (typeof window !== "undefined" && window.location.protocol === "https:") ||
@@ -33,29 +53,83 @@ function isHttpsOrProd(): boolean {
   );
 }
 
+/**
+ * Safely extract JWT expiration time in milliseconds
+ * @param token - JWT token string
+ * @returns Expiration time in ms, or null if invalid
+ */
 function safeJwtExpMs(token?: string | null): number | null {
   if (!token) return null;
+  
   try {
     const [, payloadB64] = token.split(".");
     if (!payloadB64) return null;
+    
     const json = JSON.parse(atob(payloadB64));
     const expSec = typeof json?.exp === "number" ? json.exp : null;
+    
     return expSec ? expSec * 1000 : null;
   } catch {
     return null;
   }
 }
 
+/**
+ * Check if URL is an auth endpoint
+ */
+function isAuthEndpoint(url?: string): boolean {
+  if (!url) return false;
+  
+  return (
+    url.includes("/auth/login") ||
+    url.includes("/auth/register") ||
+    url.includes("/auth/refresh") ||
+    url.includes("/auth/forgot-password") ||
+    url.includes("/auth/reset-password")
+  );
+}
+
+/**
+ * Check if current page is auth page
+ */
+function isOnAuthPage(): boolean {
+  return typeof window !== "undefined" && window.location.pathname.startsWith("/auth");
+}
+
+/**
+ * Format time remaining for logging
+ */
+function formatTimeRemaining(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+  return `${seconds}s`;
+}
+
+// ========================================
+// COOKIE PERSISTENCE
+// ========================================
+
+/**
+ * Read and decrypt auth state from cookie
+ */
 async function readPersistedAuth(): Promise<PersistedAuthShape | null> {
   if (persistedAuthCache) return persistedAuthCache;
+  
   const raw = getCookie(AUTH_COOKIE);
   if (!raw) return (persistedAuthCache = null);
 
   try {
+    // Try encrypted format first
     const dec = await decryptString(raw, COOKIE_SECRET);
     return (persistedAuthCache = JSON.parse(dec) as PersistedAuthShape);
   } catch {
     try {
+      // Fallback to plain JSON
       return (persistedAuthCache = JSON.parse(raw) as PersistedAuthShape);
     } catch {
       return (persistedAuthCache = null);
@@ -63,68 +137,139 @@ async function readPersistedAuth(): Promise<PersistedAuthShape | null> {
   }
 }
 
+/**
+ * Encrypt and write auth state to cookie
+ */
 async function writePersistedAuth(next: PersistedAuthShape, days: number): Promise<void> {
   persistedAuthCache = next;
   const secureFlag = isHttpsOrProd();
+  
   try {
     const enc = await encryptString(JSON.stringify(next), COOKIE_SECRET);
     setCookie(AUTH_COOKIE, enc, days, secureFlag, "Lax", "/");
   } catch {
+    // Fallback to plain JSON if encryption fails
     setCookie(AUTH_COOKIE, JSON.stringify(next), days, secureFlag, "Lax", "/");
   }
 }
 
-function getRememberDays(wasRemember: boolean): number {
-  return wasRemember ? 15 : 0.5; // 15 days vs 12 hours
+/**
+ * Clear all auth state (memory + cookie)
+ */
+function clearAuthState(): void {
+  try {
+    deleteCookie(AUTH_COOKIE);
+  } catch {
+    /* ignore */
+  }
+  volatileAccessToken = null;
+  persistedAuthCache = null;
 }
 
-const api: AxiosInstance = axios.create({
-  baseURL,
-  timeout: REQUEST_TIMEOUT_MS,
-});
+// ========================================
+// LOGOUT & REDIRECT
+// ========================================
 
-async function doRefreshSingleFlight(): Promise<{ access: string; refresh?: string | null }> {
+/**
+ * Handle logout: clear auth state and redirect to login
+ * @param reason - Reason for logout (for logging)
+ */
+function handleLogout(reason: string = "Session expired"): void {
+  console.error(`🚪 Logging out: ${reason}`);
+  
+  // Don't redirect if already on auth page
+  if (isOnAuthPage()) {
+    console.log('⚠️ Already on auth page, skipping redirect');
+    clearAuthState();
+    return;
+  }
+  
+  clearAuthState();
+  
+  // Redirect to login with return URL
+  if (typeof window !== "undefined") {
+    const next = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.href = `/auth?next=${next}`;
+  }
+}
+
+// ========================================
+// TOKEN REFRESH
+// ========================================
+
+/**
+ * Refresh access token using refresh token (single-flight pattern)
+ * Only one refresh request at a time, others wait for result
+ */
+async function doRefreshSingleFlight(): Promise<RefreshResult> {
+  // If already refreshing, return existing promise
   if (inflightRefresh) return inflightRefresh;
 
   inflightRefresh = (async () => {
     const parsed = await readPersistedAuth();
     const refreshToken = parsed?.tokens?.refreshToken;
-    if (!refreshToken) throw new Error("No refresh token");
+    
+    if (!refreshToken) {
+      console.error('❌ No refresh token found');
+      handleLogout("No refresh token found");
+      throw new Error("No refresh token");
+    }
 
-    const plain = axios.create({ baseURL, timeout: REFRESH_TIMEOUT_MS });
-    const resp = await plain.post("/auth/refresh", { refresh_token: refreshToken });
-    const data = resp?.data?.data ?? resp?.data;
+    console.log('🔄 Starting token refresh...');
 
-    const newAccess: string | undefined = data?.access_token;
-    const newRefresh: string | undefined = data?.refresh_token;
-    if (!newAccess) throw new Error("Refresh did not return access token");
+    // Create plain axios instance (no interceptors)
+    const plain = axios.create({ 
+      baseURL: BASE_URL, 
+      timeout: REFRESH_TIMEOUT_MS 
+    });
+    
+    try {
+      const response = await plain.post("/auth/refresh", { 
+        refresh_token: refreshToken 
+      });
+      
+      const data = response?.data?.data ?? response?.data;
+      
+      const newAccess: string | undefined = data?.access_token;
+      const newRefresh: string | undefined = data?.refresh_token;
+      
+      if (!newAccess) {
+        console.error('❌ No access_token in response:', data);
+        throw new Error("Refresh did not return access token");
+      }
 
-    // rememberMe: nếu trước đó accessToken === null → tiếp tục KHÔNG persist access
-    const wasRemember = parsed?.tokens?.accessToken == null;
-    const days = getRememberDays(wasRemember);
+      console.log('✅ Token refreshed successfully');
 
-    const toPersist: PersistedAuthShape = wasRemember
-      ? {
-          user: parsed?.user ?? null,
-          tokens: {
-            accessToken: null,
-            refreshToken: newRefresh ?? parsed?.tokens?.refreshToken ?? null,
-          },
-        }
-      : {
-          user: parsed?.user ?? null,
-          tokens: {
-            accessToken: newAccess ?? null,
-            refreshToken: newRefresh ?? parsed?.tokens?.refreshToken ?? null,
-          },
-        };
+      // Update persisted auth
+      const toPersist: PersistedAuthShape = {
+        user: parsed?.user ?? null,
+        tokens: {
+          accessToken: newAccess,
+          refreshToken: newRefresh ?? refreshToken,
+        },
+      };
 
-    await writePersistedAuth(toPersist, days);
+      await writePersistedAuth(toPersist, COOKIE_EXPIRY_DAYS);
+      volatileAccessToken = newAccess;
 
-    // Luôn cập nhật access token vào memory để các request sau dùng mà ko cần lưu cái access-token
-    volatileAccessToken = newAccess;
-
-    return { access: newAccess, refresh: newRefresh ?? null };
+      return { access: newAccess, refresh: newRefresh ?? null };
+      
+    } catch (error: any) {
+      const status = error?.response?.status;
+      
+      console.error('❌ Refresh request failed:', {
+        status,
+        data: error?.response?.data,
+        message: error?.message
+      });
+      
+      // If refresh token expired/invalid, logout
+      if (status === 401 || status === 403) {
+        handleLogout("Refresh token expired or invalid");
+      }
+      
+      throw error;
+    }
   })();
 
   try {
@@ -134,27 +279,47 @@ async function doRefreshSingleFlight(): Promise<{ access: string; refresh?: stri
   }
 }
 
-// request interceptor: attach volatile token or read persisted cookie
-// Đảm bảo có access token hợp lệ trong memory; nếu sắp hết hạn → refresh trước
+/**
+ * Ensure we have a fresh access token
+ * - If no token: try to read from cookie
+ * - If token expired or about to expire: refresh it
+ * - Otherwise: return existing token
+ */
 async function ensureFreshAccessToken(): Promise<string | null> {
-  // 1/ Ưu tiên token trong memory
   let token = volatileAccessToken;
-  let expMs = safeJwtExpMs(token);
-  const now = Date.now();
-
+  
+  // Load from cookie if not in memory
   if (!token) {
     const parsed = await readPersistedAuth();
     token = parsed?.tokens?.accessToken ?? null;
-    volatileAccessToken = token || null;
-    expMs = safeJwtExpMs(token);
+    if (token) {
+      volatileAccessToken = token;
+    }
   }
+  
+  // Check token expiration
+  const expMs = safeJwtExpMs(token);
+  const now = Date.now();
+  const timeLeft = expMs ? expMs - now : null;
 
-  // 2/ Nếu không có token hoặc hết hạn (hoặc sắp hết hạn) → thử refresh 1 lần
+  console.log('🔍 Token check:', {
+    hasToken: !!token,
+    expiresAt: expMs ? new Date(expMs).toLocaleTimeString() : 'N/A',
+    timeLeft: timeLeft ? formatTimeRemaining(timeLeft) : 'N/A',
+    refreshThreshold: formatTimeRemaining(CLOCK_SKEW_MS),
+    shouldRefresh: !token || (expMs !== null && expMs - CLOCK_SKEW_MS <= now)
+  });
+
+  // Refresh if token is missing or about to expire
   if (!token || (expMs !== null && expMs - CLOCK_SKEW_MS <= now)) {
+    console.log(`🔄 Token expired or about to expire, refreshing...`);
+    
     try {
       const { access } = await doRefreshSingleFlight();
+      console.log('✅ Token refreshed successfully');
       return access;
-    } catch {
+    } catch (err) {
+      console.error('❌ Refresh failed:', err);
       return null;
     }
   }
@@ -162,24 +327,59 @@ async function ensureFreshAccessToken(): Promise<string | null> {
   return token;
 }
 
-// Request interceptor dùng async, LIFO là đc rồi ko cần interceptor “no-op” đâu
-api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
-  config.headers = new AxiosHeaders(config.headers);
-  if (!(config.data instanceof FormData)) {
-    config.headers.set("Content-Type", "application/json");
-  }
-  try {
-    const token = await ensureFreshAccessToken();
-    if (token) config.headers.set("Authorization", `Bearer ${token}`);
-  } catch {
-    // noop
-  }
-  return config;
+// ========================================
+// AXIOS INSTANCE
+// ========================================
+
+const api: AxiosInstance = axios.create({
+  baseURL: BASE_URL,
+  timeout: REQUEST_TIMEOUT_MS,
 });
 
-// response interceptor: handle 401 by attempting single-flight refresh then retry
+// ========================================
+// REQUEST INTERCEPTOR
+// ========================================
+
+api.interceptors.request.use(
+  async (config: InternalAxiosRequestConfig) => {
+    // Set headers
+    config.headers = new AxiosHeaders(config.headers);
+    if (!(config.data instanceof FormData)) {
+      config.headers.set("Content-Type", "application/json");
+    }
+    
+    // Skip token check for auth endpoints
+    if (isAuthEndpoint(config.url)) {
+      console.log('🔓 Auth endpoint, skipping token check:', config.url);
+      return config;
+    }
+    
+    // Add access token to header
+    try {
+      const token = await ensureFreshAccessToken();
+      if (token) {
+        config.headers.set("Authorization", `Bearer ${token}`);
+      } else {
+        console.warn('⚠️ No access token available for request');
+      }
+    } catch (err) {
+      console.error('❌ Failed to get token for request:', err);
+    }
+    
+    return config;
+  },
+  (error) => {
+    console.error('❌ Request interceptor error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// ========================================
+// RESPONSE INTERCEPTOR
+// ========================================
+
 api.interceptors.response.use(
-  (res) => res,
+  (response) => response,
   async (error) => {
     const original = error?.config as
       | (InternalAxiosRequestConfig & { _retry?: boolean })
@@ -188,61 +388,78 @@ api.interceptors.response.use(
 
     if (!original) return Promise.reject(error);
 
-    // ✅ CHECK: Nếu là auth endpoints → KHÔNG refresh, return error luôn
-    const isAuthEndpoint =
-      original.url?.includes("/auth/login") ||
-      original.url?.includes("/auth/register") ||
-      original.url?.includes("/auth/refresh");
-
-    if (isAuthEndpoint) {
-      // ❌ Đây là login/register/refresh fail → KHÔNG cần refresh token
+    // Don't retry auth endpoints
+    if (isAuthEndpoint(original.url)) {
+      console.log('❌ Auth endpoint failed:', original.url, status);
       return Promise.reject(error);
     }
 
-    // ✅ Chỉ refresh cho NON-auth endpoints khi gặp 401
+    // Handle 401 Unauthorized
     if (status === 401 && !original._retry) {
+      console.log('⚠️ 401 Unauthorized, attempting refresh...');
+      
       original._retry = true;
+      
       try {
         const { access } = await doRefreshSingleFlight();
+        
+        // Retry original request with new token
         original.headers = new AxiosHeaders(original.headers);
         (original.headers as AxiosHeaders).set("Authorization", `Bearer ${access}`);
+        
+        console.log('♻️ Retrying original request with new token');
         return api(original);
-      } catch (e) {
-        // Refresh failed → clear và redirect
-        try {
-          deleteCookie(AUTH_COOKIE);
-        } catch {
-          /* ignore */
-        }
-        volatileAccessToken = null;
-        persistedAuthCache = null;
-
-        const next = encodeURIComponent(
-          (typeof window !== "undefined"
-            ? window.location.pathname + window.location.search
-            : "/") || "/",
-        );
-
-        if (typeof window !== "undefined") {
-          window.location.href = `/auth?next=${next}`;
-        }
-
-        return Promise.reject(e);
+        
+      } catch (refreshError) {
+        console.error('❌ Refresh failed after 401, logging out...');
+        handleLogout("Refresh failed after 401");
+        return Promise.reject(refreshError);
       }
     }
 
     return Promise.reject(error);
-  },
+  }
 );
+
+// ========================================
+// EXPORTS
+// ========================================
 
 export default api;
 
-// Helpers for external modules (e.g. AuthProvider) to keep in-memory cache in sync
-export function setVolatileAccessToken(token: string | null) {
+/**
+ * Set access token in memory (for external use)
+ */
+export function setVolatileAccessToken(token: string | null): void {
   volatileAccessToken = token;
 }
 
-export function clearInMemoryAuth() {
+/**
+ * Clear all in-memory auth state (for external use)
+ */
+export function clearInMemoryAuth(): void {
   volatileAccessToken = null;
   persistedAuthCache = null;
+}
+
+/**
+ * Manually trigger logout (for external use)
+ */
+export function logout(reason?: string): void {
+  handleLogout(reason);
+}
+
+/**
+ * Get current access token (for external use)
+ */
+export function getAccessToken(): string | null {
+  return volatileAccessToken;
+}
+
+/**
+ * Check if user is authenticated (has valid token)
+ */
+export async function isAuthenticated(): Promise<boolean> {
+  const token = await ensureFreshAccessToken();
+  return !!token;
 }
