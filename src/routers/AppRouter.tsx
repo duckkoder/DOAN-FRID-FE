@@ -16,6 +16,7 @@ import TeacherReportPage from "../pages/Teacher/TeacherReportPage";
 import StudentClassDetailPage from "../pages/Student/StudentClassDetailPage";
 import StudentClassPage from "../pages/Student/StudentClassPage";
 import StudentAttendancePage from "../pages/Student/StudentAttendancePage";
+import StudentAttendanceListPage from "../pages/Student/StudentAttendanceListPage";
 import StudentReportPage from "../pages/Student/StudentReportPage";
 import AdminHomePage from "../pages/Admin/AdminHomePage";
 import TeacherHomePage from "../pages/Teacher/TeacherHomePage";
@@ -59,7 +60,8 @@ const router = createBrowserRouter(
             <Route path="/student">
               <Route index element={<StudentHomePage />} />
               <Route path="classes" element={<StudentClassPage />} />
-              <Route path="class/:classId" element={<StudentClassDetailPage />} />
+              <Route path="classes/:classId" element={<StudentClassDetailPage />} />
+              <Route path="classes/:classId/attendance" element={<StudentAttendanceListPage />} />
               <Route path="attendance" element={<StudentAttendancePage />} />
               <Route path="reports" element={<StudentReportPage />} />
               <Route path="register-face" element={<FaceRegisterPage />} />

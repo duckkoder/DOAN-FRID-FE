@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Typography,
   Card,
@@ -15,7 +15,8 @@ import {
   message,
   Tooltip,
   Spin,
-  Alert
+  Alert,
+  Badge
 } from "antd";
 import {
   ArrowLeftOutlined,
@@ -29,7 +30,9 @@ import {
   UserOutlined,
   BookOutlined,
   EnvironmentOutlined,
-  TeamOutlined
+  TeamOutlined,
+  LoadingOutlined,
+  WifiOutlined
 } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import dayjs from "dayjs";
@@ -38,6 +41,14 @@ import LeaveRequestModal from "../../components/LeaveRequestModal";
 import { getStudentClassDetails, type StudentClassDetailsData } from "../../apis/classesAPIs/studentClass";
 import { createLeaveRequest, getLeaveRequests, type LeaveRequestDetail } from "../../apis/leaveRequestAPIs/leaveRequest";
 import { uploadDocument } from "../../apis/fileAPIs/file";
+import { 
+  getCurrentSessionAttendance,
+  connectAttendanceWebSocket,
+  type SessionAttendanceResponse,
+  type StudentAttendanceInfo,
+  type WSAttendanceUpdate
+} from "../../apis/attendanceAPIs/studentAttendance";
+import { useAuth } from "../../hooks/useAuth";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -53,16 +64,26 @@ const StudentClassDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const params = useParams<{ classId: string }>();
   const [isLeaveModalVisible, setIsLeaveModalVisible] = useState(false);
+  const { user } = useAuth();
 
   // State management
   const [classData, setClassData] = useState<StudentClassDetailsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // ✅ NEW: Leave requests state
+  // ✅ Leave requests state
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequestDetail[]>([]);
   const [leaveRequestsLoading, setLeaveRequestsLoading] = useState(false);
   const [submittingLeaveRequest, setSubmittingLeaveRequest] = useState(false);
+
+  // ✅ NEW: Real-time attendance state
+  const [attendanceSession, setAttendanceSession] = useState<SessionAttendanceResponse['session'] | null>(null);
+  const [attendanceList, setAttendanceList] = useState<StudentAttendanceInfo[]>([]);
+  const [attendanceStats, setAttendanceStats] = useState<SessionAttendanceResponse['stats'] | null>(null);
+  const [myStudentId, setMyStudentId] = useState<number | null>(null);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
 
   // Parse classId from URL
   const classId = useMemo(() => {
@@ -78,10 +99,138 @@ const StudentClassDetailPage: React.FC = () => {
     if (classId) {
       fetchClassDetails(classId);
       fetchLeaveRequests(classId);
+      fetchAttendanceSession(classId); // ✅ NEW: Fetch attendance list
     } else {
       setError("ID lớp học không hợp lệ");
     }
   }, [classId]);
+
+  // ✅ NEW: Fetch attendance session with full student list
+  const fetchAttendanceSession = async (id: number) => {
+    setAttendanceLoading(true);
+    try {
+      const response = await getCurrentSessionAttendance(id);
+      console.log("Current attendance session:", response);
+      
+      if (response.has_active_session && response.session) {
+        setAttendanceSession(response.session);
+        setAttendanceList(response.students);
+        setAttendanceStats(response.stats);
+        setMyStudentId(response.my_student_id);
+        
+        // Connect WebSocket for real-time updates
+        connectWebSocket(response.session.id);
+        
+        console.log('✅ Connected to attendance session:', response.session.id);
+      } else {
+        console.log('ℹ️ No active attendance session for this class');
+      }
+    } catch (err: any) {
+      // Only log real errors (not 404 or no session)
+      if (err?.response?.status !== 404) {
+        console.error('❌ Failed to fetch attendance session:', err);
+      } else {
+        console.log('ℹ️ No attendance endpoint or session not found');
+      }
+      // Don't show error message to user - just hide the attendance panel
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
+  // ✅ NEW: Connect to WebSocket for real-time updates
+  const connectWebSocket = (sessionId: number) => {
+    try {
+      const ws = connectAttendanceWebSocket(sessionId);
+      
+      ws.onopen = () => {
+        console.log('WebSocket connected to session:', sessionId);
+        setWsConnected(true);
+      };
+      
+      ws.onmessage = (event) => {
+        try {
+          const data: WSAttendanceUpdate = JSON.parse(event.data);
+          console.log('WebSocket message:', data);
+          
+          // Handle attendance_update messages
+          if (data.type === 'attendance_update') {
+            // Update the student in the list
+            setAttendanceList(prevList => {
+              const studentIndex = prevList.findIndex(
+                s => s.student_id === data.student.student_id
+              );
+              
+              if (studentIndex !== -1) {
+                // Update existing student
+                const updatedList = [...prevList];
+                updatedList[studentIndex] = {
+                  ...updatedList[studentIndex],
+                  is_present: true,
+                  status: data.student.status,
+                  recorded_at: data.student.recorded_at,
+                  confidence_score: data.student.confidence_score
+                };
+                
+                // Re-sort: attended first
+                updatedList.sort((a, b) => {
+                  if (a.is_present !== b.is_present) {
+                    return a.is_present ? -1 : 1;
+                  }
+                  return a.full_name.localeCompare(b.full_name);
+                });
+                
+                return updatedList;
+              }
+              
+              return prevList;
+            });
+            
+            // Update stats
+            setAttendanceStats(prevStats => {
+              if (!prevStats) return prevStats;
+              return {
+                ...prevStats,
+                present_count: prevStats.present_count + 1,
+                absent_count: prevStats.absent_count - 1
+              };
+            });
+            
+            // Show notification if it's the current user
+            if (data.student.student_id === myStudentId) {
+              message.success(`✅ Bạn đã được điểm danh lúc ${new Date(data.student.recorded_at).toLocaleTimeString('vi-VN')}`);
+            }
+          }
+        } catch (err) {
+          console.error('Error parsing WebSocket message:', err);
+        }
+      };
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setWsConnected(false);
+      };
+      
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
+        setWsConnected(false);
+      };
+      
+      wsRef.current = ws;
+    } catch (err) {
+      console.error('Failed to connect WebSocket:', err);
+    }
+  };
+
+  // ✅ NEW: Cleanup WebSocket on unmount
+  useEffect(() => {
+    return () => {
+      if (wsRef.current) {
+        console.log('Closing WebSocket connection');
+        wsRef.current.close();
+      }
+    };
+  }, []);
 
   // Fetch class details from API
   const fetchClassDetails = async (id: number) => {
@@ -411,6 +560,88 @@ const StudentClassDetailPage: React.FC = () => {
     }
   ];
 
+  // ✅ NEW: Render attendance banner if there's an active session
+  const renderAttendanceBanner = () => {
+    if (attendanceLoading) {
+      return (
+        <Alert
+          message="Đang kiểm tra phiên điểm danh..."
+          type="info"
+          showIcon
+          icon={<LoadingOutlined />}
+          style={{ marginBottom: 24, borderRadius: 12 }}
+        />
+      );
+    }
+
+    // Debug logging
+    console.log('🔍 Banner render check:', { 
+      hasSession: !!attendanceSession, 
+      listLength: attendanceList.length,
+      session: attendanceSession,
+      stats: attendanceStats
+    });
+
+    if (!attendanceSession) {
+      console.log('❌ No attendance session - hiding banner');
+      return null; // Don't show anything if no active session
+    }
+
+    // Calculate attendance percentage
+    const attendancePercentage = attendanceStats 
+      ? Math.round((attendanceStats.present_count / attendanceStats.total_students) * 100)
+      : 0;
+
+    // Find current student's attendance status
+    const myAttendance = attendanceList.find(s => s.student_id === myStudentId);
+    const myStatus = myAttendance?.is_present 
+      ? { type: 'success' as const, text: '✅ Bạn đã điểm danh', icon: <CheckCircleOutlined /> }
+      : { type: 'warning' as const, text: '⏳ Bạn chưa điểm danh', icon: <ClockCircleOutlined /> };
+
+    return (
+      <Alert
+        message={
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+            <Space size="large" wrap>
+              <span style={{ fontSize: 16, fontWeight: 600 }}>
+                📹 {attendanceSession.session_name}
+                {wsConnected && (
+                  <Tag color="success" style={{ marginLeft: 12 }}>
+                    <WifiOutlined /> Realtime
+                  </Tag>
+                )}
+              </span>
+              <span>
+                {myStatus.icon} <strong>{myStatus.text}</strong>
+              </span>
+              <span>
+                Đã điểm danh: <strong style={{ color: '#52c41a' }}>
+                  {attendanceStats?.present_count || 0}
+                </strong> / {attendanceStats?.total_students || 0} ({attendancePercentage}%)
+              </span>
+            </Space>
+            <Button 
+              type="primary" 
+              icon={<TeamOutlined />}
+              onClick={() => navigate(`/student/classes/${classId}/attendance`)}
+            >
+              Xem danh sách đầy đủ
+            </Button>
+          </div>
+        }
+        type={myStatus.type}
+        showIcon={false}
+        style={{ marginBottom: 24, borderRadius: 12, padding: '16px 24px' }}
+        description={
+          <Text type="secondary">
+            Bắt đầu lúc {new Date(attendanceSession.start_time).toLocaleTimeString('vi-VN')} • 
+            Cập nhật realtime khi AI nhận diện sinh viên
+          </Text>
+        }
+      />
+    );
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -482,6 +713,9 @@ const StudentClassDetailPage: React.FC = () => {
         >
           Quay lại
         </Button>
+        
+        {/* ✅ NEW: Real-time Attendance Banner */}
+        {renderAttendanceBanner()}
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
