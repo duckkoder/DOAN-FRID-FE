@@ -10,6 +10,12 @@ import { message } from "antd";
 const leftBarConfig = {
   "admin": [ // Admin
     {
+      label: "Overview",
+      items: [
+        { key: "dashboard", label: "Dashboard", path: "/admin" }
+      ]
+    },
+    {
       label: "Manage",
       items: [
         { key: "teachers", label: "Teacher", path: "/admin/teachers" },
@@ -112,7 +118,7 @@ const RoleLayout: React.FC = () => {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f6f9fc", display: "flex", flexDirection: "column" }}>
-      <Header username={username} />
+      <Header username={username} role={user.role} />
       <div style={{ display: "flex", flex: 1 }}>
         <LeftBar 
           sections={leftBarSections} 
