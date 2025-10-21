@@ -35,6 +35,7 @@ import {
   frameToBase64,
   type RecognizedStudent,
   type EndSessionResponse,
+  type Detection,
 } from '../apis/attendanceAPIs/attendanceAPIs';
 
 const { Text } = Typography;
@@ -58,6 +59,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   const [recognizing, setRecognizing] = useState(false);
   const [recognizedStudents, setRecognizedStudents] = useState<RecognizedStudent[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [detections, setDetections] = useState<Detection[]>([]); // Thêm state để lưu detections
 
   // ✅ Handler để xử lý khi user muốn đóng modal
   const handleModalClose = () => {
@@ -89,6 +91,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null); // Canvas để vẽ bbox
   const streamRef = useRef<MediaStream | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const intervalRef = useRef<number | null>(null);
@@ -103,6 +106,129 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   };
 
   // ============= Camera Functions =============
+
+  // Hàm vẽ bounding boxes và thông tin lên canvas overlay
+  const drawDetections = (detections: Detection[]) => {
+    const video = videoRef.current;
+    const canvas = overlayCanvasRef.current;
+    
+    if (!video || !canvas) return;
+    
+    // Get video element dimensions
+    const rect = video.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Calculate actual video dimensions and offset when using objectFit: 'contain'
+    const videoAspect = video.videoWidth / video.videoHeight;
+    const displayAspect = rect.width / rect.height;
+    
+    let renderWidth, renderHeight, offsetX, offsetY;
+    
+    if (videoAspect > displayAspect) {
+      // Video is wider - fit to width
+      renderWidth = rect.width;
+      renderHeight = rect.width / videoAspect;
+      offsetX = 0;
+      offsetY = (rect.height - renderHeight) / 2;
+    } else {
+      // Video is taller - fit to height
+      renderHeight = rect.height;
+      renderWidth = rect.height * videoAspect;
+      offsetX = (rect.width - renderWidth) / 2;
+      offsetY = 0;
+    }
+    
+    // Calculate scale factors based on rendered video size
+    const scaleX = renderWidth / video.videoWidth;
+    const scaleY = renderHeight / video.videoHeight;
+    
+    console.log('[DrawDetections]', {
+      videoWidth: video.videoWidth,
+      videoHeight: video.videoHeight,
+      displayWidth: rect.width,
+      displayHeight: rect.height,
+      renderWidth,
+      renderHeight,
+      offsetX,
+      offsetY,
+      scaleX,
+      scaleY,
+      numDetections: detections.length
+    });
+    
+    // Draw each detection
+    detections.forEach((detection) => {
+      const [x1, y1, x2, y2] = detection.bbox;
+      
+      console.log('[DrawDetections] Detection:', {
+        original: detection.bbox,
+        studentId: detection.student_id,
+        confidence: detection.confidence
+      });
+      
+      // Scale coordinates to rendered video size and add offset
+      const displayX1 = x1 * scaleX + offsetX;
+      const displayY1 = y1 * scaleY + offsetY;
+      const displayX2 = x2 * scaleX + offsetX;
+      const displayY2 = y2 * scaleY + offsetY;
+      const width = displayX2 - displayX1;
+      const height = displayY2 - displayY1;
+      
+      console.log('[DrawDetections] Scaled:', {
+        displayX1,
+        displayY1,
+        displayX2,
+        displayY2,
+        width,
+        height
+      });
+      
+      // Determine color based on recognition status
+      const isRecognized = detection.student_id;
+      const boxColor = isRecognized ? '#52c41a' : '#1890ff'; // Green if recognized, blue otherwise
+      const confidence = detection.recognition_confidence || detection.confidence;
+      
+      // Draw bounding box
+      ctx.strokeStyle = boxColor;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(displayX1, displayY1, width, height);
+      
+      // Draw label background
+      const label = isRecognized 
+        ? `${detection.student_name || detection.student_code || detection.student_id} (${(confidence * 100).toFixed(1)}%)`
+        : `Face (${(confidence * 100).toFixed(1)}%)`;
+      
+      ctx.font = 'bold 14px Arial';
+      const textMetrics = ctx.measureText(label);
+      const textWidth = textMetrics.width + 10;
+      const textHeight = 20;
+      
+      // Draw label background
+      ctx.fillStyle = boxColor;
+      ctx.fillRect(displayX1, displayY1 - textHeight - 5, textWidth, textHeight);
+      
+      // Draw label text
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(label, displayX1 + 5, displayY1 - 10);
+      
+      // Draw track ID if available
+      if (detection.track_id) {
+        const trackLabel = `#${detection.track_id}`;
+        ctx.fillStyle = boxColor;
+        ctx.fillRect(displayX2 - 40, displayY1, 40, 20);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 12px Arial';
+        ctx.fillText(trackLabel, displayX2 - 35, displayY1 + 14);
+      }
+    });
+  };
 
   const startCamera = async () => {
     return new Promise<void>((resolve, reject) => {
@@ -230,12 +356,28 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
 
          // Capture frame
          const imageBase64 = frameToBase64(videoRef.current, canvasRef.current || undefined);
-         console.log('[Recognition] Frame captured, size:', imageBase64.length, 'bytes');
+         console.log('[Recognition] Frame captured:', {
+           imageSize: imageBase64.length,
+           videoWidth: videoRef.current.videoWidth,
+           videoHeight: videoRef.current.videoHeight
+         });
 
         // Send to backend - use sessionId from ref
         console.log('[Recognition] Sending to backend with sessionId:', currentSessionId);
         const result = await recognizeFrame(currentSessionId, imageBase64);
         console.log('[Recognition] Backend response:', result);
+
+        // Update detections state to draw on canvas
+        if (result.detections && result.detections.length > 0) {
+          console.log('[Recognition] Received detections:', result.detections);
+          setDetections(result.detections);
+          drawDetections(result.detections);
+        } else {
+          // Clear detections if no faces detected
+          console.log('[Recognition] No detections received');
+          setDetections([]);
+          drawDetections([]);
+        }
 
         // Update recognized students from response (backup nếu WebSocket chậm)
         if (result.students_recognized.length > 0) {
@@ -289,6 +431,15 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       setSessionId(null);
       sessionIdRef.current = null; // ✅ Reset ref
       setRecognizedStudents([]);
+      setDetections([]); // Clear detections
+      
+      // Clear overlay canvas
+      if (overlayCanvasRef.current) {
+        const ctx = overlayCanvasRef.current.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.height);
+        }
+      }
 
       // Callback
       if (onSessionEnd) {
@@ -306,6 +457,35 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   };
 
   // ============= Effects =============
+
+  // Update canvas overlay size when video size changes
+  useEffect(() => {
+    const updateCanvasSize = () => {
+      const video = videoRef.current;
+      const canvas = overlayCanvasRef.current;
+      
+      if (video && canvas) {
+        const rect = video.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        
+        // Redraw detections after resize
+        if (detections.length > 0) {
+          drawDetections(detections);
+        }
+      }
+    };
+    
+    // Listen for window resize
+    window.addEventListener('resize', updateCanvasSize);
+    
+    // Initial size update
+    updateCanvasSize();
+    
+    return () => {
+      window.removeEventListener('resize', updateCanvasSize);
+    };
+  }, [detections]);
 
   // Cleanup when modal closes - end session if still active
   useEffect(() => {
@@ -341,6 +521,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
           setSessionId(null);
           sessionIdRef.current = null;
           setRecognizedStudents([]);
+          setDetections([]);
           setError(null);
           setRecognizing(false);
           setLoading(false);
@@ -353,6 +534,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       setSessionId(null);
       sessionIdRef.current = null;
       setRecognizedStudents([]);
+      setDetections([]);
       setError(null);
       setRecognizing(false);
       setLoading(false);
@@ -446,9 +628,21 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
                   left: 0,
                   width: '100%',
                   height: '100%',
-                  objectFit: 'cover',
+                  objectFit: 'contain', // Changed from 'cover' to 'contain' to preserve aspect ratio
                   backgroundColor: '#000',
                   borderRadius: 8,
+                }}
+              />
+              {/* Overlay canvas để vẽ bounding boxes */}
+              <canvas
+                ref={overlayCanvasRef}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  pointerEvents: 'none', // Allow clicks to pass through
                 }}
               />
               <canvas ref={canvasRef} style={{ display: 'none' }} />

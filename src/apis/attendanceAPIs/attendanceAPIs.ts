@@ -35,12 +35,23 @@ export interface RecognizedStudent {
   recorded_at: string;
 }
 
+export interface Detection {
+  bbox: [number, number, number, number]; // [x1, y1, x2, y2]
+  confidence: number;
+  track_id?: number;
+  student_id?: string;
+  recognition_confidence?: number;
+  student_name?: string;
+  student_code?: string;
+}
+
 export interface RecognizeFrameResponse {
   success: boolean;
   message: string;
   total_faces_detected: number;
   students_recognized: RecognizedStudent[];
   processing_time_ms: number;
+  detections?: Detection[]; // Thêm thông tin detections với bbox
 }
 
 export interface EndSessionRequest {
@@ -196,7 +207,12 @@ export const frameToBase64 = (
   const ctx = canvasElement.getContext('2d');
   if (!ctx) throw new Error('Cannot get canvas context');
   
-  ctx.drawImage(video, 0, 0);
+  // Clear canvas
+  ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+  
+  // Draw image directly without flipping
+  // (Video element already handles mirroring in CSS if needed)
+  ctx.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
   
   // Get base64 without "data:image/jpeg;base64," prefix
   return canvasElement.toDataURL('image/jpeg', 0.8).split(',')[1];
