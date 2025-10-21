@@ -203,7 +203,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       // Draw label background
       const label = isRecognized 
         ? `${detection.student_name || detection.student_code || detection.student_id} (${(confidence * 100).toFixed(1)}%)`
-        : `Face (${(confidence * 100).toFixed(1)}%)`;
+        : `Unknown (${(confidence * 100).toFixed(1)}%)`;
       
       ctx.font = 'bold 14px Arial';
       const textMetrics = ctx.measureText(label);
