@@ -91,6 +91,21 @@ export interface SessionAttendanceResponse {
   };
 }
 
+export interface SessionWithStats extends AttendanceSession {
+  statistics?: {
+    total_students: number;
+    present_count: number;
+    late_count: number;
+    absent_count: number;
+    attendance_rate: number;
+  };
+}
+
+export interface ClassSessionsResponse {
+  sessions: SessionWithStats[];
+  total: number;
+}
+
 // ============= API Functions =============
 
 /**
@@ -138,6 +153,26 @@ export const getSessionAttendance = async (
   sessionId: number
 ): Promise<SessionAttendanceResponse> => {
   const response = await api.get(`${API_BASE}/sessions/${sessionId}`);
+  return response.data;
+};
+
+/**
+ * Lấy danh sách các phiên điểm danh của lớp
+ */
+export const getClassSessions = async (
+  classId: number,
+  status?: 'ongoing' | 'finished' | 'scheduled',
+  skip: number = 0,
+  limit: number = 100
+): Promise<ClassSessionsResponse> => {
+  const params = new URLSearchParams();
+  if (status) params.append('status', status);
+  params.append('skip', skip.toString());
+  params.append('limit', limit.toString());
+  
+  const response = await api.get(
+    `${API_BASE}/classes/${classId}/sessions?${params.toString()}`
+  );
   return response.data;
 };
 

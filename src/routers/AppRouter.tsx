@@ -10,7 +10,7 @@ import AdminStudentPage from "../pages/Admin/AdminStudentPage";
 import AdminModalAIPage from "../pages/Admin/AdminModalAIPage";
 
 import TeacherClassPage from "../pages/Teacher/TeacherClassPage";
-
+import SessionDetailPage from "../pages/Teacher/SessionDetailPage";
 import TeacherReportPage from "../pages/Teacher/TeacherReportPage";
 
 import StudentClassDetailPage from "../pages/Student/StudentClassDetailPage";
@@ -51,6 +51,7 @@ const router = createBrowserRouter(
               <Route index element={<TeacherHomePage />} />
               <Route path="classes" element={<TeacherClassPage />} />
               <Route path="class/:classId" element={<ClassDetailPage />} />
+              <Route path="attendance/:sessionId" element={<SessionDetailPage />} />
               <Route path="reports" element={<TeacherReportPage />} />
               <Route path="leave-requests" element={<TeacherLeaveRequestPage />} />
               <Route path="classes/create" element={<ClassCreatePage />} />
