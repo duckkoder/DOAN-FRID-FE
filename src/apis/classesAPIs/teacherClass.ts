@@ -165,6 +165,51 @@ export interface ApiError {
   errors?: any;
 }
 
+// ✅ NEW: Student detail in class with full info
+export interface StudentDetailInClass {
+  id: number;
+  studentId: string; // student_code
+  fullName: string;
+  email: string;
+  phone: string | null;
+  avatar: string | null;
+  dateOfBirth: string | null;
+  department: string | null;
+  academicYear: string | null;
+  isVerified: boolean;
+  joinedAt: string; // ISO date
+  attendanceStats: {
+    totalSessions: number;
+    presentCount: number;
+    absentCount: number;
+    excusedCount: number;
+    attendanceRate: number; // percentage
+  };
+}
+
+// ✅ NEW: Class summary for students
+export interface ClassStudentsSummary {
+  totalStudents: number;
+  verifiedStudents: number;
+  unverifiedStudents: number;
+  averageAttendanceRate: number; // percentage
+}
+
+// ✅ NEW: Response for GET /teacher/classes/{class_id}/students/details
+export interface GetClassStudentsDetailResponse {
+  success: boolean;
+  data: {
+    class: {
+      id: number;
+      className: string;
+      classCode: string;
+      totalStudents: number;
+    };
+    students: StudentDetailInClass[];
+    summary: ClassStudentsSummary;
+  };
+}
+
 // ==================== API Functions ====================
 
 /**
@@ -291,6 +336,45 @@ export const deleteClass = async (
 ): Promise<DeleteClassResponse> => {
   const response = await api.delete(`/teacher/classes/${classId}`);
   return response.data;
+};
+
+/**
+ * Lấy chi tiết danh sách sinh viên trong lớp với thống kê điểm danh đầy đủ
+ * GET /api/v1/teacher/classes/{class_id}/students/details
+ * 
+ * @param classId - ID của lớp học
+ * @returns Danh sách sinh viên với thông tin chi tiết và thống kê điểm danh
+ * 
+ * @example
+ * ```typescript
+ * const studentsDetail = await getClassStudentsDetails(2);
+ * console.log(studentsDetail.data.students); // Array of detailed students
+ * console.log(studentsDetail.data.summary.averageAttendanceRate); // 15
+ * 
+ * // Access individual student data
+ * studentsDetail.data.students.forEach(student => {
+ *   console.log(`${student.fullName}: ${student.attendanceStats.attendanceRate}%`);
+ * });
+ * ```
+ */
+export const getClassStudentsDetails = async (
+  classId: number
+): Promise<GetClassStudentsDetailResponse> => {
+  try {
+    const response = await api.get(`/teacher/classes/${classId}/students/details`);
+    console.log(`Fetched students details for class ${classId}:`, response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error(`Failed to fetch students details for class ${classId}:`, error);
+    
+    const apiError: ApiError = {
+      status: error.response?.status,
+      message: error.response?.data?.message || error.message || `Failed to fetch students details for class ${classId}`,
+      errors: error.response?.data?.errors
+    };
+    
+    throw apiError;
+  }
 };
 
 // ==================== Helper Functions ====================
@@ -436,4 +520,76 @@ export const validateScheduleNotEmpty = (schedule: ScheduleModel): boolean => {
  */
 export const getStatusColor = (status: string): string => {
   return status === "active" ? "success" : "default";
+};
+
+// ✅ Helper functions for data processing
+
+/**
+ * Format attendance rate với màu sắc tương ứng
+ */
+export const formatAttendanceRate = (rate: number): { 
+  value: number; 
+  color: string; 
+  status: 'excellent' | 'good' | 'warning' | 'danger' 
+} => {
+  if (rate >= 90) {
+    return { value: rate, color: '#52c41a', status: 'excellent' };
+  } else if (rate >= 75) {
+    return { value: rate, color: '#1890ff', status: 'good' };
+  } else if (rate >= 60) {
+    return { value: rate, color: '#faad14', status: 'warning' };
+  } else {
+    return { value: rate, color: '#f5222d', status: 'danger' };
+  }
+};
+
+/**
+ * Sắp xếp danh sách sinh viên theo tiêu chí
+ */
+export const sortStudents = (
+  students: StudentDetailInClass[], 
+  sortBy: 'name' | 'attendance' | 'joinDate' | 'verification'
+): StudentDetailInClass[] => {
+  return [...students].sort((a, b) => {
+    switch (sortBy) {
+      case 'name':
+        return a.fullName.localeCompare(b.fullName, 'vi');
+      case 'attendance':
+        return b.attendanceStats.attendanceRate - a.attendanceStats.attendanceRate;
+      case 'joinDate':
+        return new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime();
+      case 'verification':
+        return Number(b.isVerified) - Number(a.isVerified);
+      default:
+        return 0;
+    }
+  });
+};
+
+/**
+ * Tìm kiếm sinh viên theo tên hoặc mã SV
+ */
+export const searchStudents = (
+  students: StudentDetailInClass[], 
+  searchTerm: string
+): StudentDetailInClass[] => {
+  if (!searchTerm.trim()) return students;
+  
+  const term = searchTerm.toLowerCase().trim();
+  return students.filter(student => 
+    student.fullName.toLowerCase().includes(term) ||
+    student.studentId.toLowerCase().includes(term) ||
+    student.email.toLowerCase().includes(term)
+  );
+};
+
+/**
+ * Lọc sinh viên theo trạng thái xác thực
+ */
+export const filterStudentsByVerification = (
+  students: StudentDetailInClass[], 
+  verified: boolean | null
+): StudentDetailInClass[] => {
+  if (verified === null) return students;
+  return students.filter(student => student.isVerified === verified);
 };
