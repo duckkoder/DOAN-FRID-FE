@@ -45,6 +45,9 @@ interface AttendanceCameraProps {
   visible: boolean;
   onClose: () => void;
   onSessionEnd?: (result: EndSessionResponse) => void;
+  dayOfWeek?: number;
+  periodRange?: string;
+  sessionIndex?: number;
 }
 
 const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
@@ -52,6 +55,9 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   visible,
   onClose,
   onSessionEnd,
+  dayOfWeek,
+  periodRange,
+  sessionIndex,
 }) => {
   // States
   const [loading, setLoading] = useState(false);
@@ -287,6 +293,9 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       const session = await startAttendanceSession({
         class_id: classId,
         late_threshold_minutes: 15,
+        day_of_week: dayOfWeek,
+        period_range: periodRange,
+        session_index: sessionIndex,
       });
 
       setSessionId(session.id);
