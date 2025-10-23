@@ -12,6 +12,9 @@ export interface StartSessionRequest {
   session_name?: string;
   late_threshold_minutes?: number;
   location?: string;
+  day_of_week?: number;
+  period_range?: string;
+  session_index?: number;
 }
 
 export interface AttendanceSession {
@@ -23,6 +26,9 @@ export interface AttendanceSession {
   status: 'ongoing' | 'finished' | 'scheduled';
   late_threshold_minutes: number;
   location: string | null;
+  day_of_week?: number | null;
+  period_range?: string | null;
+  session_index?: number | null;
   created_at: string;
 }
 

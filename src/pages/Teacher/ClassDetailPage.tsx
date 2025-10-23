@@ -1815,6 +1815,9 @@ const ClassDetailPage: React.FC = () => {
           visible={isAttendanceCameraVisible}
           onClose={() => setIsAttendanceCameraVisible(false)}
           onSessionEnd={handleSessionEnd}
+          dayOfWeek={selectedAttendanceSession?.day}
+          periodRange={selectedAttendanceSession?.periods}
+          sessionIndex={selectedAttendanceSession?.sessionIndex}
         />
       )}
     </div>
