@@ -83,6 +83,22 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   });
 
   /**
+   * Reset states when modal opens fresh (without active session)
+   */
+  useEffect(() => {
+    if (visible && !sessionInfo) {
+      // ✅ Reset tất cả states khi mở modal mới
+      setDetections([]);
+      setValidatedStudents([]);
+      setTotalFaces(0);
+      setFps(0);
+      setError(null);
+      setCameraActive(false);
+      setWsConnected(false);
+    }
+  }, [visible, sessionInfo]);
+
+  /**
    * Start attendance session
    */
   const handleStartSession = async () => {
@@ -446,9 +462,15 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       // End session in Backend
       await endAttendanceSession(sessionInfo.session_id, { mark_absent: true });
 
+      // ✅ Reset ALL states để tránh hiển thị data cũ
       setCameraActive(false);
       setWsConnected(false);
       setSessionInfo(null); // Clear session info to prevent duplicate calls
+      setDetections([]); // Clear detections
+      setValidatedStudents([]); // Clear validated students
+      setTotalFaces(0); // Reset counters
+      setFps(0);
+      setError(null);
       
       onSessionEnd?.();
 
@@ -474,6 +496,12 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         onOk: handleStopSession,
       });
     } else {
+      // ✅ Reset states khi đóng modal (không có session active)
+      setDetections([]);
+      setValidatedStudents([]);
+      setTotalFaces(0);
+      setFps(0);
+      setError(null);
       onClose();
     }
   };
@@ -694,7 +722,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
           {/* Validated Students */}
           <Card
             title="Sinh viên đã xác nhận"
-            extra={<Badge count={validatedStudents.length} showZero />}
+            extra={<Badge count={attendanceData?.statistics.present || validatedStudents.length} showZero />}
           >
             <List
               dataSource={validatedStudents}
