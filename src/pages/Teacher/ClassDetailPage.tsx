@@ -636,11 +636,8 @@ const ClassDetailPage: React.FC = () => {
   };
 
   // ✅ Handle session end
-  const handleSessionEnd = async (result: EndSessionResponse) => {
-    message.success(
-      `Kết thúc phiên điểm danh!\nTổng: ${result.total_students} | ` +
-      `Có mặt: ${result.present_count} | Trễ: ${result.late_count} | Vắng: ${result.absent_count}`
-    );
+  const handleSessionEnd = async () => {
+    message.success('Kết thúc phiên điểm danh!');
     
     setIsAttendanceCameraVisible(false);
     

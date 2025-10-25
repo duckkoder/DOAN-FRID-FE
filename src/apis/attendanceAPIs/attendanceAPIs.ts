@@ -23,13 +23,24 @@ export interface AttendanceSession {
   session_name: string | null;
   start_time: string;
   end_time: string | null;
-  status: 'ongoing' | 'finished' | 'scheduled';
+  status: 'ongoing' | 'finished' | 'scheduled' | 'pending' | 'active';
   late_threshold_minutes: number;
   location: string | null;
   day_of_week?: number | null;
   period_range?: string | null;
   session_index?: number | null;
+  ai_session_id?: string | null;
   created_at: string;
+}
+
+// AI-Service Integration Types
+export interface AISessionResponse {
+  session_id: number; // Backend session ID
+  ai_session_id: string; // AI-Service session ID
+  ai_ws_url: string; // WebSocket URL
+  ai_ws_token: string; // JWT token
+  expires_at: string;
+  status: string;
 }
 
 export interface RecognizedStudent {
@@ -115,7 +126,18 @@ export interface ClassSessionsResponse {
 // ============= API Functions =============
 
 /**
- * Bắt đầu phiên điểm danh
+ * Bắt đầu phiên điểm danh với AI-Service
+ * Returns WebSocket URL và JWT token
+ */
+export const startAttendanceSessionWithAI = async (
+  data: StartSessionRequest
+): Promise<AISessionResponse> => {
+  const response = await api.post(`${API_BASE}/sessions/start`, data);
+  return response.data;
+};
+
+/**
+ * Bắt đầu phiên điểm danh (legacy - compatibility)
  */
 export const startAttendanceSession = async (
   data: StartSessionRequest
