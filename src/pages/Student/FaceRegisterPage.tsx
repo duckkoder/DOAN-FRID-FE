@@ -53,8 +53,8 @@ const FaceRegisterPage: React.FC = () => {
   const [isPanelZoomed, setIsPanelZoomed] = useState(false);
 
   const breadcrumbItems = [
-    { title: "Dashboard", href: "/student" },
-    { title: "Face Registration" }
+    { title: "Trang chủ", href: "/student" },
+    { title: "Đăng ký khuôn mặt" }
   ];
 
   const steps = [

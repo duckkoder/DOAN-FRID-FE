@@ -245,17 +245,8 @@ const AuthPage: React.FC = () => {
 
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 0 }}>
                       <Link href="#" style={{ fontSize: 12 }}>
-                        Quên mật khẩu?
+                        Quên mật khẩu? Liên hệ quản trị viên.
                       </Link>
-                    </div>
-
-                    <div style={{ marginTop: 16, textAlign: "center" }}>
-                      <Text type="secondary" style={{ fontSize: 14 }}>
-                        Chưa có tài khoản?{" "}
-                        <Link href="/register" style={{ color: "#2563eb" }}>
-                          Đăng ký ngay
-                        </Link>
-                      </Text>
                     </div>
                   </Form>
                 </div>

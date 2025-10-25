@@ -76,8 +76,8 @@ const TeacherLeaveRequestPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const breadcrumbItems = [
-    { title: "Dashboard", href: "/teacher" },
-    { title: "Leave Requests" }
+    { title: "Trang chủ", href: "/teacher" },
+    { title: "Đơn xin nghỉ học" }
   ];
 
   // ✅ Convert English day to Vietnamese
@@ -456,7 +456,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
           fontSize: 36,
           fontWeight: 700
         }}>
-          📋 Student Leave Requests
+          📋 Quản lý đơn xin nghỉ
         </Title>
         <Text style={{ 
           fontSize: 18, 

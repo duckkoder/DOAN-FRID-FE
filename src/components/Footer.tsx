@@ -9,7 +9,7 @@ const Footer: React.FC = () => (
     <Text type="secondary">
       © {new Date().getFullYear()} Attendify. All rights reserved. | Developed by&nbsp;
       <Link href="https://your-portfolio-link.com" target="_blank" rel="noopener">
-        Your Name
+        SVDUT
       </Link>
     </Text>
   </AntFooter>

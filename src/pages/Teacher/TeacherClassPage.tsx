@@ -152,8 +152,8 @@ const TeacherClassPage: React.FC = () => {
   };
 
   const breadcrumbItems = [
-    { title: "Dashboard", href: "/teacher" },
-    { title: "Class Management" }
+    { title: "Trang chủ", href: "/teacher" },
+    { title: "Lớp học" }
   ];
 
   const weekDays = [
@@ -383,7 +383,7 @@ const TeacherClassPage: React.FC = () => {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 }}>
         <div style={{ flex: 1 }}>
           <Title level={1} style={{ marginBottom: 8, color: "#2563eb", fontSize: 36, fontWeight: 700 }}>
-            📚 Class Management
+            📚 Quản lý lớp học
           </Title>
           <Text style={{ fontSize: 18, color: "#64748b" }}>Quản lý lịch học và thông tin các lớp học</Text>
           <br />
