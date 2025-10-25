@@ -635,6 +635,7 @@ const ClassDetailPage: React.FC = () => {
       try {
         const { getClassSessions: getClassSessionsAPI } = await import('../../apis/attendanceAPIs/attendanceAPIs');
         const response = await getClassSessionsAPI(classId, undefined, 0, 100);
+        console.log('attendance sessions:', response.sessions);
         setAttendanceSessions(response.sessions);
       } catch (error: any) {
         console.error('Failed to reload attendance sessions:', error);
@@ -684,8 +685,6 @@ const ClassDetailPage: React.FC = () => {
 
       try {
         const res: GetClassDetailsResponse = await getClassDetails(classId);
-
-        console.log("Fetched class details:", res);
         
         const cls = res?.data?.class;
         if (!cls) {
@@ -731,6 +730,7 @@ const ClassDetailPage: React.FC = () => {
       try {
         const { getClassSessions: getClassSessionsAPI } = await import('../../apis/attendanceAPIs/attendanceAPIs');
         const response = await getClassSessionsAPI(classId, undefined, 0, 100);
+        console.log('Fetched attendance sessions:', response.sessions);
         setAttendanceSessions(response.sessions);
       } catch (error: any) {
         console.error('Failed to load attendance sessions:', error);
@@ -940,7 +940,7 @@ const ClassDetailPage: React.FC = () => {
       key: 'session',
       render: (record: SessionWithStats) => (
         <div>
-          <Text strong>{record.session_name || `Phiên #${record.id}`}</Text>
+          <Text strong>Thứ {record.day_of_week}, buổi {record.period_range}</Text>
           <br />
           <Text type="secondary" style={{ fontSize: 12 }}>
             {dayjs(record.start_time).format('DD/MM/YYYY HH:mm')}
@@ -1044,6 +1044,8 @@ const ClassDetailPage: React.FC = () => {
         return { color: '#10b981', text: 'Đang diễn ra' };
       case 'upcoming':
         return { color: '#3b82f6', text: 'Sắp diễn ra' };
+      case 'finished':
+        return { color: '#54637cff', text: 'Đã kết thúc' };  
       default:
         return { color: '#64748b', text: 'Không xác định' };
     }
@@ -1056,7 +1058,6 @@ const ClassDetailPage: React.FC = () => {
     return '#ef4444';
   };
 
-  console.log("Rendering ClassDetailPage with studentsData:", studentsData);
   const totalStudents = studentsData.length;
   const totalSessions = classSummary?.totalSessions || 0; // ✅ From API summary
   const avgAttendance = classSummary?.averageAttendanceRate || 0; // ✅ From API summary

@@ -1,11 +1,11 @@
-import React, { useState } from "react";
-import { 
-  Typography, 
-  Card, 
-  Row, 
-  Col, 
-  Table, 
-  Tag, 
+import React, { useState, useEffect } from "react";
+import {
+  Typography,
+  Card,
+  Row,
+  Col,
+  Table,
+  Tag,
   Button,
   Modal,
   Form,
@@ -13,9 +13,11 @@ import {
   Select,
   message,
   Space,
-  Statistic
+  Statistic,
+  Spin, // Added for loading state
+  Alert // Added for error state
 } from "antd";
-import { 
+import {
   ExclamationCircleOutlined,
   CalendarOutlined,
   CheckCircleOutlined,
@@ -24,108 +26,100 @@ import {
 } from "@ant-design/icons";
 import Breadcrumb from "../../components/Breadcrumb";
 
+// Import API and Types
+import { getStudentOverallAttendanceReport } from "../../apis/attendanceAPIs/studentAttendance";
+import {
+  type StudentAttendanceReportResponse,
+  type StudentAttendanceSessionSummarySchema,
+} from "../../types/studentAttendance";
+
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
-interface AttendanceRecord {
-  id: string;
-  date: string;
-  subject: string;
-  teacher: string;
-  session: string;
-  status: 'present' | 'absent' | 'late' | 'excused';
-  canAppeal: boolean;
-  appealStatus?: 'pending' | 'approved' | 'rejected';
+// Update this interface to match StudentAttendanceSessionSummarySchema for direct use
+interface LocalAttendanceRecord extends StudentAttendanceSessionSummarySchema {
+  canAppeal: boolean; // This will need to be determined by business logic
+  appealStatus?: 'pending' | 'approved' | 'rejected'; // If appeal status is not in API, it's local state
 }
 
 const StudentAttendancePage: React.FC = () => {
   const [isAppealModalVisible, setIsAppealModalVisible] = useState(false);
-  const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<LocalAttendanceRecord | null>(null);
   const [form] = Form.useForm();
-  
+
+  // API Data States
+  const [overallReport, setOverallReport] = useState<StudentAttendanceReportResponse | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
   // Filter states
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [classFilter, setClassFilter] = useState<string>('all');
+  const [classFilter, setClassFilter] = useState<number | 'all'>('all'); // Change to number for class_id
 
-  // Dữ liệu mẫu
-  const attendanceData: AttendanceRecord[] = [
-    {
-      id: "1",
-      date: "2024-10-07",
-      subject: "Advanced Java Programming",
-      teacher: "Dr. Nguyen Van A",
-      session: "Buổi 1 (9:00 - 11:00)",
-      status: 'present',
-      canAppeal: false
-    },
-    {
-      id: "2",
-      date: "2024-10-05",
-      subject: "Advanced Java Programming", 
-      teacher: "Dr. Nguyen Van A",
-      session: "Buổi 1 (9:00 - 11:00)",
-      status: 'absent',
-      canAppeal: true
-    },
-    {
-      id: "3",
-      date: "2024-10-03",
-      subject: "Database Design",
-      teacher: "Prof. Tran Thi B",
-      session: "Buổi 2 (14:00 - 16:00)",
-      status: 'late',
-      canAppeal: true
-    },
-    {
-      id: "4",
-      date: "2024-10-01",
-      subject: "Web Development",
-      teacher: "Mr. Le Van C",
-      session: "Buổi 3 (15:30 - 17:30)",
-      status: 'absent',
-      canAppeal: true,
-      appealStatus: 'pending'
-    },
-    {
-      id: "5",
-      date: "2024-09-28",
-      subject: "Advanced Java Programming",
-      teacher: "Dr. Nguyen Van A", 
-      session: "Buổi 1 (9:00 - 11:00)",
-      status: 'excused',
-      canAppeal: false
-    }
-  ];
+  // Fetch overall attendance report on component mount
+  useEffect(() => {
+    const fetchReport = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const report = await getStudentOverallAttendanceReport();
+        setOverallReport(report);
+      } catch (err: any) {
+        console.error("Error fetching overall attendance report:", err);
+        setError(err.message || "Failed to load attendance report.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchReport();
+  }, []);
 
   const breadcrumbItems = [
-    { title: "Dashboard", href: "/student" },
-    { title: "Attendance" }
+    { title: "Trang chủ", href: "/student" },
+    { title: "Điểm danh" }
   ];
 
+  // Derive all individual attendance sessions from the overall report for display
+  const allAttendanceSessions: LocalAttendanceRecord[] = overallReport
+    ? overallReport.classes_summary.flatMap(classSummary =>
+        classSummary.sessions.map(session => ({
+          ...session,
+          // Placeholder for canAppeal and appealStatus.
+          // In a real app, you'd fetch/determine this from backend or other logic.
+          canAppeal: session.student_attendance_status === 'absent' || session.student_attendance_status === 'late',
+          appealStatus: undefined, // Or load from a separate appeal API if available
+        }))
+      )
+    : [];
+
   // Get unique classes for filter
-  const uniqueClasses = Array.from(new Set(attendanceData.map(record => record.subject)));
+  const uniqueClasses: { id: number; name: string }[] = overallReport
+    ? overallReport.classes_summary.map(cs => ({ id: cs.class_id, name: cs.class_name }))
+    : [];
 
   // Filter data based on search and filters
-  const filteredData = attendanceData.filter(record => {
-    const matchesSearch = searchText === '' || 
-      record.subject.toLowerCase().includes(searchText.toLowerCase()) ||
-      record.teacher.toLowerCase().includes(searchText.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || record.status === statusFilter;
-    const matchesClass = classFilter === 'all' || record.subject === classFilter;
-    
+  const filteredData = allAttendanceSessions.filter(record => {
+    const matchesSearch = searchText === '' ||
+      record.class_name.toLowerCase().includes(searchText.toLowerCase()) ||
+      (record.session_name && record.session_name.toLowerCase().includes(searchText.toLowerCase())); // Assuming session_name is analogous to teacher/session
+
+    const matchesStatus = statusFilter === 'all' || record.student_attendance_status === statusFilter;
+    const matchesClass = classFilter === 'all' || record.class_id === classFilter;
+
     return matchesSearch && matchesStatus && matchesClass;
   });
 
-  // Thống kê based on filtered data
+  // Statistics based on filtered data (or overall if no filters applied)
   const totalSessions = filteredData.length;
-  const presentCount = filteredData.filter(r => r.status === 'present').length;
-  const absentCount = filteredData.filter(r => r.status === 'absent').length;
-  const lateCount = filteredData.filter(r => r.status === 'late').length;
-  const attendanceRate = totalSessions > 0 ? ((presentCount / totalSessions) * 100).toFixed(1) : '0';
+  const presentCount = filteredData.filter(r => r.student_attendance_status === 'present').length;
+  const absentCount = filteredData.filter(r => r.student_attendance_status === 'absent').length;
+  const lateCount = filteredData.filter(r => r.student_attendance_status === 'late').length;
+  const excusedCount = filteredData.filter(r => r.student_attendance_status === 'excused').length;
+  const attendanceRate = totalSessions > 0 ? (((presentCount + lateCount) / totalSessions) * 100).toFixed(1) : '0';
 
-  const getStatusConfig = (status: string) => {
+
+  const getStatusConfig = (status: string | null | undefined) => {
     switch(status) {
       case 'present':
         return { color: '#10b981', text: 'Có mặt', icon: <CheckCircleOutlined /> };
@@ -140,7 +134,7 @@ const StudentAttendancePage: React.FC = () => {
     }
   };
 
-  const getAppealStatusConfig = (status: string) => {
+  const getAppealStatusConfig = (status: string | undefined) => {
     switch(status) {
       case 'pending':
         return { color: '#f59e42', text: 'Đang xử lý' };
@@ -153,16 +147,18 @@ const StudentAttendancePage: React.FC = () => {
     }
   };
 
-  const handleAppeal = (record: AttendanceRecord) => {
+  const handleAppeal = (record: LocalAttendanceRecord) => {
     setSelectedRecord(record);
     setIsAppealModalVisible(true);
   };
 
   const handleSubmitAppeal = (values: any) => {
     console.log("Appeal submitted:", values);
+    // Here you would integrate with an API to submit the appeal
     message.success("Đã gửi khiếu nại thành công! Giáo viên sẽ xem xét trong thời gian sớm nhất.");
     setIsAppealModalVisible(false);
     form.resetFields();
+    // Potentially re-fetch data or update local state to reflect pending appeal
   };
 
   const handleClearFilters = () => {
@@ -174,33 +170,33 @@ const StudentAttendancePage: React.FC = () => {
   const columns = [
     {
       title: 'Ngày học',
-      dataIndex: 'date',
-      key: 'date',
-      render: (date: string) => (
+      dataIndex: 'start_time',
+      key: 'start_time',
+      render: (start_time: string) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <CalendarOutlined style={{ color: '#64748b' }} />
-          <Text>{new Date(date).toLocaleDateString('vi-VN')}</Text>
+          <Text>{new Date(start_time).toLocaleDateString('vi-VN')}</Text>
         </div>
       )
     },
     {
-      title: 'Môn học',
-      dataIndex: 'subject',
-      key: 'subject',
-      render: (subject: string, record: AttendanceRecord) => (
+      title: 'Buổi học & Môn học',
+      key: 'class_session_info',
+      render: (record: LocalAttendanceRecord) => (
         <div>
-          <Text strong>{subject}</Text>
+          <Text strong>{record.class_name}</Text>
           <br />
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.teacher} • {record.session}
+            {record.day_of_week && `Thứ ${record.day_of_week}, `} {/* Added day_of_week */}
+            {record.period_range && `${record.period_range} `} {/* Added period_range */}
           </Text>
         </div>
       )
     },
     {
       title: 'Trạng thái',
-      dataIndex: 'status',
-      key: 'status',
+      dataIndex: 'student_attendance_status',
+      key: 'student_attendance_status',
       render: (status: string) => {
         const config = getStatusConfig(status);
         return (
@@ -213,7 +209,7 @@ const StudentAttendancePage: React.FC = () => {
     {
       title: 'Khiếu nại',
       key: 'appeal',
-      render: (record: AttendanceRecord) => {
+      render: (record: LocalAttendanceRecord) => {
         if (record.appealStatus) {
           const config = getAppealStatusConfig(record.appealStatus);
           return (
@@ -222,11 +218,11 @@ const StudentAttendancePage: React.FC = () => {
             </Tag>
           );
         }
-        
-        if (record.canAppeal && (record.status === 'absent' || record.status === 'late')) {
+
+        if (record.canAppeal && (record.student_attendance_status === 'absent' || record.student_attendance_status === 'late')) {
           return (
-            <Button 
-              type="primary" 
+            <Button
+              type="primary"
               size="small"
               onClick={() => handleAppeal(record)}
               style={{ borderRadius: 4 }}
@@ -235,33 +231,55 @@ const StudentAttendancePage: React.FC = () => {
             </Button>
           );
         }
-        
+
         return <Text type="secondary">-</Text>;
       }
     }
   ];
 
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <Spin size="large" tip="Đang tải dữ liệu điểm danh..." />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: "32px 48px" }}>
+        <Alert
+          message="Lỗi"
+          description={error}
+          type="error"
+          showIcon
+        />
+      </div>
+    );
+  }
+
+
   return (
-    <div style={{ 
-      minHeight: "100vh", 
-      background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)", 
-      padding: "32px 48px" 
+    <div style={{
+      minHeight: "100vh",
+      background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)",
+      padding: "32px 48px"
     }}>
       {/* Breadcrumb */}
       <Breadcrumb items={breadcrumbItems} />
 
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
-        <Title level={1} style={{ 
-          marginBottom: 8, 
+        <Title level={1} style={{
+          marginBottom: 8,
           color: "#2563eb",
           fontSize: 36,
           fontWeight: 700
         }}>
-          📊 Attendance History
+          📊 Lịch sử điểm danh
         </Title>
-        <Text style={{ 
-          fontSize: 18, 
+        <Text style={{
+          fontSize: 18,
           color: "#64748b"
         }}>
           Theo dõi tình hình điểm danh và gửi khiếu nại nếu cần thiết
@@ -278,7 +296,7 @@ const StudentAttendancePage: React.FC = () => {
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} sm={8}>
             <Input
-              placeholder="Tìm kiếm theo môn học hoặc giáo viên..."
+              placeholder="Tìm kiếm theo môn học hoặc buổi học..."
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
@@ -295,9 +313,9 @@ const StudentAttendancePage: React.FC = () => {
               size="large"
             >
               <Select.Option value="all">Tất cả lớp</Select.Option>
-              {uniqueClasses.map(className => (
-                <Select.Option key={className} value={className}>
-                  {className}
+              {uniqueClasses.map(classItem => (
+                <Select.Option key={classItem.id} value={classItem.id}>
+                  {classItem.name}
                 </Select.Option>
               ))}
             </Select>
@@ -318,7 +336,7 @@ const StudentAttendancePage: React.FC = () => {
             </Select>
           </Col>
           <Col xs={24} sm={4}>
-            <Button 
+            <Button
               onClick={handleClearFilters}
               style={{ width: '100%' }}
               size="large"
@@ -377,23 +395,23 @@ const StudentAttendancePage: React.FC = () => {
         border: "none"
       }}>
         <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
-          📋 Chi tiết điểm danh {filteredData.length !== attendanceData.length && `(${filteredData.length}/${attendanceData.length} kết quả)`}
+          📋 Chi tiết điểm danh {allAttendanceSessions.length > 0 && `(${filteredData.length}/${allAttendanceSessions.length} kết quả)`}
         </Title>
         <Table
           dataSource={filteredData}
           columns={columns}
-          rowKey="id"
+          rowKey="session_id" // Use session_id as row key
           pagination={{
             pageSize: 10,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total, range) => 
+            showTotal: (total, range) =>
               `${range[0]}-${range[1]} của ${total} buổi học`
           }}
           style={{ background: '#fff' }}
           locale={{
-            emptyText: filteredData.length === 0 && attendanceData.length > 0 
-              ? "Không tìm thấy kết quả phù hợp" 
+            emptyText: filteredData.length === 0 && allAttendanceSessions.length > 0
+              ? "Không tìm thấy kết quả phù hợp"
               : "Chưa có dữ liệu điểm danh"
           }}
         />
@@ -411,13 +429,13 @@ const StudentAttendancePage: React.FC = () => {
         <div style={{ marginBottom: 16, padding: 16, background: '#f8fafc', borderRadius: 8 }}>
           <Text strong>Thông tin buổi học:</Text>
           <br />
-          <Text>📅 Ngày: {selectedRecord && new Date(selectedRecord.date).toLocaleDateString('vi-VN')}</Text>
+          <Text>📅 Ngày: {selectedRecord && new Date(selectedRecord.start_time).toLocaleDateString('vi-VN')}</Text>
           <br />
-          <Text>📚 Môn: {selectedRecord?.subject}</Text>
+          <Text>📚 Môn: {selectedRecord?.class_name}</Text>
           <br />
-          <Text>👨‍🏫 Giáo viên: {selectedRecord?.teacher}</Text>
-          <br />
-          <Text>🕐 Buổi: {selectedRecord?.session}</Text>
+          {/* If teacher name is not available in session summary, you might need to fetch it or pass it */}
+          {/* <Text>👨‍🏫 Giáo viên: {selectedRecord?.teacher}</Text> */}
+          <Text>🕐 Buổi: {selectedRecord?.session_name}</Text>
         </div>
 
         <Form
@@ -452,14 +470,14 @@ const StudentAttendancePage: React.FC = () => {
 
           <Form.Item style={{ marginBottom: 0 }}>
             <Space>
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 htmlType="submit"
                 size="large"
               >
                 Gửi khiếu nại
               </Button>
-              <Button 
+              <Button
                 onClick={() => setIsAppealModalVisible(false)}
                 size="large"
               >

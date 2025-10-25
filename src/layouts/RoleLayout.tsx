@@ -2,7 +2,7 @@ import React, { useContext } from "react";
 import { Outlet, Navigate, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { logout as apiLogout } from "../apis/authAPIs/auth";
-import getRefreshToken from "../apis/axios";
+
 import Header from "../components/Header";
 import LeftBar from "../components/LeftBar";
 import { message } from "antd";
@@ -10,68 +10,67 @@ import { message } from "antd";
 const leftBarConfig = {
   "admin": [ // Admin
     {
-      label: "Overview",
+      label: "Tổng quan",
       items: [
-        { key: "dashboard", label: "Dashboard", path: "/admin" }
+        { key: "dashboard", label: "Trang chủ", path: "/admin" }
       ]
     },
     {
-      label: "Manage",
+      label: "Quản lý",
       items: [
-        { key: "teachers", label: "Teacher", path: "/admin/teachers" },
-        { key: "students", label: "Student", path: "/admin/students" },
-        { key: "modalai", label: "ModalAI", path: "/admin/modalai" }
+        { key: "teachers", label: "Giáo viên", path: "/admin/teachers" },
+        { key: "students", label: "Học sinh", path: "/admin/students" },
+        { key: "modalai", label: "ModelAI", path: "/admin/modalai" }
       ]
     },
     {
-      label: "Actions",
+      label: "Hành động",
       items: [
-        { key: "logout", label: "Logout", path: "/auth", action: "logout" }
+        { key: "logout", label: "Đăng xuất", path: "/auth", action: "logout" }
       ]
     }
   ],
   "teacher": [ // Teacher
     {
-      label: "Analyse",
+      label: "Phân tích",
       items: [
-        { key: "dashboard", label: "Dashboard", path: "/teacher" },
+        { key: "dashboard", label: "Trang chủ", path: "/teacher" },
       ]
     },
     {
-      label: "Manage",
+      label: "Quản lý",
       items: [
-        { key: "class", label: "Class", path: "/teacher/classes" },
-        { key: "report", label: "Report", path: "/teacher/reports" },
-        { key: "leave", label: "Leave Request", path: "/teacher/leave-requests" }
+        { key: "class", label: "Lớp học", path: "/teacher/classes" },
+        { key: "leave", label: "Đơn nghỉ học", path: "/teacher/leave-requests" }
       ]
     },
     {
-      label: "Actions",
+      label: "Hành động",
       items: [
-        { key: "logout", label: "Logout", path: "/auth", action: "logout" }
+        { key: "logout", label: "Đăng xuất", path: "/auth", action: "logout" }
       ]
     }
   ],
   "student": [ // Student
     {
-      label: "Track",
+        label: "Theo dõi",
       items: [
-        { key: "classes", label: "Classes", path: "/student/classes" },
-        { key: "attendance", label: "Attendance", path: "/student/attendance" }
+        { key: "classes", label: "Lớp học", path: "/student/classes" },
+        { key: "attendance", label: "Điểm danh", path: "/student/attendance" }
       ]
     },
     {
-      label: "Analyse",
+      label: "Phân tích",
       items: [
-        { key: "dashboard", label: "Dashboard", path: "/student" },
-        { key: "report", label: "Report", path: "/student/reports" }
+        { key: "dashboard", label: "Trang chủ", path: "/student" },
+        { key: "report", label: "Đơn nghỉ học", path: "/student/reports" }
       ]
     },
     {
-      label: "Actions",
+      label: "Quản lý",
       items: [
-        { key: "registerFace", label: "Register Face", path: "/student/register-face" },
-        { key: "logout", label: "Logout", path: "/auth", action: "logout" }
+        { key: "registerFace", label: "Đăng ký khuôn mặt", path: "/student/register-face" },
+        { key: "logout", label: "Đăng xuất", path: "/auth", action: "logout" }
       ]
     }
   ]
@@ -87,14 +86,12 @@ const RoleLayout: React.FC = () => {
   // Handler cho logout
   const handleLogout = async () => {
     try {
-      const refreshToken = getRefreshToken();
+      const refreshToken = auth?.tokens.refreshToken;
       
       if (refreshToken) {
-        // Call logout API
         await apiLogout({ refresh_token: refreshToken });
       }
       
-      // Clear auth context
       auth?.logout();
       
       message.success("Đăng xuất thành công!");

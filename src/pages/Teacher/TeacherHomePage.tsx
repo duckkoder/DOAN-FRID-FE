@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Card, 
   Row, 
@@ -8,283 +8,166 @@ import {
   Button, 
   Table, 
   Tag, 
-  Space, 
-  Avatar, 
-  Progress,
-  Calendar,
-  Badge,
-  List,
-  Empty
+  Spin,
+  message,
+  Progress
 } from "antd";
 import { 
-  FileTextOutlined, 
   BookOutlined, 
   UserOutlined, 
-  CheckCircleOutlined, 
-  CloseCircleOutlined, 
+  CheckCircleOutlined,
   ClockCircleOutlined,
-  CalendarOutlined,
-  BellOutlined,
   EnvironmentOutlined,
-  EyeOutlined
+  EyeOutlined,
+  TeamOutlined,
+  CalendarOutlined
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
+import { getClassesList, type ClassListItem } from "../../apis/classesAPIs/teacherClass";
+import { getClassSessions, type SessionWithStats } from "../../apis/attendanceAPIs/attendanceAPIs";
 
 const { Title, Text } = Typography;
 
-interface ClassItem {
-  id: string;
-  subject: string;
-  time: string;
-  duration: string;
-  room: string;
-  studentCount: number;
-  maxStudents: number;
-  status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
-  day: number;
-}
-
-interface Notification {
-  id: string;
-  type: 'leave_request' | 'attendance' | 'announcement';
-  title: string;
-  message: string;
-  time: string;
-  isRead: boolean;
-}
-
-interface TodaySession {
-  id: string;
-  subject: string;
-  time: string;
-  room: string;
-  status: 'upcoming' | 'ongoing' | 'completed';
-  attendanceRate?: number;
+interface Statistics {
+  totalClasses: number;
+  activeClasses: number;
+  totalStudents: number;
+  avgAttendanceRate: number;
 }
 
 const TeacherHomePage: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedDate, setSelectedDate] = useState(dayjs());
+  const [classes, setClasses] = useState<ClassListItem[]>([]);
+  const [recentSessions, setRecentSessions] = useState<SessionWithStats[]>([]);
+  const [stats, setStats] = useState<Statistics>({
+    totalClasses: 0,
+    activeClasses: 0,
+    totalStudents: 0,
+    avgAttendanceRate: 0
+  });
+  const [loading, setLoading] = useState(true);
 
-  // Mock data for classes
-  const recentClasses: ClassItem[] = [
-    {
-      id: "1",
-      subject: "Advanced Java Programming",
-      time: "07:30",
-      duration: "120",
-      room: "A101",
-      studentCount: 35,
-      maxStudents: 40,
-      status: 'upcoming',
-      day: 1
-    },
-    {
-      id: "2", 
-      subject: "Database Management Systems",
-      time: "13:30",
-      duration: "90",
-      room: "B203",
-      studentCount: 28,
-      maxStudents: 35,
-      status: 'completed',
-      day: 2
-    },
-    {
-      id: "3",
-      subject: "Software Engineering",
-      time: "15:30",
-      duration: "90", 
-      room: "C105",
-      studentCount: 42,
-      maxStudents: 45,
-      status: 'ongoing',
-      day: 3
-    },
-    {
-      id: "4",
-      subject: "Computer Networks",
-      time: "09:00",
-      duration: "105",
-      room: "D201",
-      studentCount: 38,
-      maxStudents: 40,
-      status: 'upcoming',
-      day: 4
-    }
-  ];
-
-  // Mock notifications
-  const notifications: Notification[] = [
-    {
-      id: "1",
-      type: 'leave_request',
-      title: "Đơn xin nghỉ mới",
-      message: "Nguyễn Văn An đã gửi đơn xin nghỉ học ngày 15/10/2024",
-      time: "2 phút trước",
-      isRead: false
-    },
-    {
-      id: "2",
-      type: 'attendance',
-      title: "Điểm danh hoàn thành",
-      message: "Lớp Advanced Java Programming - Tỷ lệ có mặt: 94%",
-      time: "1 giờ trước", 
-      isRead: false
-    },
-    {
-      id: "3",
-      type: 'announcement',
-      title: "Thông báo từ Ban Giám Hiệu",
-      message: "Lịch thi cuối kỳ đã được cập nhật",
-      time: "3 giờ trước",
-      isRead: true
-    }
-  ];
-
-  // Mock today's sessions
-  const todaySessions: TodaySession[] = [
-    {
-      id: "1",
-      subject: "Advanced Java Programming",
-      time: "07:30",
-      room: "A101",
-      status: 'completed',
-      attendanceRate: 94
-    },
-    {
-      id: "2",
-      subject: "Database Management Systems", 
-      time: "13:30",
-      room: "B203",
-      status: 'ongoing'
-    },
-    {
-      id: "3",
-      subject: "Software Engineering",
-      time: "15:30",
-      room: "C105", 
-      status: 'upcoming'
-    }
-  ];
-
-  const stats = [
-    { 
-      title: "Tổng lớp học", 
-      value: recentClasses.length, 
-      color: "#2563eb",
-      icon: <BookOutlined />,
-      suffix: "lớp"
-    },
-    { 
-      title: "Điểm danh hôm nay", 
-      value: 94, 
-      color: "#10b981",
-      icon: <CheckCircleOutlined />,
-      suffix: "%"
-    },
-    { 
-      title: "Học sinh vắng", 
-      value: 8, 
-      color: "#ef4444",
-      icon: <CloseCircleOutlined />,
-      suffix: "người"
-    },
-    { 
-      title: "Đơn chờ duyệt", 
-      value: 3, 
-      color: "#f59e42",
-      icon: <FileTextOutlined />,
-      suffix: "đơn"
-    },
-  ];
+  // Fetch teacher classes and sessions
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        const classesResponse = await getClassesList();
+        console.log('✅ Classes response:', classesResponse);
+        
+        if (classesResponse.success && classesResponse.data) {
+          const classesData = classesResponse.data.classes;
+          setClasses(classesData);
+          
+          const activeClasses = classesData.filter((c: ClassListItem) => c.status === 'active').length;
+          const totalStudents = classesData.reduce((sum: number, c: ClassListItem) => 
+            sum + (c.studentCount || 0), 0
+          );
+          
+          const allSessions: SessionWithStats[] = [];
+          for (const cls of classesData) {
+            try {
+              const sessionsResponse = await getClassSessions(cls.id);
+              
+              if (sessionsResponse.sessions) {
+                const sessions = sessionsResponse.sessions.map((session: SessionWithStats) => ({
+                  ...session,
+                  class_name: cls.subject || cls.name,
+                  subject: cls.subject || cls.name,
+                  room: cls.location
+                }));
+                allSessions.push(...sessions);
+              }
+            } catch (error) {
+              console.error(`❌ Error fetching sessions for class ${cls.id}:`, error);
+            }
+          }
+          
+          const sortedSessions = allSessions
+            .sort((a, b) => dayjs(b.start_time).diff(dayjs(a.start_time)))
+            .slice(0, 10);
+          
+          setRecentSessions(sortedSessions);
+          
+          const sessionsWithStats = sortedSessions.filter(s => s.statistics);
+          const avgRate = sessionsWithStats.length > 0
+            ? sessionsWithStats.reduce((sum, s) => sum + (s.statistics?.attendance_rate || 0), 0) / sessionsWithStats.length
+            : 0;
+          
+          setStats({
+            totalClasses: classesData.length,
+            activeClasses,
+            totalStudents,
+            avgAttendanceRate: avgRate
+          });
+        }
+      } catch (error: any) {
+        console.error('❌ Error fetching data:', error);
+        message.error(error.message || 'Không thể tải dữ liệu');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
 
   const getStatusConfig = (status: string) => {
-    switch(status) {
-      case 'upcoming':
-        return { color: '#3b82f6', text: 'Sắp diễn ra' };
-      case 'ongoing':
-        return { color: '#10b981', text: 'Đang diễn ra' };
+    switch(status?.toLowerCase()) {
+      case 'active':
+        return { color: '#10b981', text: 'Đang hoạt động' };
+      case 'inactive':
+        return { color: '#64748b', text: 'Không hoạt động' };
       case 'completed':
         return { color: '#64748b', text: 'Đã kết thúc' };
+      case 'cancelled':
+        return { color: '#ef4444', text: 'Đã hủy' };
       default:
         return { color: '#64748b', text: 'Không xác định' };
     }
   };
 
-  const getNotificationIcon = (type: string) => {
-    switch(type) {
-      case 'leave_request':
-        return <FileTextOutlined style={{ color: '#f59e42' }} />;
-      case 'attendance':
-        return <CheckCircleOutlined style={{ color: '#10b981' }} />;
-      case 'announcement':
-        return <BellOutlined style={{ color: '#3b82f6' }} />;
-      default:
-        return <BellOutlined />;
-    }
-  };
-
-  const getEndTime = (startTime: string, duration: string) => {
-    const start = dayjs(`2024-01-01 ${startTime}`);
-    const end = start.add(parseInt(duration), 'minute');
-    return end.format('HH:mm');
-  };
-
-  const weekDays = ['', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
-
-  // Table columns for recent classes
+  // ✅ Table columns for classes - REMOVED schedule column
   const classColumns = [
     {
-      title: 'Môn học',
-      key: 'subject',
-      render: (record: ClassItem) => (
+      title: 'Tên lớp',
+      key: 'name',
+      render: (record: ClassListItem) => (
         <div>
-          <Text strong style={{ fontSize: 14 }}>{record.subject}</Text>
+          <Text strong style={{ fontSize: 14 }}>{record.name || record.subject}</Text>
           <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            <EnvironmentOutlined /> {record.room} • {weekDays[record.day]}
+          <Text type="secondary" style={{ fontSize: 12, color: '#2563eb' }}>
+            {record.classCode}
           </Text>
         </div>
       )
     },
     {
-      title: 'Thời gian',
-      key: 'time',
-      render: (record: ClassItem) => (
-        <div>
-          <Text><ClockCircleOutlined /> {record.time} - {getEndTime(record.time, record.duration)}</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.duration} phút
-          </Text>
-        </div>
+      title: 'Địa điểm',
+      dataIndex: 'location',
+      key: 'location',
+      render: (text: string) => (
+        <Text><EnvironmentOutlined /> {text || 'N/A'}</Text>
       )
     },
     {
       title: 'Sinh viên',
-      key: 'students',
+      dataIndex: 'studentCount',
+      key: 'studentCount',
       align: 'center' as const,
-      render: (record: ClassItem) => (
-        <div>
-          <Text><UserOutlined /> {record.studentCount}/{record.maxStudents}</Text>
-          <br />
-          <Progress 
-            percent={(record.studentCount / record.maxStudents) * 100} 
-            size="small"
-            showInfo={false}
-            strokeColor="#3b82f6"
-          />
-        </div>
+      render: (count: number) => (
+        <Text><TeamOutlined /> {count || 0}</Text>
       )
     },
     {
       title: 'Trạng thái',
+      dataIndex: 'status',
       key: 'status',
       align: 'center' as const,
-      render: (record: ClassItem) => {
-        const config = getStatusConfig(record.status);
+      render: (status: string) => {
+        const config = getStatusConfig(status);
         return <Tag color={config.color}>{config.text}</Tag>;
       }
     },
@@ -292,11 +175,11 @@ const TeacherHomePage: React.FC = () => {
       title: 'Thao tác',
       key: 'actions',
       align: 'center' as const,
-      render: (record: ClassItem) => (
+      render: (record: ClassListItem) => (
         <Button 
           size="small" 
           icon={<EyeOutlined />}
-          onClick={() => navigate(`/teacher/class/${record.id}`, { state: { classData: record } })}
+          onClick={() => navigate(`/teacher/class/${record.id}`)}
         >
           Chi tiết
         </Button>
@@ -304,7 +187,83 @@ const TeacherHomePage: React.FC = () => {
     }
   ];
 
-  const unreadNotifications = notifications.filter(n => !n.isRead).length;
+  // ✅ Table columns for sessions - REMOVED location, navigate to session detail
+  const sessionColumns = [
+    {
+      title: 'Lớp học',
+      key: 'class',
+      render: (record: SessionWithStats) => (
+        <div>
+          <Text strong style={{ fontSize: 14 }}>{record.class_name || 'N/A'}</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {record.subject || ''}
+          </Text>
+        </div>
+      )
+    },
+    {
+      title: 'Thời gian',
+      key: 'time',
+      render: (record: SessionWithStats) => (
+        <div>
+          <Text><CalendarOutlined /> {dayjs(record.start_time).format('DD/MM/YYYY')}</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            <ClockCircleOutlined /> {dayjs(record.start_time).format('HH:mm')} - {record.end_time ? dayjs(record.end_time).format('HH:mm') : 'N/A'}
+          </Text>
+        </div>
+      )
+    },
+    {
+      title: 'Điểm danh',
+      key: 'attendance',
+      align: 'center' as const,
+      render: (record: SessionWithStats) => {
+        const stats = record.statistics;
+        if (!stats) return <Text type="secondary">N/A</Text>;
+        
+        return (
+          <div>
+            <Text strong style={{ color: '#10b981' }}>
+              {stats.attendance_rate.toFixed(1)}%
+            </Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {stats.present_count}/{stats.total_students}
+            </Text>
+          </div>
+        );
+      }
+    },
+    {
+      title: 'Thao tác',
+      key: 'actions',
+      align: 'center' as const,
+      render: (record: SessionWithStats) => (
+        <Button 
+          size="small" 
+          icon={<EyeOutlined />}
+          onClick={() => navigate(`/teacher/session/${record.id}`)} // ✅ Navigate to session detail
+        >
+          Chi tiết
+        </Button>
+      )
+    }
+  ];
+
+  if (loading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '100vh' 
+      }}>
+        <Spin size="large" tip="Đang tải dữ liệu..." />
+      </div>
+    );
+  }
 
   return (
     <div style={{ 
@@ -320,132 +279,161 @@ const TeacherHomePage: React.FC = () => {
           fontSize: 32,
           fontWeight: 700 
         }}>
-          🎓 Teacher Dashboard
+          🎓 Trang chủ
         </Title>
         <Text type="secondary" style={{ fontSize: 16 }}>
-          Chào mừng, Thầy/Cô! Quản lý lớp học, điểm danh và báo cáo một cách hiệu quả.
+          Chào mừng, Thầy/Cô! Tổng quan về các lớp học và điểm danh.
         </Text>
       </div>
 
-      {/* Quick Actions */}
-      <Row gutter={16} style={{ marginBottom: 32 }}>
-        <Col>
-          <Button 
-            icon={<FileTextOutlined />}
-            size="large"
-            onClick={() => navigate('/teacher/reports')}
-            style={{ borderRadius: 8 }}
-          >
-            Xem báo cáo điểm danh
-          </Button>
+      {/* Statistics */}
+      <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
+        <Col xs={24} sm={12} md={6}>
+          <Card style={{ 
+            borderRadius: 16,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+            border: "none"
+          }}>
+            <Statistic
+              title={<Text style={{ color: "#888", fontSize: 14 }}>Tổng lớp học</Text>}
+              value={stats.totalClasses}
+              suffix="lớp"
+              prefix={<BookOutlined style={{ color: '#2563eb', fontSize: 20 }} />}
+              valueStyle={{ 
+                color: '#2563eb', 
+                fontWeight: 700, 
+                fontSize: 24 
+              }}
+            />
+          </Card>
         </Col>
-        <Col>
-          <Button 
-            icon={<CalendarOutlined />}
-            size="large"
-            onClick={() => navigate('/teacher/classes')}
-            style={{ borderRadius: 8 }}
-          >
-            Lịch giảng dạy
-          </Button>
+        <Col xs={24} sm={12} md={6}>
+          <Card style={{ 
+            borderRadius: 16,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+            border: "none"
+          }}>
+            <Statistic
+              title={<Text style={{ color: "#888", fontSize: 14 }}>Lớp đang hoạt động</Text>}
+              value={stats.activeClasses}
+              suffix="lớp"
+              prefix={<CheckCircleOutlined style={{ color: '#10b981', fontSize: 20 }} />}
+              valueStyle={{ 
+                color: '#10b981', 
+                fontWeight: 700, 
+                fontSize: 24 
+              }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card style={{ 
+            borderRadius: 16,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+            border: "none"
+          }}>
+            <Statistic
+              title={<Text style={{ color: "#888", fontSize: 14 }}>Tổng sinh viên</Text>}
+              value={stats.totalStudents}
+              suffix="SV"
+              prefix={<TeamOutlined style={{ color: '#f59e0b', fontSize: 20 }} />}
+              valueStyle={{ 
+                color: '#f59e0b', 
+                fontWeight: 700, 
+                fontSize: 24 
+              }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card style={{ 
+            borderRadius: 16,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+            border: "none"
+          }}>
+            <Statistic
+              title={<Text style={{ color: "#888", fontSize: 14 }}>Tỷ lệ điểm danh TB</Text>}
+              value={stats.avgAttendanceRate.toFixed(1)}
+              suffix="%"
+              prefix={<UserOutlined style={{ color: '#9333ea', fontSize: 20 }} />}
+              valueStyle={{ 
+                color: '#9333ea', 
+                fontWeight: 700, 
+                fontSize: 24 
+              }}
+            />
+          </Card>
         </Col>
       </Row>
 
-      {/* Statistics */}
-      <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
-        {stats.map((item, index) => (
-          <Col xs={24} sm={12} md={6} key={index}>
-            <Card style={{ 
-              borderRadius: 16,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-              border: "none"
-            }}>
-              <Statistic
-                title={<Text style={{ color: "#888", fontSize: 14 }}>{item.title}</Text>}
-                value={item.value}
-                suffix={item.suffix}
-                prefix={<div style={{ color: item.color, fontSize: 20 }}>{item.icon}</div>}
-                valueStyle={{ 
-                  color: item.color, 
-                  fontWeight: 700, 
-                  fontSize: 24 
-                }}
-              />
-            </Card>
-          </Col>
-        ))}
-      </Row>
+      {/* ✅ Attendance Stats by Class - Show progress bars for each class */}
+      {classes.length > 0 && (
+        <Card 
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <CheckCircleOutlined style={{ color: '#2563eb' }} />
+              <span>Tỷ lệ điểm danh các lớp đang dạy</span>
+            </div>
+          }
+          style={{ 
+            borderRadius: 16,
+            marginBottom: 24,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+            border: "none"
+          }}
+        >
+          <Row gutter={[16, 16]}>
+            {classes.map((cls) => {
+              // Calculate attendance rate for this class from sessions
+              const classSessions = recentSessions.filter(s => s.class_id === cls.id && s.statistics);
+              const avgRate = classSessions.length > 0
+                ? classSessions.reduce((sum, s) => sum + (s.statistics?.attendance_rate || 0), 0) / classSessions.length
+                : 0;
+              
+              const color = avgRate >= 80 ? '#10b981' : avgRate >= 60 ? '#f59e0b' : '#ef4444';
+              
+              return (
+                <Col xs={24} sm={12} md={8} lg={6} key={cls.id}>
+                  <Card size="small" style={{ borderRadius: 12, height: '100%' }}>
+                    <div style={{ marginBottom: 12 }}>
+                      <Text strong style={{ fontSize: 14, display: 'block', marginBottom: 4 }}>
+                        {cls.subject || cls.name}
+                      </Text>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {cls.classCode}
+                      </Text>
+                    </div>
+                    <Progress 
+                      percent={avgRate} 
+                      strokeColor={color}
+                      format={(percent) => (
+                        <Text strong style={{ color }}>
+                          {percent?.toFixed(1)}%
+                        </Text>
+                      )}
+                    />
+                    <div style={{ marginTop: 8, textAlign: 'center' }}>
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        {classSessions.length} phiên điểm danh
+                      </Text>
+                    </div>
+                  </Card>
+                </Col>
+              );
+            })}
+          </Row>
+        </Card>
+      )}
 
       {/* Main Content */}
       <Row gutter={[24, 24]}>
-        {/* Left Column */}
-        <Col xs={24} lg={16}>
-          {/* Today's Schedule */}
-          <Card 
-            title={
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <CalendarOutlined style={{ color: '#2563eb' }} />
-                <span>Lịch học hôm nay - {dayjs().format('DD/MM/YYYY')}</span>
-              </div>
-            }
-            style={{ 
-              borderRadius: 16,
-              marginBottom: 24,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-              border: "none"
-            }}
-          >
-            {todaySessions.length > 0 ? (
-              <List
-                dataSource={todaySessions}
-                renderItem={session => (
-                  <List.Item>
-                    <List.Item.Meta
-                      avatar={
-                        <Avatar 
-                          size={48} 
-                          style={{ 
-                            backgroundColor: getStatusConfig(session.status).color,
-                            fontSize: 16
-                          }}
-                          icon={<BookOutlined />}
-                        />
-                      }
-                      title={
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text strong style={{ fontSize: 16 }}>{session.subject}</Text>
-                          <Tag color={getStatusConfig(session.status).color}>
-                            {getStatusConfig(session.status).text}
-                          </Tag>
-                        </div>
-                      }
-                      description={
-                        <Space direction="vertical" size={4}>
-                          <Text type="secondary">
-                            <ClockCircleOutlined /> {session.time} • <EnvironmentOutlined /> {session.room}
-                          </Text>
-                          {session.attendanceRate && (
-                            <Text style={{ color: '#10b981' }}>
-                              <CheckCircleOutlined /> Điểm danh: {session.attendanceRate}%
-                            </Text>
-                          )}
-                        </Space>
-                      }
-                    />
-                  </List.Item>
-                )}
-              />
-            ) : (
-              <Empty description="Không có lịch học hôm nay" />
-            )}
-          </Card>
-
-          {/* Recent Classes */}
+        {/* Classes Table */}
+        <Col xs={24} lg={14}>
           <Card 
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <BookOutlined style={{ color: '#2563eb' }} />
-                <span>Lớp học gần đây</span>
+                <span>Danh sách lớp học</span>
               </div>
             }
             extra={
@@ -463,7 +451,7 @@ const TeacherHomePage: React.FC = () => {
             }}
           >
             <Table
-              dataSource={recentClasses}
+              dataSource={classes.slice(0, 5)}
               columns={classColumns}
               rowKey="id"
               pagination={false}
@@ -472,65 +460,13 @@ const TeacherHomePage: React.FC = () => {
           </Card>
         </Col>
 
-        {/* Right Column */}
-        <Col xs={24} lg={8}>
-          {/* Notifications */}
-          <Card 
-            title={
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Badge count={unreadNotifications} offset={[10, 0]}>
-                  <BellOutlined style={{ color: '#2563eb' }} />
-                </Badge>
-                <span>Thông báo</span>
-              </div>
-            }
-            style={{ 
-              borderRadius: 16,
-              marginBottom: 24,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-              border: "none"
-            }}
-          >
-            <List
-              dataSource={notifications.slice(0, 5)}
-              renderItem={notification => (
-                <List.Item style={{ 
-                  padding: '12px 0',
-                  backgroundColor: notification.isRead ? 'transparent' : '#f0f9ff',
-                  borderRadius: 8,
-                  marginBottom: 8,
-                  paddingLeft: notification.isRead ? 0 : 12
-                }}>
-                  <List.Item.Meta
-                    avatar={getNotificationIcon(notification.type)}
-                    title={
-                      <Text strong={!notification.isRead} style={{ fontSize: 14 }}>
-                        {notification.title}
-                      </Text>
-                    }
-                    description={
-                      <div>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          {notification.message}
-                        </Text>
-                        <br />
-                        <Text type="secondary" style={{ fontSize: 11 }}>
-                          {notification.time}
-                        </Text>
-                      </div>
-                    }
-                  />
-                </List.Item>
-              )}
-            />
-          </Card>
-
-          {/* Mini Calendar */}
+        {/* Recent Sessions Table */}
+        <Col xs={24} lg={10}>
           <Card 
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <CalendarOutlined style={{ color: '#2563eb' }} />
-                <span>Lịch</span>
+                <span>Phiên điểm danh gần đây</span>
               </div>
             }
             style={{ 
@@ -539,11 +475,12 @@ const TeacherHomePage: React.FC = () => {
               border: "none"
             }}
           >
-            <Calendar 
-              fullscreen={false} 
-              value={selectedDate}
-              onSelect={setSelectedDate}
-              style={{ fontSize: 12 }}
+            <Table
+              dataSource={recentSessions.slice(0, 5)}
+              columns={sessionColumns}
+              rowKey="id"
+              pagination={false}
+              size="middle"
             />
           </Card>
         </Col>

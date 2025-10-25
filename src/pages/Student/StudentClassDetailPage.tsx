@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Typography,
   Card,
@@ -15,8 +15,7 @@ import {
   message,
   Tooltip,
   Spin,
-  Alert,
-  Badge
+  Alert
 } from "antd";
 import {
   ArrowLeftOutlined,
@@ -30,9 +29,7 @@ import {
   UserOutlined,
   BookOutlined,
   EnvironmentOutlined,
-  TeamOutlined,
-  LoadingOutlined,
-  WifiOutlined
+  TeamOutlined
 } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import dayjs from "dayjs";
@@ -41,49 +38,48 @@ import LeaveRequestModal from "../../components/LeaveRequestModal";
 import { getStudentClassDetails, type StudentClassDetailsData } from "../../apis/classesAPIs/studentClass";
 import { createLeaveRequest, getLeaveRequests, type LeaveRequestDetail } from "../../apis/leaveRequestAPIs/leaveRequest";
 import { uploadDocument } from "../../apis/fileAPIs/file";
-import { 
-  getCurrentSessionAttendance,
-  connectAttendanceWebSocket,
-  type SessionAttendanceResponse,
-  type StudentAttendanceInfo,
-  type WSAttendanceUpdate
-} from "../../apis/attendanceAPIs/studentAttendance";
-import { useAuth } from "../../hooks/useAuth";
+
+import { getStudentClassAttendanceSessions, type StudentClassAttendanceSummary, type StudentAttendanceSessionSummarySchema } from "../../apis/attendanceAPIs/studentAttendance";
 
 const { Title, Text, Paragraph } = Typography;
-
-interface AttendanceRecord {
-  id: string;
-  date: string;
-  status: 'present' | 'absent' | 'late';
-  checkInTime?: string;
-  note?: string;
+// ✅ Time slots mapping
+const TIME_SLOTS: Record<number, { start: string; end: string }> = {
+  1: { start: "07:00", end: "07:50" },
+  2: { start: "08:00", end: "08:50" },
+  3: { start: "09:00", end: "09:50" },
+  4: { start: "10:00", end: "10:50" },
+  5: { start: "11:00", end: "11:50" },
+  6: { start: "13:00", end: "13:50" },
+  7: { start: "14:00", end: "14:50" },
+  8: { start: "15:00", end: "15:50" },
+  9: { start: "16:00", end: "16:50" },
+  10: { start: "17:00", end: "17:50" },
+};
+// Updated interface to match StudentAttendanceSessionSummarySchema
+interface LocalAttendanceSessionRecord extends StudentAttendanceSessionSummarySchema {
+  // Add any local fields if necessary, e.g., 'canAppeal', 'appealStatus'
 }
 
 const StudentClassDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const params = useParams<{ classId: string }>();
   const [isLeaveModalVisible, setIsLeaveModalVisible] = useState(false);
-  const { user } = useAuth();
 
-  // State management
+  // State management for class details
   const [classData, setClassData] = useState<StudentClassDetailsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // ✅ Leave requests state
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequestDetail[]>([]);
+
+  // State management for class attendance history
+  const [classAttendanceSummary, setClassAttendanceSummary] = useState<StudentClassAttendanceSummary | null>(null);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [attendanceError, setAttendanceError] = useState<string | null>(null);
+
+  // Leave requests state
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequestDetail[]>([]
+  );
   const [leaveRequestsLoading, setLeaveRequestsLoading] = useState(false);
   const [submittingLeaveRequest, setSubmittingLeaveRequest] = useState(false);
-
-  // ✅ NEW: Real-time attendance state
-  const [attendanceSession, setAttendanceSession] = useState<SessionAttendanceResponse['session'] | null>(null);
-  const [attendanceList, setAttendanceList] = useState<StudentAttendanceInfo[]>([]);
-  const [attendanceStats, setAttendanceStats] = useState<SessionAttendanceResponse['stats'] | null>(null);
-  const [myStudentId, setMyStudentId] = useState<number | null>(null);
-  const [attendanceLoading, setAttendanceLoading] = useState(false);
-  const [wsConnected, setWsConnected] = useState(false);
-  const wsRef = useRef<WebSocket | null>(null);
 
   // Parse classId from URL
   const classId = useMemo(() => {
@@ -94,143 +90,16 @@ const StudentClassDetailPage: React.FC = () => {
     return null;
   }, [params.classId]);
 
-  // Fetch class details on mount
+  // Fetch data on mount
   useEffect(() => {
     if (classId) {
       fetchClassDetails(classId);
+      fetchClassAttendance(classId); // Fetch attendance data
       fetchLeaveRequests(classId);
-      fetchAttendanceSession(classId); // ✅ NEW: Fetch attendance list
     } else {
       setError("ID lớp học không hợp lệ");
     }
   }, [classId]);
-
-  // ✅ NEW: Fetch attendance session with full student list
-  const fetchAttendanceSession = async (id: number) => {
-    setAttendanceLoading(true);
-    try {
-      const response = await getCurrentSessionAttendance(id);
-      console.log("Current attendance session:", response);
-      
-      if (response.has_active_session && response.session) {
-        setAttendanceSession(response.session);
-        setAttendanceList(response.students);
-        setAttendanceStats(response.stats);
-        setMyStudentId(response.my_student_id);
-        
-        // Connect WebSocket for real-time updates
-        connectWebSocket(response.session.id);
-        
-        console.log('✅ Connected to attendance session:', response.session.id);
-      } else {
-        console.log('ℹ️ No active attendance session for this class');
-      }
-    } catch (err: any) {
-      // Only log real errors (not 404 or no session)
-      if (err?.response?.status !== 404) {
-        console.error('❌ Failed to fetch attendance session:', err);
-      } else {
-        console.log('ℹ️ No attendance endpoint or session not found');
-      }
-      // Don't show error message to user - just hide the attendance panel
-    } finally {
-      setAttendanceLoading(false);
-    }
-  };
-
-  // ✅ NEW: Connect to WebSocket for real-time updates
-  const connectWebSocket = (sessionId: number) => {
-    try {
-      const ws = connectAttendanceWebSocket(sessionId);
-      
-      ws.onopen = () => {
-        console.log('WebSocket connected to session:', sessionId);
-        setWsConnected(true);
-      };
-      
-      ws.onmessage = (event) => {
-        try {
-          const data: WSAttendanceUpdate = JSON.parse(event.data);
-          console.log('WebSocket message:', data);
-          
-          // Handle attendance_update messages
-          if (data.type === 'attendance_update') {
-            // Update the student in the list
-            setAttendanceList(prevList => {
-              const studentIndex = prevList.findIndex(
-                s => s.student_id === data.student.student_id
-              );
-              
-              if (studentIndex !== -1) {
-                // Update existing student
-                const updatedList = [...prevList];
-                updatedList[studentIndex] = {
-                  ...updatedList[studentIndex],
-                  is_present: true,
-                  status: data.student.status,
-                  recorded_at: data.student.recorded_at,
-                  confidence_score: data.student.confidence_score
-                };
-                
-                // Re-sort: attended first
-                updatedList.sort((a, b) => {
-                  if (a.is_present !== b.is_present) {
-                    return a.is_present ? -1 : 1;
-                  }
-                  return a.full_name.localeCompare(b.full_name);
-                });
-                
-                return updatedList;
-              }
-              
-              return prevList;
-            });
-            
-            // Update stats
-            setAttendanceStats(prevStats => {
-              if (!prevStats) return prevStats;
-              return {
-                ...prevStats,
-                present_count: prevStats.present_count + 1,
-                absent_count: prevStats.absent_count - 1
-              };
-            });
-            
-            // Show notification if it's the current user
-            if (data.student.student_id === myStudentId) {
-              message.success(`✅ Bạn đã được điểm danh lúc ${new Date(data.student.recorded_at).toLocaleTimeString('vi-VN')}`);
-            }
-          }
-        } catch (err) {
-          console.error('Error parsing WebSocket message:', err);
-        }
-      };
-      
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setWsConnected(false);
-      };
-      
-      ws.onclose = () => {
-        console.log('WebSocket disconnected');
-        setWsConnected(false);
-      };
-      
-      wsRef.current = ws;
-    } catch (err) {
-      console.error('Failed to connect WebSocket:', err);
-    }
-  };
-
-  // ✅ NEW: Cleanup WebSocket on unmount
-  useEffect(() => {
-    return () => {
-      if (wsRef.current) {
-        console.log('Closing WebSocket connection');
-        wsRef.current.close();
-      }
-    };
-  }, []);
 
   // Fetch class details from API
   const fetchClassDetails = async (id: number) => {
@@ -251,7 +120,25 @@ const StudentClassDetailPage: React.FC = () => {
     }
   };
 
-  // ✅ NEW: Fetch leave requests for this class
+  // Fetch class attendance history from API
+  const fetchClassAttendance = async (id: number) => {
+    setAttendanceLoading(true);
+    setAttendanceError(null);
+    try {
+      const response = await getStudentClassAttendanceSessions(id);
+      console.log("Fetched class attendance sessions:", response);
+      setClassAttendanceSummary(response);
+    } catch (err: any) {
+      console.error('Failed to fetch class attendance:', err);
+      const errorMsg = err.message || 'Không thể tải lịch sử điểm danh của lớp';
+      setAttendanceError(errorMsg);
+      message.error(errorMsg);
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
+  // Fetch leave requests for this class
   const fetchLeaveRequests = async (id: number) => {
     setLeaveRequestsLoading(true);
     try {
@@ -266,56 +153,27 @@ const StudentClassDetailPage: React.FC = () => {
     }
   };
 
-  // Mock data for attendance (TODO: Replace with API)
-  const attendanceRecords: AttendanceRecord[] = [
-    {
-      id: '1',
-      date: '2024-10-07',
-      status: 'present',
-      checkInTime: '08:58'
-    },
-    {
-      id: '2',
-      date: '2024-10-05',
-      status: 'present',
-      checkInTime: '09:02'
-    },
-    {
-      id: '3',
-      date: '2024-10-02',
-      status: 'late',
-      checkInTime: '09:15',
-      note: 'Tắc đường'
-    },
-    {
-      id: '4',
-      date: '2024-09-30',
-      status: 'absent',
-      note: 'Ốm'
-    }
-  ];
-
   const breadcrumbItems = [
     { title: "Dashboard", href: "/student" },
     { title: "Classes", href: "/student/classes" },
     { title: classData?.class.className || "Chi tiết lớp học" }
   ];
 
-  // Calculate attendance statistics
-  const totalSessions = attendanceRecords.length;
-  const presentCount = attendanceRecords.filter(r => r.status === 'present').length;
-  const lateCount = attendanceRecords.filter(r => r.status === 'late').length;
-  const absentCount = attendanceRecords.filter(r => r.status === 'absent').length;
-  const attendanceRate = totalSessions > 0 ? Math.round(((presentCount + lateCount) / totalSessions) * 100) : 0;
+  // Calculate attendance statistics from fetched data
+  const totalSessions = classAttendanceSummary?.total_sessions || 0;
+  const presentCount = classAttendanceSummary?.attended_sessions || 0;
+  const lateCount = classAttendanceSummary?.late_sessions || 0;
+  const absentCount = classAttendanceSummary?.absent_sessions || 0;
+  const attendanceRate = classAttendanceSummary?.attendance_rate !== undefined ? Math.round(classAttendanceSummary.attendance_rate) : 0;
 
   // Get status configurations
   const getStatusConfig = (isActive: boolean) => {
-    return isActive 
+    return isActive
       ? { color: '#10b981', text: 'Đang hoạt động' }
       : { color: '#64748b', text: 'Không hoạt động' };
   };
 
-  const getAttendanceStatusConfig = (status: string) => {
+  const getAttendanceStatusConfig = (status: string | null | undefined) => {
     switch(status) {
       case 'present': return { color: '#10b981', text: 'Có mặt' };
       case 'late': return { color: '#f59e42', text: 'Muộn' };
@@ -332,6 +190,14 @@ const StudentClassDetailPage: React.FC = () => {
       case 'cancelled': return { color: '#64748b', text: 'Đã hủy' };
       default: return { color: '#64748b', text: 'Không xác định' };
     }
+  };
+
+  // Helper to get Vietnamese day of week
+  const getDayOfWeekText = (dayNum: number | null | undefined): string => {
+    if (dayNum === null || dayNum === undefined) return '';
+    // Assuming 0=Sunday, 1=Monday, ..., 6=Saturday from backend schema
+    const days = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+    return days[dayNum];
   };
 
   // Format schedule with time ranges
@@ -351,31 +217,29 @@ const StudentClassDetailPage: React.FC = () => {
     };
 
     const periodToTime = (period: number): string => {
-      const startHour = 6 + Math.floor((period - 1) * 0.75);
-      const startMin = ((period - 1) % 4) * 15;
-      const endHour = startHour + (startMin === 45 ? 1 : 0);
-      const endMin = startMin === 45 ? 5 : startMin + 50;
-      
-      return `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')} - ${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`;
+      const slot = TIME_SLOTS[period];
+      return slot ? `${slot.start} - ${slot.end}` : `${period}`;
     };
 
     const scheduleByDay: Array<{ day: string; periods: Array<{ range: string; time: string }> }> = [];
-    
+
     Object.entries(schedule).forEach(([day, periodRanges]) => {
       if (!periodRanges || periodRanges.length === 0) return;
-      
+
       const dayLabel = dayMapping[day.toLowerCase()] || day;
       const periods = periodRanges.map(range => {
         const [start, end] = range.split('-').map(Number);
-        const startTime = periodToTime(start);
-        const endTime = end > start ? periodToTime(end).split(' - ')[1] : startTime.split(' - ')[1];
         
+        const timeDisplay = start === end 
+          ? periodToTime(start)
+          : `${periodToTime(start).split(' - ')[0]} - ${periodToTime(end).split(' - ')[1]}`;
+
         return {
           range: start === end ? `Tiết ${start}` : `Tiết ${start}-${end}`,
-          time: `${startTime.split(' - ')[0]} - ${endTime}`
+          time: timeDisplay
         };
       });
-      
+
       scheduleByDay.push({ day: dayLabel, periods });
     });
 
@@ -402,7 +266,7 @@ const StudentClassDetailPage: React.FC = () => {
     
     Object.entries(schedule).forEach(([day, periodRanges]) => {
       if (!periodRanges || periodRanges.length === 0) return;
-      
+
       const dayLabel = dayMapping[day.toLowerCase()] || day;
       scheduleParts.push(dayLabel);
     });
@@ -410,7 +274,6 @@ const StudentClassDetailPage: React.FC = () => {
     return scheduleParts.length > 0 ? scheduleParts.join(', ') : 'Chưa có lịch học';
   };
 
-  // ✅ UPDATED: Handle leave request submission with correct payload keys
   const handleSubmitLeaveRequest = async (values: any) => {
     if (!classId) {
       message.error('Không tìm thấy thông tin lớp học');
@@ -422,7 +285,6 @@ const StudentClassDetailPage: React.FC = () => {
     try {
       let evidenceFileId: number | null = null;
 
-      // ✅ Step 1: Upload document if evidence file exists
       if (values.evidenceFile && values.evidenceFile.length > 0) {
         const file = values.evidenceFile[0].originFileObj;
         
@@ -462,7 +324,6 @@ const StudentClassDetailPage: React.FC = () => {
         }
       }
 
-      // ✅ Step 2: Create leave request with correct snake_case keys
       message.loading({ content: 'Đang gửi đơn xin nghỉ học...', key: 'createLeave', duration: 0 });
 
       const leaveRequestPayload = {
@@ -485,7 +346,6 @@ const StudentClassDetailPage: React.FC = () => {
           duration: 4
         });
         
-        // ✅ Refresh leave requests list
         await fetchLeaveRequests(classId);
         
         setIsLeaveModalVisible(false);
@@ -496,7 +356,6 @@ const StudentClassDetailPage: React.FC = () => {
     } catch (err: any) {
       console.error('Failed to create leave request:', err);
       
-      // ✅ Better error message
       let errorMessage = 'Không thể gửi đơn xin nghỉ học. Vui lòng thử lại!';
       
       if (err.message) {
@@ -529,125 +388,51 @@ const StudentClassDetailPage: React.FC = () => {
     }
   };
 
-  // Attendance table columns
+  // Attendance table columns - UPDATED
   const attendanceColumns = [
     {
       title: 'Ngày',
-      dataIndex: 'date',
-      key: 'date',
-      render: (date: string) => dayjs(date).format('DD/MM/YYYY')
+      dataIndex: 'start_time',
+      key: 'start_time',
+      render: (start_time: string) => dayjs(start_time).format('DD/MM/YYYY')
+    },
+    {
+      title: 'Thông tin buổi học',
+      key: 'session_info',
+      render: (record: LocalAttendanceSessionRecord) => (
+        <div>
+            <Text strong>{record.session_name || "Không có tên buổi học"}</Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {record.day_of_week !== null && record.day_of_week !== undefined && `${getDayOfWeekText(record.day_of_week)}, `}
+              {record.period_range && `${record.period_range}`}
+            </Text>
+        </div>
+      )
     },
     {
       title: 'Trạng thái',
-      dataIndex: 'status',
-      key: 'status',
+      dataIndex: 'student_attendance_status',
+      key: 'student_attendance_status',
       render: (status: string) => {
         const config = getAttendanceStatusConfig(status);
         return <Tag color={config.color}>{config.text}</Tag>;
       }
     },
     {
-      title: 'Giờ check-in',
-      dataIndex: 'checkInTime',
-      key: 'checkInTime',
-      render: (time: string) => time || '-'
-    },
-    {
-      title: 'Ghi chú',
-      dataIndex: 'note',
-      key: 'note',
-      render: (note: string) => note || '-'
+      title: 'Giờ điểm danh',
+      dataIndex: 'student_recorded_at',
+      key: 'student_recorded_at',
+      render: (time: string) => time ? dayjs(time).format('HH:mm') : '-'
     }
   ];
 
-  // ✅ NEW: Render attendance banner if there's an active session
-  const renderAttendanceBanner = () => {
-    if (attendanceLoading) {
-      return (
-        <Alert
-          message="Đang kiểm tra phiên điểm danh..."
-          type="info"
-          showIcon
-          icon={<LoadingOutlined />}
-          style={{ marginBottom: 24, borderRadius: 12 }}
-        />
-      );
-    }
-
-    // Debug logging
-    console.log('🔍 Banner render check:', { 
-      hasSession: !!attendanceSession, 
-      listLength: attendanceList.length,
-      session: attendanceSession,
-      stats: attendanceStats
-    });
-
-    if (!attendanceSession) {
-      console.log('❌ No attendance session - hiding banner');
-      return null; // Don't show anything if no active session
-    }
-
-    // Calculate attendance percentage
-    const attendancePercentage = attendanceStats 
-      ? Math.round((attendanceStats.present_count / attendanceStats.total_students) * 100)
-      : 0;
-
-    // Find current student's attendance status
-    const myAttendance = attendanceList.find(s => s.student_id === myStudentId);
-    const myStatus = myAttendance?.is_present 
-      ? { type: 'success' as const, text: '✅ Bạn đã điểm danh', icon: <CheckCircleOutlined /> }
-      : { type: 'warning' as const, text: '⏳ Bạn chưa điểm danh', icon: <ClockCircleOutlined /> };
-
-    return (
-      <Alert
-        message={
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-            <Space size="large" wrap>
-              <span style={{ fontSize: 16, fontWeight: 600 }}>
-                📹 {attendanceSession.session_name}
-                {wsConnected && (
-                  <Tag color="success" style={{ marginLeft: 12 }}>
-                    <WifiOutlined /> Realtime
-                  </Tag>
-                )}
-              </span>
-              <span>
-                {myStatus.icon} <strong>{myStatus.text}</strong>
-              </span>
-              <span>
-                Đã điểm danh: <strong style={{ color: '#52c41a' }}>
-                  {attendanceStats?.present_count || 0}
-                </strong> / {attendanceStats?.total_students || 0} ({attendancePercentage}%)
-              </span>
-            </Space>
-            <Button 
-              type="primary" 
-              icon={<TeamOutlined />}
-              onClick={() => navigate(`/student/classes/${classId}/attendance`)}
-            >
-              Xem danh sách đầy đủ
-            </Button>
-          </div>
-        }
-        type={myStatus.type}
-        showIcon={false}
-        style={{ marginBottom: 24, borderRadius: 12, padding: '16px 24px' }}
-        description={
-          <Text type="secondary">
-            Bắt đầu lúc {new Date(attendanceSession.start_time).toLocaleTimeString('vi-VN')} • 
-            Cập nhật realtime khi AI nhận diện sinh viên
-          </Text>
-        }
-      />
-    );
-  };
-
-  // Loading state
+  // Loading state for class details
   if (loading) {
     return (
-      <div style={{ 
-        minHeight: "100vh", 
-        background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)", 
+      <div style={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)",
         padding: "32px 48px",
         display: 'flex',
         justifyContent: 'center',
@@ -658,16 +443,16 @@ const StudentClassDetailPage: React.FC = () => {
     );
   }
 
-  // Error state
+  // Error state for class details
   if (error || !classData) {
     return (
-      <div style={{ 
-        minHeight: "100vh", 
-        background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)", 
+      <div style={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)",
         padding: "32px 48px"
       }}>
         <Breadcrumb items={breadcrumbItems} />
-        <Button 
+        <Button
           icon={<ArrowLeftOutlined />}
           onClick={() => navigate(-1)}
           style={{ borderRadius: 8, marginBottom: 16 }}
@@ -696,17 +481,17 @@ const StudentClassDetailPage: React.FC = () => {
   const statusConfig = getStatusConfig(classInfo.isActive);
 
   return (
-    <div style={{ 
-      minHeight: "100vh", 
-      background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)", 
-      padding: "32px 48px" 
+    <div style={{
+      minHeight: "100vh",
+      background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)",
+      padding: "32px 48px"
     }}>
       {/* Breadcrumb */}
       <Breadcrumb items={breadcrumbItems} />
 
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
-        <Button 
+        <Button
           icon={<ArrowLeftOutlined />}
           onClick={() => navigate(-1)}
           style={{ borderRadius: 8, marginBottom: 16 }}
@@ -714,13 +499,10 @@ const StudentClassDetailPage: React.FC = () => {
           Quay lại
         </Button>
         
-        {/* ✅ NEW: Real-time Attendance Banner */}
-        {renderAttendanceBanner()}
-        
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <Title level={1} style={{ 
-              marginBottom: 8, 
+            <Title level={1} style={{
+              marginBottom: 8,
               color: "#2563eb",
               fontSize: 32,
               fontWeight: 700
@@ -748,7 +530,7 @@ const StudentClassDetailPage: React.FC = () => {
             </Space>
           </div>
           
-          <Button 
+          <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => setIsLeaveModalVisible(true)}
@@ -788,10 +570,10 @@ const StudentClassDetailPage: React.FC = () => {
               </Col>
               <Col>
                 <Tooltip title="Sao chép mã lớp">
-                  <Button 
+                  <Button
                     icon={<CopyOutlined />}
                     onClick={handleCopyClassCode}
-                    style={{ 
+                    style={{
                       borderRadius: 8,
                       background: '#1e40af',
                       borderColor: '#1e40af'
@@ -832,7 +614,7 @@ const StudentClassDetailPage: React.FC = () => {
 
       {/* Weekly Schedule Section */}
       {scheduleDetails && scheduleDetails.length > 0 && (
-        <Card 
+        <Card
           title={
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <CalendarOutlined style={{ color: '#2563eb' }} />
@@ -864,7 +646,7 @@ const StudentClassDetailPage: React.FC = () => {
                   </div>
                   <Space direction="vertical" size={8} style={{ width: '100%' }}>
                     {daySchedule.periods.map((period, periodIndex) => (
-                      <div 
+                      <div
                         key={periodIndex}
                         style={{
                           padding: '8px 12px',
@@ -920,14 +702,14 @@ const StudentClassDetailPage: React.FC = () => {
               title="Tỷ lệ tham dự"
               value={attendanceRate}
               suffix="%"
-              valueStyle={{ 
+              valueStyle={{
                 color: attendanceRate >= 80 ? '#10b981' : attendanceRate >= 60 ? '#f59e42' : '#ef4444',
                 fontSize: 24
               }}
             />
-            <Progress 
-              percent={attendanceRate} 
-              size="small" 
+            <Progress
+              percent={attendanceRate}
+              size="small"
               strokeColor={attendanceRate >= 80 ? '#10b981' : attendanceRate >= 60 ? '#f59e42' : '#ef4444'}
               showInfo={false}
               style={{ marginTop: 8 }}
@@ -973,48 +755,59 @@ const StudentClassDetailPage: React.FC = () => {
       <Row gutter={[24, 24]}>
         {/* Left Column - Attendance Records */}
         <Col xs={24} lg={16}>
-          <Card 
+          <Card
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <CalendarOutlined style={{ color: '#2563eb' }} />
                 <span>Lịch sử điểm danh</span>
               </div>
             }
-            style={{ 
+            style={{
               borderRadius: 16,
               boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
               border: "none"
             }}
+            loading={attendanceLoading} // Added loading for attendance table
           >
-            <Table
-              dataSource={attendanceRecords}
-              columns={attendanceColumns}
-              rowKey="id"
-              pagination={{ 
-                pageSize: 8,
-                showSizeChanger: true,
-                showQuickJumper: true,
-                showTotal: (total, range) => 
-                  `${range[0]}-${range[1]} của ${total} buổi học`
-              }}
-              size="middle"
-              locale={{
-                emptyText: <Empty description="Chưa có dữ liệu điểm danh" />
-              }}
-            />
+            {attendanceError ? (
+              <Alert
+                message="Lỗi tải lịch sử điểm danh"
+                description={attendanceError}
+                type="error"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            ) : (
+              <Table
+                dataSource={classAttendanceSummary?.sessions || []} // Use fetched sessions
+                columns={attendanceColumns}
+                rowKey="session_id" // Use session_id as row key
+                pagination={{
+                  pageSize: 8,
+                  showSizeChanger: true,
+                  showQuickJumper: true,
+                  showTotal: (total, range) =>
+                    `${range[0]}-${range[1]} của ${total} buổi học`
+                }}
+                size="middle"
+                locale={{
+                  emptyText: <Empty description="Chưa có dữ liệu điểm danh" />
+                }}
+              />
+            )}
           </Card>
         </Col>
 
         {/* Right Column - Leave Requests */}
         <Col xs={24} lg={8}>
-          <Card 
+          <Card
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <FileTextOutlined style={{ color: '#2563eb' }} />
                 <span>Đơn xin nghỉ học</span>
               </div>
             }
-            style={{ 
+            style={{
               borderRadius: 16,
               boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
               border: "none"
@@ -1031,7 +824,7 @@ const StudentClassDetailPage: React.FC = () => {
                     <div>
                       <Text strong>{dayjs(request.leaveDate).format('DD/MM/YYYY')}</Text>
                       <br />
-                      <Tag 
+                      <Tag
                         color={getLeaveStatusConfig(request.status).color}
                         size="small"
                         style={{ marginTop: 4 }}
@@ -1055,7 +848,7 @@ const StudentClassDetailPage: React.FC = () => {
                 ))}
               </Timeline>
             ) : (
-              <Empty 
+              <Empty
                 description="Chưa có đơn xin nghỉ nào"
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
@@ -1070,15 +863,15 @@ const StudentClassDetailPage: React.FC = () => {
         onCancel={() => setIsLeaveModalVisible(false)}
         onSubmit={handleSubmitLeaveRequest}
         loading={submittingLeaveRequest}
-        subjects={[
-          { 
-            value: classInfo.id.toString(), 
+        subjects={classInfo ? [
+          {
+            value: classInfo.id.toString(),
             label: classInfo.className,
             teacher: classInfo.teacherName,
             schedule: classInfo.schedule
           }
-        ]}
-        preSelectedSubject={classInfo.id.toString()}
+        ] : []}
+        preSelectedSubject={classInfo?.id.toString()}
       />
     </div>
   );
