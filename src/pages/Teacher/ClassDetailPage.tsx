@@ -924,6 +924,10 @@ const ClassDetailPage: React.FC = () => {
         return { color: '#64748b', text: 'Đã hoàn thành' };
       case 'ongoing':
         return { color: '#10b981', text: 'Đang diễn ra' };
+      case 'scheduled':
+        return { color: '#3b82f6', text: 'Đã lên lịch' };
+      case 'finished':
+        return { color: '#64748b', text: 'Đã kết thúc' };
       case 'upcoming':
         return { color: '#3b82f6', text: 'Sắp diễn ra' };
       default:
