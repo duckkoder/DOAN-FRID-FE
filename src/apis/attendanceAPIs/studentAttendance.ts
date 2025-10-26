@@ -7,25 +7,6 @@ const API_BASE = '/attendance';
 
 // ==================== Interfaces ====================
 
-export interface CurrentSession {
-  id: number;
-  session_name: string | null;
-  start_time: string;
-  end_time: string | null;
-  status: string;
-  class_id: number;
-  created_at: string;
-  late_threshold_minutes: number;
-  location: string | null;
-}
-
-export interface StudentAttendanceStatus {
-  is_present: boolean;
-  status: string; // 'present' | 'late' | 'absent'
-  recorded_at: string | null;
-  confidence_score: number | null;
-}
-
 export interface StudentAttendanceInfo {
   student_id: number;
   student_code: string;
@@ -51,12 +32,6 @@ export interface SessionAttendanceResponse {
     present_count: number;
     absent_count: number;
   };
-}
-
-export interface CurrentSessionResponse {
-  has_active_session: boolean;
-  session: CurrentSession | null;
-  my_status: StudentAttendanceStatus | null;
 }
 
 export interface WSStudentAttendanceUpdate {
@@ -94,20 +69,6 @@ export const getCurrentSessionAttendance = async (
 ): Promise<SessionAttendanceResponse> => {
   const response = await api.get<SessionAttendanceResponse>(
     `${API_BASE}/classes/${classId}/current-session-attendance`
-  );
-  return response.data;
-};
-
-/**
- * [DEPRECATED] Lấy thông tin phiên điểm danh hiện tại của lớp (chỉ status cá nhân)
- * @param classId - ID của lớp học
- * @returns Thông tin session và trạng thái điểm danh của sinh viên
- */
-export const getCurrentSession = async (
-  classId: number
-): Promise<CurrentSessionResponse> => {
-  const response = await api.get<CurrentSessionResponse>(
-    `${API_BASE}/classes/${classId}/current-session`
   );
   return response.data;
 };
