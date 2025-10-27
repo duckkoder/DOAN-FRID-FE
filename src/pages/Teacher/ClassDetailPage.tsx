@@ -846,24 +846,6 @@ const ClassDetailPage: React.FC = () => {
     { title: classData.subject }
   ];
 
-  const getFilteredRequests = () => {
-    const currentDate = dayjs();
-    
-    switch(requestFilter) {
-      case 'active':
-        return leaveRequestsMock.filter(req => {
-          const startDate = dayjs(req.startDate);
-          const endDate = dayjs(req.endDate);
-          return startDate.diff(currentDate) > 0 || 
-                 (startDate.diff(currentDate) <= 0 && endDate.diff(currentDate) >= 0);
-        });
-      case 'expired':
-        return leaveRequestsMock.filter(req => dayjs(req.endDate).diff(currentDate) < 0);
-      default:
-        return leaveRequestsMock;
-    }
-  };
-
   const getStatusConfig = (status: string) => {
     switch(status) {
       case 'active':
@@ -902,10 +884,6 @@ const ClassDetailPage: React.FC = () => {
     setSelectedStudent(student);
     setIsStudentDetailVisible(true);
   };
-
-  const totalSessions = classData.attendanceStats?.totalSessions || 0;
-  const avgAttendance = classData.attendanceStats?.averageAttendance || 0;
-  const pendingRequests = 0;
 
   const studentColumns = [
     {
@@ -1082,38 +1060,6 @@ const ClassDetailPage: React.FC = () => {
       )
     }
   ];
-
-  const getStatusConfig = (status: string) => {
-    switch(status) {
-      case 'active':
-        return { color: '#10b981', text: 'Đang hoạt động' };
-      case 'inactive':
-        return { color: '#ef4444', text: 'Không hoạt động' };
-      case 'pending':
-        return { color: '#f59e0b', text: 'Đang chờ' };
-      case 'approved':
-        return { color: '#10b981', text: 'Đã duyệt' };
-      case 'rejected':
-        return { color: '#ef4444', text: 'Từ chối' };
-      case 'completed':
-        return { color: '#64748b', text: 'Đã hoàn thành' };
-      case 'ongoing':
-        return { color: '#10b981', text: 'Đang diễn ra' };
-      case 'upcoming':
-        return { color: '#3b82f6', text: 'Sắp diễn ra' };
-      case 'finished':
-        return { color: '#54637cff', text: 'Đã kết thúc' };  
-      default:
-        return { color: '#64748b', text: 'Không xác định' };
-    }
-  };
-
-  const getAttendanceColor = (rate: number) => {
-    if (rate >= 95) return '#10b981';
-    if (rate >= 85) return '#3b82f6';
-    if (rate >= 75) return '#f59e0b';
-    return '#ef4444';
-  };
 
   const totalStudents = studentsData.length;
   const totalSessions = classSummary?.totalSessions || 0; // ✅ From API summary
@@ -1666,7 +1612,7 @@ const ClassDetailPage: React.FC = () => {
                           <Text strong style={{ color: '#0369a1', fontSize: 12 }}>
                             Buổi {index + 1}:
                           </Text>{' '}
-                          <Tag color="blue" size="small">
+                          <Tag color="blue">
                             {formatTimeRange(session.periods)}
                           </Tag>
                         </div>
@@ -1679,7 +1625,6 @@ const ClassDetailPage: React.FC = () => {
                         type="info"
                         showIcon
                         style={{ marginTop: 12 }}
-                        size="small"
                       />
                     )}
                   </div>
@@ -1754,7 +1699,7 @@ const ClassDetailPage: React.FC = () => {
           {upcomingSessions.length > 0 ? (
             <div style={{ maxHeight: 400, overflowY: 'auto' }}>
               <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                {upcomingSessions.map((session, index) => {
+                {upcomingSessions.map((session) => {
                   const isSelected = selectedAttendanceSession?.day === session.day && 
                                    selectedAttendanceSession?.sessionIndex === session.sessionIndex;
                   const isToday = dayjs().day() === session.day;
