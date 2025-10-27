@@ -622,11 +622,8 @@ const ClassDetailPage: React.FC = () => {
   };
 
   // ✅ Handle session end
-  const handleSessionEnd = async (result: EndSessionResponse) => {
-    message.success(
-      `Kết thúc phiên điểm danh!\nTổng: ${result.total_students} | ` +
-      `Có mặt: ${result.present_count} | Trễ: ${result.late_count} | Vắng: ${result.absent_count}`
-    );
+  const handleSessionEnd = async () => {
+    message.success('Kết thúc phiên điểm danh!');
     
     setIsAttendanceCameraVisible(false);
     
@@ -849,7 +846,67 @@ const ClassDetailPage: React.FC = () => {
     { title: classData.subject }
   ];
 
-  // ✅ UPDATED: Student columns with API data
+  const getFilteredRequests = () => {
+    const currentDate = dayjs();
+    
+    switch(requestFilter) {
+      case 'active':
+        return leaveRequestsMock.filter(req => {
+          const startDate = dayjs(req.startDate);
+          const endDate = dayjs(req.endDate);
+          return startDate.diff(currentDate) > 0 || 
+                 (startDate.diff(currentDate) <= 0 && endDate.diff(currentDate) >= 0);
+        });
+      case 'expired':
+        return leaveRequestsMock.filter(req => dayjs(req.endDate).diff(currentDate) < 0);
+      default:
+        return leaveRequestsMock;
+    }
+  };
+
+  const getStatusConfig = (status: string) => {
+    switch(status) {
+      case 'active':
+        return { color: '#10b981', text: 'Đang hoạt động' };
+      case 'inactive':
+        return { color: '#ef4444', text: 'Không hoạt động' };
+      case 'pending':
+        return { color: '#f59e0b', text: 'Đang chờ' };
+      case 'approved':
+        return { color: '#10b981', text: 'Đã duyệt' };
+      case 'rejected':
+        return { color: '#ef4444', text: 'Từ chối' };
+      case 'completed':
+        return { color: '#64748b', text: 'Đã hoàn thành' };
+      case 'ongoing':
+        return { color: '#10b981', text: 'Đang diễn ra' };
+      case 'scheduled':
+        return { color: '#3b82f6', text: 'Đã lên lịch' };
+      case 'finished':
+        return { color: '#64748b', text: 'Đã kết thúc' };
+      case 'upcoming':
+        return { color: '#3b82f6', text: 'Sắp diễn ra' };
+      default:
+        return { color: '#64748b', text: 'Không xác định' };
+    }
+  };
+
+  const getAttendanceColor = (rate: number) => {
+    if (rate >= 95) return '#10b981';
+    if (rate >= 85) return '#3b82f6';
+    if (rate >= 75) return '#f59e0b';
+    return '#ef4444';
+  };
+
+  const handleViewStudentDetail = (student: Student) => {
+    setSelectedStudent(student);
+    setIsStudentDetailVisible(true);
+  };
+
+  const totalSessions = classData.attendanceStats?.totalSessions || 0;
+  const avgAttendance = classData.attendanceStats?.averageAttendance || 0;
+  const pendingRequests = 0;
+
   const studentColumns = [
     {
       title: 'Học sinh',

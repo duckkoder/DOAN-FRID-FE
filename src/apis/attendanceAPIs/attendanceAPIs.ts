@@ -23,13 +23,24 @@ export interface AttendanceSession {
   session_name: string | null;
   start_time: string;
   end_time: string | null;
-  status: 'ongoing' | 'finished' | 'scheduled';
+  status: 'ongoing' | 'finished' | 'scheduled' | 'pending' | 'active';
   late_threshold_minutes: number;
   location: string | null;
   day_of_week?: number | null;
   period_range?: string | null;
   session_index?: number | null;
+  ai_session_id?: string | null;
   created_at: string;
+}
+
+// AI-Service Integration Types
+export interface AISessionResponse {
+  session_id: number; // Backend session ID
+  ai_session_id: string; // AI-Service session ID
+  ai_ws_url: string; // WebSocket URL
+  ai_ws_token: string; // JWT token
+  expires_at: string;
+  status: string;
 }
 
 export interface RecognizedStudent {
@@ -49,15 +60,6 @@ export interface Detection {
   recognition_confidence?: number;
   student_name?: string;
   student_code?: string;
-}
-
-export interface RecognizeFrameResponse {
-  success: boolean;
-  message: string;
-  total_faces_detected: number;
-  students_recognized: RecognizedStudent[];
-  processing_time_ms: number;
-  detections?: Detection[]; // Thêm thông tin detections với bbox
 }
 
 export interface EndSessionRequest {
@@ -115,26 +117,23 @@ export interface ClassSessionsResponse {
 // ============= API Functions =============
 
 /**
- * Bắt đầu phiên điểm danh
+ * Bắt đầu phiên điểm danh với AI-Service
+ * Returns WebSocket URL và JWT token
  */
-export const startAttendanceSession = async (
+export const startAttendanceSessionWithAI = async (
   data: StartSessionRequest
-): Promise<AttendanceSession> => {
+): Promise<AISessionResponse> => {
   const response = await api.post(`${API_BASE}/sessions/start`, data);
   return response.data;
 };
 
 /**
- * Nhận diện khuôn mặt từ frame camera
+ * Bắt đầu phiên điểm danh (legacy - compatibility)
  */
-export const recognizeFrame = async (
-  sessionId: number,
-  imageBase64: string
-): Promise<RecognizeFrameResponse> => {
-  const response = await api.post(`${API_BASE}/recognize-frame`, {
-    session_id: sessionId,
-    image_base64: imageBase64,
-  });
+export const startAttendanceSession = async (
+  data: StartSessionRequest
+): Promise<AttendanceSession> => {
+  const response = await api.post(`${API_BASE}/sessions/start`, data);
   return response.data;
 };
 
@@ -182,80 +181,4 @@ export const getClassSessions = async (
   return response.data;
 };
 
-/**
- * Kết nối WebSocket để nhận real-time updates
- */
-export const connectAttendanceWebSocket = (
-  sessionId: number,
-  onMessage: (data: any) => void,
-  onError?: (error: Event) => void
-): WebSocket => {
-  // Lấy base URL từ api hoặc environment
-  const wsUrl = `ws://localhost:8000/api/v1${API_BASE}/ws/${sessionId}`;
-  
-  const ws = new WebSocket(wsUrl);
-  
-  ws.onopen = () => {
-    console.log(`[WebSocket] Connected to session ${sessionId}`);
-  };
-  
-  ws.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      onMessage(data);
-    } catch (error) {
-      console.error('[WebSocket] Failed to parse message:', error);
-    }
-  };
-  
-  ws.onerror = (error) => {
-    console.error('[WebSocket] Error:', error);
-    if (onError) onError(error);
-  };
-  
-  ws.onclose = () => {
-    console.log('[WebSocket] Connection closed');
-  };
-  
-  // Keep alive ping
-  const pingInterval = setInterval(() => {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send('ping');
-    }
-  }, 30000); // 30 seconds
-  
-  // Cleanup function
-  const originalClose = ws.close.bind(ws);
-  ws.close = () => {
-    clearInterval(pingInterval);
-    originalClose();
-  };
-  
-  return ws;
-};
-
-/**
- * Convert image/video frame to base64
- */
-export const frameToBase64 = (
-  video: HTMLVideoElement,
-  canvas?: HTMLCanvasElement
-): string => {
-  const canvasElement = canvas || document.createElement('canvas');
-  canvasElement.width = video.videoWidth;
-  canvasElement.height = video.videoHeight;
-  
-  const ctx = canvasElement.getContext('2d');
-  if (!ctx) throw new Error('Cannot get canvas context');
-  
-  // Clear canvas
-  ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-  
-  // Draw image directly without flipping
-  // (Video element already handles mirroring in CSS if needed)
-  ctx.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
-  
-  // Get base64 without "data:image/jpeg;base64," prefix
-  return canvasElement.toDataURL('image/jpeg', 0.8).split(',')[1];
-};
 

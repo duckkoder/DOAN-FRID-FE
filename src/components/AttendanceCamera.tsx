@@ -1,6 +1,6 @@
 /**
- * AttendanceCamera Component
- * Component điểm danh real-time sử dụng camera
+ * Attendance Camera Component
+ * Sử dụng WebSocket trực tiếp tới AI-Service để stream frames
  */
 import React, { useState, useRef, useEffect } from 'react';
 import {
@@ -16,27 +16,21 @@ import {
   Row,
   Col,
   Alert,
-  Spin,
   Typography,
+  Progress,
 } from 'antd';
 import {
   CameraOutlined,
   StopOutlined,
   UserOutlined,
   CheckCircleOutlined,
-  ClockCircleOutlined,
   ExclamationCircleOutlined,
+  WifiOutlined,
+  DisconnectOutlined,
 } from '@ant-design/icons';
-import {
-  startAttendanceSession,
-  recognizeFrame,
-  endAttendanceSession,
-  connectAttendanceWebSocket,
-  frameToBase64,
-  type RecognizedStudent,
-  type EndSessionResponse,
-  type Detection,
-} from '../apis/attendanceAPIs/attendanceAPIs';
+import { startAttendanceSessionWithAI, endAttendanceSession, type AISessionResponse } from '../apis/attendanceAPIs/attendanceAPIs';
+import { AIWebSocketClient, type DetectionInfo, type ValidatedStudent } from '../services/aiWebSocket';
+import { useSmartPolling } from '../hooks/useSmartPolling';
 
 const { Text } = Typography;
 
@@ -44,7 +38,7 @@ interface AttendanceCameraProps {
   classId: number;
   visible: boolean;
   onClose: () => void;
-  onSessionEnd?: (result: EndSessionResponse) => void;
+  onSessionEnd?: () => void;
   dayOfWeek?: number;
   periodRange?: string;
   sessionIndex?: number;
@@ -61,123 +55,327 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
 }) => {
   // States
   const [loading, setLoading] = useState(false);
-  const [sessionId, setSessionId] = useState<number | null>(null);
-  const [recognizing, setRecognizing] = useState(false);
-  const [recognizedStudents, setRecognizedStudents] = useState<RecognizedStudent[]>([]);
+  const [sessionInfo, setSessionInfo] = useState<AISessionResponse | null>(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [detections, setDetections] = useState<Detection[]>([]); // Thêm state để lưu detections
-
-  // ✅ Handler để xử lý khi user muốn đóng modal
-  const handleModalClose = () => {
-    console.log('[ModalClose] User wants to close, sessionId:', sessionId);
-    
-    if (sessionId !== null) {
-      // Có session đang chạy - hiện cảnh báo
-      Modal.confirm({
-        title: 'Phiên điểm danh đang diễn ra',
-        icon: <ExclamationCircleOutlined />,
-        content: 'Bạn có muốn kết thúc phiên điểm danh trước khi đóng không?',
-        okText: 'Kết thúc phiên',
-        cancelText: 'Tiếp tục điểm danh',
-        onOk: async () => {
-          console.log('[ModalClose] User chose to end session');
-          await handleEndSession();
-        },
-        onCancel: () => {
-          console.log('[ModalClose] User chose to continue');
-        },
-      });
-    } else {
-      // Không có session - đóng bình thường
-      console.log('[ModalClose] No active session, closing normally');
-      onClose();
-    }
-  };
-
+  
+  // Detection & Recognition states
+  const [detections, setDetections] = useState<DetectionInfo[]>([]);
+  const [validatedStudents, setValidatedStudents] = useState<ValidatedStudent[]>([]);
+  const [totalFaces, setTotalFaces] = useState(0);
+  const [fps, setFps] = useState(0);
+  
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const overlayCanvasRef = useRef<HTMLCanvasElement>(null); // Canvas để vẽ bbox
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
-  const intervalRef = useRef<number | null>(null);
-  const cameraStartedRef = useRef<boolean>(false); // Use ref instead of state
-  const sessionIdRef = useRef<number | null>(null); // ✅ Thêm ref để lưu sessionId
+  const wsClientRef = useRef<AIWebSocketClient | null>(null);
+  const frameIntervalRef = useRef<number | null>(null);
+  const fpsCounterRef = useRef({ count: 0, lastTime: Date.now() });
+  const isProcessingFrameRef = useRef(false); // ✅ Track nếu đang xử lý frame
 
-  // Statistics
-  const stats = {
-    total: recognizedStudents.length,
-    present: recognizedStudents.filter((s) => s.status === 'present').length,
-    late: recognizedStudents.filter((s) => s.status === 'late').length,
+  // Smart polling cho attendance records từ Backend
+  const { data: attendanceData, currentInterval } = useSmartPolling({
+    sessionId: sessionInfo?.session_id || null,
+    enabled: sessionInfo !== null && wsConnected,
+  });
+
+  /**
+   * Reset states when modal opens fresh (without active session)
+   */
+  useEffect(() => {
+    if (visible && !sessionInfo) {
+      // ✅ Reset tất cả states khi mở modal mới
+      setDetections([]);
+      setValidatedStudents([]);
+      setTotalFaces(0);
+      setFps(0);
+      setError(null);
+      setCameraActive(false);
+      setWsConnected(false);
+    }
+  }, [visible, sessionInfo]);
+
+  /**
+   * Start attendance session
+   */
+  const handleStartSession = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log('[StartSession] Creating session...');
+
+      // 1. Create session với Backend → nhận WebSocket info
+      const response = await startAttendanceSessionWithAI({
+        class_id: classId,
+        session_name: `Điểm danh ${new Date().toLocaleString('vi-VN')}`,
+        late_threshold_minutes: 15,
+        location: 'Classroom',
+        day_of_week: dayOfWeek,
+        period_range: periodRange,
+        session_index: sessionIndex,
+      });
+
+      console.log('[StartSession] Session created:', response);
+      setSessionInfo(response);
+
+      // 2. Start camera
+      await startCamera();
+
+      // 3. Connect WebSocket to AI-Service
+      await connectWebSocket(response);
+
+      // 4. Start sending frames
+      startFrameCapture();
+
+    } catch (err: any) {
+      console.error('[StartSession] Error:', err);
+      setError(err.response?.data?.detail || 'Failed to start session');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // ============= Camera Functions =============
+  /**
+   * Start camera
+   */
+  const startCamera = async () => {
+    try {
+      console.log('[Camera] Starting camera...');
+      
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user',
+        },
+        audio: false,
+      });
 
-  // Hàm vẽ bounding boxes và thông tin lên canvas overlay
-  const drawDetections = (detections: Detection[]) => {
+      streamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+
+      setCameraActive(true);
+      console.log('[Camera] Camera started');
+
+    } catch (err) {
+      console.error('[Camera] Error:', err);
+      throw new Error('Không thể truy cập camera');
+    }
+  };
+
+  /**
+   * Connect WebSocket to AI-Service
+   */
+  const connectWebSocket = async (sessionInfo: AISessionResponse) => {
+    try {
+      console.log('[WebSocket] Connecting to AI-Service...');
+
+      const wsClient = new AIWebSocketClient();
+      wsClientRef.current = wsClient;
+
+      // Setup event handlers
+      wsClient.onConnected(() => {
+        console.log('[WebSocket] Connected!');
+        setWsConnected(true);
+        setError(null);
+      });
+
+      wsClient.onDisconnected((code, reason) => {
+        console.log('[WebSocket] Disconnected:', code, reason);
+        setWsConnected(false);
+        
+        if (code === 1008) {
+          setError('Session không hợp lệ hoặc đã hết hạn');
+        }
+      });
+
+      wsClient.onFrameProcessed((detections, totalFaces) => {
+        // console.log('[WebSocket] Frame processed:', detections.length, 'faces,', totalFaces, 'total');
+        // console.log('[WebSocket] Detection details:', JSON.stringify(detections, null, 2));
+        setDetections(detections);
+        setTotalFaces(totalFaces);
+        
+        // ✅ Mark frame processing complete
+        isProcessingFrameRef.current = false;
+        
+        // Update FPS counter
+        fpsCounterRef.current.count++;
+        const now = Date.now();
+        if (now - fpsCounterRef.current.lastTime >= 1000) {
+          setFps(fpsCounterRef.current.count);
+          fpsCounterRef.current.count = 0;
+          fpsCounterRef.current.lastTime = now;
+        }
+      });
+
+      wsClient.onStudentValidated((student) => {
+        console.log('[WebSocket] Student validated:', student.student_name);
+        
+        // Add to validated list (check duplicate)
+        setValidatedStudents(prev => {
+          const exists = prev.some(s => s.student_code === student.student_code);
+          if (!exists) {
+            return [...prev, student];
+          }
+          return prev;
+        });
+      });
+
+      wsClient.onSessionStatus((status, stats) => {
+        console.log('[WebSocket] Session status:', status, stats);
+      });
+
+      wsClient.onError((errorMsg) => {
+        console.error('[WebSocket] Error:', errorMsg);
+        setError(errorMsg);
+      });
+
+      // Connect
+      await wsClient.connect(sessionInfo.ai_ws_url, sessionInfo.ai_ws_token);
+
+    } catch (err) {
+      console.error('[WebSocket] Connection error:', err);
+      throw new Error('Không thể kết nối tới AI-Service');
+    }
+  };
+
+  /**
+   * Start capturing and sending frames
+   */
+  const startFrameCapture = () => {
+    console.log('[FrameCapture] Starting frame capture at 10 FPS...');
+
+    frameIntervalRef.current = window.setInterval(async () => {
+      if (!videoRef.current || !canvasRef.current || !wsClientRef.current?.isConnected()) {
+        return;
+      }
+
+      // ✅ BACKPRESSURE: Skip nếu frame trước chưa xử lý xong
+      if (isProcessingFrameRef.current) {
+        console.log('[FrameCapture] Skipping - previous frame still processing');
+        return;
+      }
+
+      try {
+        // Mark as processing
+        isProcessingFrameRef.current = true;
+        
+        // Capture frame
+        const canvas = canvasRef.current;
+        const video = videoRef.current;
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          isProcessingFrameRef.current = false;
+          return;
+        }
+        
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Convert to blob
+        canvas.toBlob((blob) => {
+          if (blob && wsClientRef.current) {
+            wsClientRef.current.sendFrame(blob);
+          } else {
+            // Failed to create blob - reset flag
+            isProcessingFrameRef.current = false;
+          }
+        }, 'image/jpeg', 0.8);
+
+      } catch (err) {
+        console.error('[FrameCapture] Error:', err);
+        isProcessingFrameRef.current = false;
+      }
+    }, 100); // 10 FPS interval, nhưng có thể skip nếu chưa xử lý xong
+  };
+
+  /**
+   * Draw bounding boxes on overlay canvas - WITH PROPER ASPECT RATIO SCALING
+   */
+  useEffect(() => {
     const video = videoRef.current;
     const canvas = overlayCanvasRef.current;
     
-    if (!video || !canvas) return;
-    
-    // Get video element dimensions
+    if (!video || !canvas) {
+      console.log('[Canvas] Missing refs');
+      return;
+    }
+
+    // Get video element display size (getBoundingClientRect)
     const rect = video.getBoundingClientRect();
+    
+    // Set canvas size to match video display size
     canvas.width = rect.width;
     canvas.height = rect.height;
     
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      console.log('[Canvas] Failed to get 2d context');
+      return;
+    }
     
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // If no detections, exit early
+    if (detections.length === 0) return;
+
+    // Calculate aspect ratio and scaling
+    // Video actual resolution
+    const videoWidth = video.videoWidth;
+    const videoHeight = video.videoHeight;
     
-    // Calculate actual video dimensions and offset when using objectFit: 'contain'
-    const videoAspect = video.videoWidth / video.videoHeight;
+    if (videoWidth === 0 || videoHeight === 0) {
+      console.log('[Canvas] Video not ready yet');
+      return;
+    }
+
+    const videoAspect = videoWidth / videoHeight;
     const displayAspect = rect.width / rect.height;
     
     let renderWidth, renderHeight, offsetX, offsetY;
     
     if (videoAspect > displayAspect) {
-      // Video is wider - fit to width
+      // Video is wider - fit to width (letterbox top/bottom)
       renderWidth = rect.width;
       renderHeight = rect.width / videoAspect;
       offsetX = 0;
       offsetY = (rect.height - renderHeight) / 2;
     } else {
-      // Video is taller - fit to height
+      // Video is taller - fit to height (pillarbox left/right)
       renderHeight = rect.height;
       renderWidth = rect.height * videoAspect;
       offsetX = (rect.width - renderWidth) / 2;
       offsetY = 0;
     }
     
-    // Calculate scale factors based on rendered video size
-    const scaleX = renderWidth / video.videoWidth;
-    const scaleY = renderHeight / video.videoHeight;
+    // Calculate scale factors
+    const scaleX = renderWidth / videoWidth;
+    const scaleY = renderHeight / videoHeight;
     
-    console.log('[DrawDetections]', {
-      videoWidth: video.videoWidth,
-      videoHeight: video.videoHeight,
-      displayWidth: rect.width,
-      displayHeight: rect.height,
-      renderWidth,
-      renderHeight,
-      offsetX,
-      offsetY,
-      scaleX,
-      scaleY,
-      numDetections: detections.length
+    console.log('[Canvas] Scaling info:', {
+      videoResolution: `${videoWidth}x${videoHeight}`,
+      displaySize: `${rect.width.toFixed(0)}x${rect.height.toFixed(0)}`,
+      renderSize: `${renderWidth.toFixed(0)}x${renderHeight.toFixed(0)}`,
+      offset: `${offsetX.toFixed(0)}, ${offsetY.toFixed(0)}`,
+      scale: `${scaleX.toFixed(3)}, ${scaleY.toFixed(3)}`,
+      detections: detections.length
     });
     
     // Draw each detection
     detections.forEach((detection) => {
       const [x1, y1, x2, y2] = detection.bbox;
-      
-      console.log('[DrawDetections] Detection:', {
-        original: detection.bbox,
-        studentId: detection.student_id,
-        confidence: detection.confidence
-      });
       
       // Scale coordinates to rendered video size and add offset
       const displayX1 = x1 * scaleX + offsetX;
@@ -187,287 +385,147 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       const width = displayX2 - displayX1;
       const height = displayY2 - displayY1;
       
-      console.log('[DrawDetections] Scaled:', {
-        displayX1,
-        displayY1,
-        displayX2,
-        displayY2,
-        width,
-        height
-      });
-      
-      // Determine color based on recognition status
-      const isRecognized = detection.student_id;
-      const boxColor = isRecognized ? '#52c41a' : '#1890ff'; // Green if recognized, blue otherwise
-      const confidence = detection.recognition_confidence || detection.confidence;
+      // Determine color based on validation status
+      const color = detection.is_validated ? '#52c41a' : '#1890ff';
+      const lineWidth = detection.is_validated ? 3 : 2;
+      const confidence = detection.confidence || 0;
       
       // Draw bounding box
-      ctx.strokeStyle = boxColor;
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
       ctx.strokeRect(displayX1, displayY1, width, height);
       
-      // Draw label background
-      const label = isRecognized 
-        ? `${detection.student_name || detection.student_code || detection.student_id} (${(confidence * 100).toFixed(1)}%)`
-        : `Unknown (${(confidence * 100).toFixed(1)}%)`;
-      
-      ctx.font = 'bold 14px Arial';
-      const textMetrics = ctx.measureText(label);
-      const textWidth = textMetrics.width + 10;
-      const textHeight = 20;
-      
-      // Draw label background
-      ctx.fillStyle = boxColor;
-      ctx.fillRect(displayX1, displayY1 - textHeight - 5, textWidth, textHeight);
-      
-      // Draw label text
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(label, displayX1 + 5, displayY1 - 10);
+      // Draw label if student recognized
+      if (detection.student_name) {
+        const label = `${detection.student_name} (${(confidence * 100).toFixed(1)}%)`;
+        
+        ctx.font = 'bold 14px Arial';
+        const textMetrics = ctx.measureText(label);
+        const textWidth = textMetrics.width + 10;
+        const textHeight = 20;
+        
+        // Draw label background
+        ctx.fillStyle = color;
+        ctx.fillRect(displayX1, displayY1 - textHeight - 5, textWidth, textHeight);
+        
+        // Draw label text
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(label, displayX1 + 5, displayY1 - 10);
+      }
       
       // Draw track ID if available
       if (detection.track_id) {
         const trackLabel = `#${detection.track_id}`;
-        ctx.fillStyle = boxColor;
+        ctx.fillStyle = color;
         ctx.fillRect(displayX2 - 40, displayY1, 40, 20);
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 12px Arial';
         ctx.fillText(trackLabel, displayX2 - 35, displayY1 + 14);
       }
     });
-  };
+  }, [detections]);
 
-  const startCamera = async () => {
-    return new Promise<void>((resolve, reject) => {
-      console.log('[Camera] Requesting camera access...');
-      
-      navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: 'user',
-        },
-      })
-      .then((stream) => {
-        console.log('[Camera] Stream received:', stream);
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          streamRef.current = stream;
-          
-          // Wait for video to be ready
-          videoRef.current.onloadedmetadata = () => {
-            console.log('[Camera] Video metadata loaded');
-            cameraStartedRef.current = true; // Use ref
-            console.log('[Camera] Camera started successfully!');
-            resolve(); // Resolve promise khi camera thực sự ready
-          };
-        } else {
-          console.error('[Camera] videoRef.current is null!');
-          reject(new Error('Video ref is null'));
-        }
-      })
-      .catch((err) => {
-        console.error('[Camera] Error starting camera:', err);
-        setError('Không thể bật camera. Vui lòng kiểm tra quyền truy cập.');
-        reject(err);
-      });
-    });
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
+  /**
+   * Stop session
+   */
+  const handleStopSession = async () => {
+    // Prevent duplicate calls
+    if (loading || !sessionInfo) {
+      console.log('[StopSession] Already stopping or no session');
+      return;
     }
-    cameraStartedRef.current = false; // Use ref
-  };
-
-  // ============= Session Functions =============
-
-  const handleStartSession = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // 1. Bắt đầu phiên điểm danh
-      const session = await startAttendanceSession({
-        class_id: classId,
-        late_threshold_minutes: 15,
-        day_of_week: dayOfWeek,
-        period_range: periodRange,
-        session_index: sessionIndex,
-      });
-
-      setSessionId(session.id);
-      sessionIdRef.current = session.id; // ✅ Cập nhật ref
-
-      // 2. Kết nối WebSocket
-      const ws = connectAttendanceWebSocket(
-        session.id,
-        (data) => {
-          console.log('[WebSocket] Received:', data);
-
-          // Handle attendance_update
-          if (data.type === 'attendance_update' && data.student) {
-            setRecognizedStudents((prev) => {
-              // Check if student already in list
-              const exists = prev.find((s) => s.student_id === data.student.student_id);
-              if (exists) return prev;
-
-              // Add new student
-              return [...prev, data.student];
-            });
-          }
-        },
-        (error) => {
-          console.error('[WebSocket] Error:', error);
-        }
-      );
-
-      wsRef.current = ws;
-
-      // 3. Bật camera
-      await startCamera();
-
-      // 4. Bắt đầu gửi frames
-      startRecognition();
-
-      setLoading(false);
-    } catch (err: any) {
-      console.error('Error starting session:', err);
-      setError(err.response?.data?.detail || 'Không thể bắt đầu phiên điểm danh');
-      setLoading(false);
-    }
-  };
-
-  const startRecognition = () => {
-    console.log('[Recognition] Starting recognition loop...');
-    
-    // Gửi frame mỗi 2 giây
-    const interval = setInterval(async () => {
-      const currentSessionId = sessionIdRef.current; // ✅ Lấy sessionId từ ref
-      console.log('[Recognition] Interval tick - sessionId:', currentSessionId, 'videoRef:', !!videoRef.current, 'cameraStarted:', cameraStartedRef.current);
-      
-      // ✅ Kiểm tra sessionId vẫn còn active (không null)
-      if (!currentSessionId) {
-        console.log('[Recognition] Skipping - session ended');
-        return;
-      }
-      
-      if (!videoRef.current || !cameraStartedRef.current) {
-        console.log('[Recognition] Skipping - video not ready');
-        return;
-      }
-
-      try {
-        setRecognizing(true);
-        console.log('[Recognition] Capturing frame...');
-
-         // Capture frame
-         const imageBase64 = frameToBase64(videoRef.current, canvasRef.current || undefined);
-         console.log('[Recognition] Frame captured:', {
-           imageSize: imageBase64.length,
-           videoWidth: videoRef.current.videoWidth,
-           videoHeight: videoRef.current.videoHeight
-         });
-
-        // Send to backend - use sessionId from ref
-        console.log('[Recognition] Sending to backend with sessionId:', currentSessionId);
-        const result = await recognizeFrame(currentSessionId, imageBase64);
-        console.log('[Recognition] Backend response:', result);
-
-        // Update detections state to draw on canvas
-        if (result.detections && result.detections.length > 0) {
-          console.log('[Recognition] Received detections:', result.detections);
-          setDetections(result.detections);
-          drawDetections(result.detections);
-        } else {
-          // Clear detections if no faces detected
-          console.log('[Recognition] No detections received');
-          setDetections([]);
-          drawDetections([]);
-        }
-
-        // Update recognized students from response (backup nếu WebSocket chậm)
-        if (result.students_recognized.length > 0) {
-          setRecognizedStudents((prev) => {
-            const newStudents = result.students_recognized.filter(
-              (newStudent) => !prev.find((s) => s.student_id === newStudent.student_id)
-            );
-            return [...prev, ...newStudents];
-          });
-        }
-      } catch (err: any) {
-        console.error('[Recognition] Error:', err);
-        // Don't show error for every frame failure
-      } finally {
-        setRecognizing(false);
-      }
-    }, 2000); // 2 seconds
-
-    intervalRef.current = interval;
-  };
-
-  const stopRecognition = () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  };
-
-  const handleEndSession = async () => {
-    if (!sessionId) return;
 
     try {
       setLoading(true);
 
-      // Stop recognition and camera
-      stopRecognition();
-      stopCamera();
+      // Stop frame capture
+      if (frameIntervalRef.current) {
+        clearInterval(frameIntervalRef.current);
+        frameIntervalRef.current = null;
+      }
+      
+      // ✅ Reset processing flag
+      isProcessingFrameRef.current = false;
 
-      // Close WebSocket
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
+      // Disconnect WebSocket
+      if (wsClientRef.current) {
+        wsClientRef.current.disconnect();
+        wsClientRef.current = null;
       }
 
-      // End session
-      const result = await endAttendanceSession(sessionId, {
-        mark_absent: true,
-      });
+      // Stop camera
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
 
-      // ✅ Reset sessionId để đảm bảo có thể bắt đầu phiên mới
-      setSessionId(null);
-      sessionIdRef.current = null; // ✅ Reset ref
-      setRecognizedStudents([]);
+      // End session in Backend
+      await endAttendanceSession(sessionInfo.session_id, { mark_absent: true });
+
+      // ✅ Reset ALL states để tránh hiển thị data cũ
+      setCameraActive(false);
+      setWsConnected(false);
+      setSessionInfo(null); // Clear session info to prevent duplicate calls
       setDetections([]); // Clear detections
+      setValidatedStudents([]); // Clear validated students
+      setTotalFaces(0); // Reset counters
+      setFps(0);
+      setError(null);
       
-      // Clear overlay canvas
-      if (overlayCanvasRef.current) {
-        const ctx = overlayCanvasRef.current.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.height);
-        }
-      }
+      onSessionEnd?.();
 
-      // Callback
-      if (onSessionEnd) {
-        onSessionEnd(result);
-      }
-
-      // Close modal
-      onClose();
     } catch (err: any) {
-      console.error('Error ending session:', err);
-      setError(err.response?.data?.detail || 'Không thể kết thúc phiên');
+      console.error('[StopSession] Error:', err);
+      setError(err.response?.data?.detail || 'Failed to stop session');
     } finally {
       setLoading(false);
     }
   };
 
-  // ============= Effects =============
+  /**
+   * Handle modal close
+   */
+  const handleModalClose = () => {
+    if (sessionInfo) {
+      Modal.confirm({
+        title: 'Phiên điểm danh đang diễn ra',
+        icon: <ExclamationCircleOutlined />,
+        content: 'Bạn có muốn kết thúc phiên điểm danh không?',
+        okText: 'Kết thúc',
+        cancelText: 'Tiếp tục',
+        onOk: handleStopSession,
+      });
+    } else {
+      // ✅ Reset states khi đóng modal (không có session active)
+      setDetections([]);
+      setValidatedStudents([]);
+      setTotalFaces(0);
+      setFps(0);
+      setError(null);
+      onClose();
+    }
+  };
 
-  // Update canvas overlay size when video size changes
+  /**
+   * Cleanup on unmount
+   */
+  useEffect(() => {
+    return () => {
+      if (frameIntervalRef.current) {
+        clearInterval(frameIntervalRef.current);
+      }
+      if (wsClientRef.current) {
+        wsClientRef.current.disconnect();
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  /**
+   * Update canvas size on window resize
+   */
   useEffect(() => {
     const updateCanvasSize = () => {
       const video = videoRef.current;
@@ -478,10 +536,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         canvas.width = rect.width;
         canvas.height = rect.height;
         
-        // Redraw detections after resize
-        if (detections.length > 0) {
-          drawDetections(detections);
-        }
+        console.log('[Canvas] Size updated:', { width: rect.width, height: rect.height });
       }
     };
     
@@ -494,106 +549,16 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
     return () => {
       window.removeEventListener('resize', updateCanvasSize);
     };
-  }, [detections]);
-
-  // Cleanup when modal closes - end session if still active
-  useEffect(() => {
-    if (!visible && sessionIdRef.current !== null) {
-      // Modal đóng nhưng session vẫn đang chạy - cleanup
-      console.log('[Cleanup] Modal closed with active session, cleaning up...');
-      
-      const cleanup = async () => {
-        const currentSessionId = sessionIdRef.current;
-        if (!currentSessionId) return;
-
-        try {
-          // Stop recognition and camera immediately
-          stopRecognition();
-          stopCamera();
-
-          // Close WebSocket
-          if (wsRef.current) {
-            wsRef.current.close();
-            wsRef.current = null;
-          }
-
-          // End session at backend
-          await endAttendanceSession(currentSessionId, {
-            mark_absent: true,
-          });
-
-          console.log('[Cleanup] Session ended successfully');
-        } catch (err: any) {
-          console.error('[Cleanup] Error ending session:', err);
-        } finally {
-          // Reset all states
-          setSessionId(null);
-          sessionIdRef.current = null;
-          setRecognizedStudents([]);
-          setDetections([]);
-          setError(null);
-          setRecognizing(false);
-          setLoading(false);
-        }
-      };
-
-      cleanup();
-    } else if (!visible) {
-      // Modal đóng và không có session - chỉ reset state
-      setSessionId(null);
-      sessionIdRef.current = null;
-      setRecognizedStudents([]);
-      setDetections([]);
-      setError(null);
-      setRecognizing(false);
-      setLoading(false);
-    }
-  }, [visible]);
-
-  useEffect(() => {
-    // Cleanup on unmount
-    return () => {
-      console.log('[Unmount] Component unmounting, cleaning up...');
-      
-      stopRecognition();
-      stopCamera();
-      
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-      
-      // If there's an active session when unmounting, try to end it
-      if (sessionIdRef.current !== null) {
-        console.log('[Unmount] Active session detected, attempting to end...');
-        const sessionId = sessionIdRef.current;
-        
-        // Use navigator.sendBeacon or fetch with keepalive for cleanup during unload
-        endAttendanceSession(sessionId, { mark_absent: true })
-          .then(() => console.log('[Unmount] Session ended successfully'))
-          .catch(err => console.error('[Unmount] Failed to end session:', err));
-      }
-    };
-  }, []);
-
-  // ============= Render =============
+  }, []); // ✅ Empty dependency - chỉ setup listener một lần
 
   return (
     <Modal
-      title={
-        <Space>
-          <CameraOutlined />
-          <span>Điểm danh bằng Camera</span>
-          {sessionId && <Badge status="processing" text="Đang diễn ra" />}
-        </Space>
-      }
+      title="Điểm danh bằng AI"
       open={visible}
       onCancel={handleModalClose}
-      width={1000}
+      width={1200}
       footer={null}
       destroyOnClose
-      maskClosable={false}
-      keyboard={false}
     >
       {error && (
         <Alert
@@ -606,43 +571,58 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         />
       )}
 
-      {sessionId && (
-        <Alert
-          message="Phiên điểm danh đang diễn ra"
-          description="Vui lòng kết thúc phiên trước khi đóng modal để tránh mất dữ liệu."
-          type="info"
-          showIcon
-          style={{ marginBottom: 16 }}
-        />
-      )}
-
-      <Row gutter={16}>
+      <Row gutter={[16, 16]}>
         {/* Camera View */}
-        <Col span={14}>
+        <Col span={16}>
           <Card
-            title="Camera"
+            title={
+              <Space>
+                <CameraOutlined />
+                <span>Camera</span>
+                {wsConnected && (
+                  <Tag icon={<WifiOutlined />} color="success">
+                    Connected
+                  </Tag>
+                )}
+                {!wsConnected && sessionInfo && (
+                  <Tag icon={<DisconnectOutlined />} color="warning">
+                    Disconnected
+                  </Tag>
+                )}
+              </Space>
+            }
             extra={
-              recognizing && <Spin size="small" tip="Đang nhận diện..." />
+              <Space>
+                <Text type="secondary">{fps} FPS</Text>
+                <Text type="secondary">Faces: {totalFaces}</Text>
+              </Space>
             }
           >
-            <div style={{ position: 'relative', width: '100%', paddingTop: '75%' }}>
+            <div 
+              style={{ 
+                position: 'relative', 
+                width: '100%', 
+                height: '450px', // ✅ Fixed height thay vì paddingTop
+                backgroundColor: '#000',
+                borderRadius: '8px',
+                overflow: 'hidden',
+              }}
+            >
               <video
                 ref={videoRef}
-                autoPlay
-                playsInline
-                muted
                 style={{
                   position: 'absolute',
                   top: 0,
                   left: 0,
                   width: '100%',
                   height: '100%',
-                  objectFit: 'contain', // Changed from 'cover' to 'contain' to preserve aspect ratio
-                  backgroundColor: '#000',
-                  borderRadius: 8,
+                  objectFit: 'contain',
+                  display: cameraActive ? 'block' : 'none',
                 }}
+                autoPlay
+                playsInline
+                muted
               />
-              {/* Overlay canvas để vẽ bounding boxes */}
               <canvas
                 ref={overlayCanvasRef}
                 style={{
@@ -651,19 +631,37 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
                   left: 0,
                   width: '100%',
                   height: '100%',
-                  pointerEvents: 'none', // Allow clicks to pass through
+                  pointerEvents: 'none',
                 }}
               />
               <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+              {!cameraActive && (
+                <div 
+                  style={{ 
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    textAlign: 'center',
+                  }}
+                >
+                  <CameraOutlined style={{ fontSize: 64, color: '#d9d9d9' }} />
+                  <div style={{ marginTop: 16 }}>
+                    <Text type="secondary">Camera chưa bật</Text>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <Space style={{ marginTop: 16, width: '100%', justifyContent: 'center' }}>
-              {!sessionId ? (
+            <div style={{ marginTop: 16 }}>
+              {!sessionInfo ? (
                 <Button
                   type="primary"
                   icon={<CameraOutlined />}
                   onClick={handleStartSession}
                   loading={loading}
+                  block
                   size="large"
                 >
                   Bắt đầu điểm danh
@@ -672,78 +670,89 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
                 <Button
                   danger
                   icon={<StopOutlined />}
-                  onClick={handleEndSession}
+                  onClick={handleStopSession}
                   loading={loading}
+                  block
                   size="large"
                 >
-                  Kết thúc phiên
+                  Kết thúc điểm danh
                 </Button>
               )}
-            </Space>
+            </div>
           </Card>
         </Col>
 
-        {/* Recognized Students */}
-        <Col span={10}>
-          <Card title="Sinh viên đã điểm danh" style={{ height: '100%' }}>
-            {/* Statistics */}
-            <Row gutter={8} style={{ marginBottom: 16 }}>
-              <Col span={8}>
+        {/* Statistics & Student List */}
+        <Col span={8}>
+          {/* Statistics */}
+          <Card title="Thống kê" style={{ marginBottom: 16 }}>
+            <Row gutter={16}>
+              <Col span={12}>
                 <Statistic
-                  title="Tổng"
-                  value={stats.total}
-                  valueStyle={{ fontSize: 20 }}
-                />
-              </Col>
-              <Col span={8}>
-                <Statistic
-                  title="Đúng giờ"
-                  value={stats.present}
-                  valueStyle={{ fontSize: 20, color: '#52c41a' }}
+                  title="Đã xác nhận"
+                  value={attendanceData?.statistics.present || 0}
+                  valueStyle={{ color: '#3f8600' }}
                   prefix={<CheckCircleOutlined />}
                 />
               </Col>
-              <Col span={8}>
+              <Col span={12}>
                 <Statistic
-                  title="Trễ"
-                  value={stats.late}
-                  valueStyle={{ fontSize: 20, color: '#faad14' }}
-                  prefix={<ClockCircleOutlined />}
+                  title="Tổng số"
+                  value={attendanceData?.statistics.total_students || 0}
+                  prefix={<UserOutlined />}
                 />
               </Col>
             </Row>
+            <div style={{ marginTop: 16 }}>
+              <Text type="secondary">Tỷ lệ điểm danh:</Text>
+              <Progress
+                percent={attendanceData?.statistics.attendance_rate || 0}
+                status="active"
+              />
+            </div>
+            {currentInterval && (
+              <div style={{ marginTop: 8 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Polling: {(currentInterval / 1000).toFixed(1)}s
+                </Text>
+              </div>
+            )}
+          </Card>
 
-            {/* List */}
+          {/* Validated Students */}
+          <Card
+            title="Sinh viên đã xác nhận"
+            extra={<Badge count={attendanceData?.statistics.present || validatedStudents.length} showZero />}
+          >
             <List
-              size="small"
-              dataSource={recognizedStudents}
-              locale={{ emptyText: 'Chưa có sinh viên nào được điểm danh' }}
-              style={{ maxHeight: 400, overflow: 'auto' }}
+              dataSource={validatedStudents}
               renderItem={(student) => (
                 <List.Item>
                   <List.Item.Meta
-                    avatar={<Avatar icon={<UserOutlined />} />}
-                    title={
-                      <Space>
-                        <Text strong>{student.full_name}</Text>
-                        <Tag color={student.status === 'present' ? 'green' : 'orange'}>
-                          {student.status === 'present' ? 'Đúng giờ' : 'Trễ'}
-                        </Tag>
-                      </Space>
+                    avatar={
+                      <Avatar
+                        style={{ backgroundColor: '#52c41a' }}
+                        icon={<UserOutlined />}
+                      />
                     }
+                    title={student.student_name}
                     description={
                       <Space direction="vertical" size={0}>
-                        <Text type="secondary">
-                          {student.student_code}
+                        <Text type="secondary">{student.student_code}</Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          Confidence: {(student.avg_confidence * 100).toFixed(1)}%
                         </Text>
                         <Text type="secondary" style={{ fontSize: 12 }}>
-                          Độ tin cậy: {(student.confidence_score * 100).toFixed(1)}%
+                          Frames: {student.frame_count}/{student.recognition_count}
                         </Text>
                       </Space>
                     }
                   />
+                  <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 20 }} />
                 </List.Item>
               )}
+              locale={{ emptyText: 'Chưa có sinh viên nào được xác nhận' }}
+              style={{ maxHeight: 400, overflow: 'auto' }}
             />
           </Card>
         </Col>
@@ -753,4 +762,3 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
 };
 
 export default AttendanceCamera;
-
