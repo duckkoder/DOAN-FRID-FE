@@ -20,7 +20,6 @@ import {
   UserOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  ClockCircleOutlined,
   ArrowLeftOutlined,
   CalendarOutlined,
   EnvironmentOutlined,
@@ -80,8 +79,6 @@ const SessionDetailPage: React.FC = () => {
     switch (status) {
       case "present":
         return { color: "#10b981", text: "Có mặt", icon: <CheckCircleOutlined /> };
-      case "late":
-        return { color: "#f59e0b", text: "Muộn", icon: <ClockCircleOutlined /> };
       case "absent":
         return { color: "#ef4444", text: "Vắng", icon: <CloseCircleOutlined /> };
       case "excused":
@@ -180,8 +177,8 @@ const SessionDetailPage: React.FC = () => {
         ["THỐNG KÊ"],
         [`Tổng sinh viên: ${statistics.total_students}`],
         [`Có mặt: ${statistics.present_count}`],
-        [`Muộn: ${statistics.late_count}`],
         [`Vắng: ${statistics.absent_count}`],
+        [`Có phép: ${statistics.excused_count}`],
         [`Tỷ lệ: ${statistics.attendance_rate.toFixed(2)}%`],
         [],
         // Header bảng
@@ -336,9 +333,6 @@ const SessionDetailPage: React.FC = () => {
               {session.location}
             </Descriptions.Item>
           )}
-          <Descriptions.Item label="Cho phép trễ">
-            {session.late_threshold_minutes} phút
-          </Descriptions.Item>
         </Descriptions>
       </Card>
 
@@ -367,20 +361,20 @@ const SessionDetailPage: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
-              title="Muộn"
-              value={statistics.late_count}
-              prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: "#f59e0b" }}
+              title="Vắng"
+              value={statistics.absent_count}
+              prefix={<CloseCircleOutlined />}
+              valueStyle={{ color: "#ef4444" }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
-              title="Vắng"
-              value={statistics.absent_count}
-              prefix={<CloseCircleOutlined />}
-              valueStyle={{ color: "#ef4444" }}
+              title="Có phép"
+              value={statistics.excused_count || 0}
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: "#8b5cf6" }}
             />
           </Card>
         </Col>
