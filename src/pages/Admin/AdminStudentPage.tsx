@@ -62,6 +62,7 @@ import {
   validateImageFile,
 } from "@/apis/fileAPIs/file";
 import dayjs from "dayjs";
+import AdminFaceRegistrationTable from "@/components/AdminFaceRegistrationTable";
 
 const AdminStudentPage: React.FC = () => {
   // ==================== State Management ====================
@@ -541,6 +542,11 @@ const AdminStudentPage: React.FC = () => {
           </Card>
         </Col>
       </Row>
+
+      {/* Face Registration Management Table */}
+      <div style={{ marginBottom: 24 }}>
+        <AdminFaceRegistrationTable />
+      </div>
 
       {/* Main Content Card */}
       <Card>
