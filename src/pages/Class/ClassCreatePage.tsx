@@ -108,9 +108,9 @@ const ClassCreatePage: React.FC = () => {
   }, [userStr]);
 
   const breadcrumbItems = [
-    { title: "Dashboard", href: "/teacher" },
-    { title: "Class Management", href: "/teacher/classes" },
-    { title: "Create New Class" }
+    { title: "Trang chủ", href: "/teacher" },
+    { title: "Quản lý lớp học", href: "/teacher/classes" },
+    { title: "Tạo lớp học mới" }
   ];
 
   const weekDays = [

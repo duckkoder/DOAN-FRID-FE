@@ -215,8 +215,6 @@ async function doRefreshSingleFlight(): Promise<RefreshResult> {
       throw new Error("No refresh token");
     }
 
-    console.log('🔄 Starting token refresh...');
-
     // Create plain axios instance (no interceptors)
     const plain = axios.create({ 
       baseURL: BASE_URL, 
@@ -300,15 +298,7 @@ async function ensureFreshAccessToken(): Promise<string | null> {
   // Check token expiration
   const expMs = safeJwtExpMs(token);
   const now = Date.now();
-  const timeLeft = expMs ? expMs - now : null;
-
-  console.log('🔍 Token check:', {
-    hasToken: !!token,
-    expiresAt: expMs ? new Date(expMs).toLocaleTimeString() : 'N/A',
-    timeLeft: timeLeft ? formatTimeRemaining(timeLeft) : 'N/A',
-    refreshThreshold: formatTimeRemaining(CLOCK_SKEW_MS),
-    shouldRefresh: !token || (expMs !== null && expMs - CLOCK_SKEW_MS <= now)
-  });
+  // const timeLeft = expMs ? expMs - now : null;
 
   // Refresh if token is missing or about to expire
   if (!token || (expMs !== null && expMs - CLOCK_SKEW_MS <= now)) {
@@ -350,7 +340,6 @@ api.interceptors.request.use(
     
     // Skip token check for auth endpoints
     if (isAuthEndpoint(config.url)) {
-      console.log('🔓 Auth endpoint, skipping token check:', config.url);
       return config;
     }
     

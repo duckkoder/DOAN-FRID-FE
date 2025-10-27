@@ -1,58 +1,7 @@
 import api from "../axios";
+import type { AxiosProgressEvent } from "axios";
 
 // ==================== Types ====================
-
-export interface UploadFileResponse {
-  success: boolean;
-  data: {
-    file_id: number;
-    file_key: string;
-    url: string;
-    original_name: string;
-    size: number;
-  };
-  message: string;
-}
-
-// ==================== Helper Functions ====================
-
-/**
- * Validate image file before upload
- */
-export const validateImageFile = (file: File): { valid: boolean; error?: string } => {
-  // Check file type
-  const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif"];
-  if (!allowedTypes.includes(file.type)) {
-    return {
-      valid: false,
-      error: "Chỉ chấp nhận file ảnh (JPG, PNG, GIF)",
-    };
-  }
-
-  // Check file size (max 5MB)
-  const maxSize = 5 * 1024 * 1024; // 5MB
-  if (file.size > maxSize) {
-    return {
-      valid: false,
-      error: "Kích thước file không được vượt quá 5MB",
-    };
-  }
-
-  return { valid: true };
-};
-
-/**
- * Convert file to base64 for preview
- */
-export const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-  });
-};
-import type { AxiosProgressEvent } from "axios";
 
 export type UploadedFileInfo = {
   file_id: number;
@@ -77,6 +26,8 @@ export type MyFilesResponse = {
   data: UploadedFileInfo[];
   total: number;
 };
+
+// ==================== API Functions ====================
 
 /**
  * Upload avatar (public image)
@@ -154,3 +105,42 @@ export async function getMyFiles(): Promise<MyFilesResponse> {
   const res = await api.get("/files/my-files");
   return res.data;
 }
+
+// ==================== Helper Functions ====================
+
+/**
+ * Validate image file before upload
+ */
+export const validateImageFile = (file: File): { valid: boolean; error?: string } => {
+  // Check file type
+  const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif"];
+  if (!allowedTypes.includes(file.type)) {
+    return {
+      valid: false,
+      error: "Chỉ chấp nhận file ảnh (JPG, PNG, GIF)",
+    };
+  }
+
+  // Check file size (max 5MB)
+  const maxSize = 5 * 1024 * 1024; // 5MB
+  if (file.size > maxSize) {
+    return {
+      valid: false,
+      error: "Kích thước file không được vượt quá 5MB",
+    };
+  }
+
+  return { valid: true };
+};
+
+/**
+ * Convert file to base64 for preview
+ */
+export const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+};
