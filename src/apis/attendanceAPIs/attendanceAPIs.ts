@@ -47,7 +47,7 @@ export interface RecognizedStudent {
   student_id: number;
   student_code: string;
   full_name: string;
-  status: 'present' | 'late';
+  status: 'present' | 'absent';  // Chỉ có present hoặc absent
   confidence_score: number;
   recorded_at: string;
 }
@@ -70,8 +70,8 @@ export interface EndSessionResponse {
   session: AttendanceSession;
   total_students: number;
   present_count: number;
-  late_count: number;
   absent_count: number;
+  excused_count: number;  // Thêm excused_count
   attendance_rate: number;
 }
 
@@ -81,7 +81,7 @@ export interface AttendanceRecord {
   student_id: number;
   student_code: string;
   student_name: string;
-  status: 'present' | 'late' | 'absent' | 'excused';
+  status: 'present' | 'absent' | 'excused';  // Chỉ 3 trạng thái
   confidence_score: number | null;
   recorded_at: string | null;
   notes: string | null;
@@ -93,8 +93,8 @@ export interface SessionAttendanceResponse {
   statistics: {
     total_students: number;
     present_count: number;
-    late_count: number;
     absent_count: number;
+    excused_count: number;
     attendance_rate: number;
   };
 }
@@ -103,8 +103,8 @@ export interface SessionWithStats extends AttendanceSession {
   statistics?: {
     total_students: number;
     present_count: number;
-    late_count: number;
     absent_count: number;
+    excused_count: number;
     attendance_rate: number;
   };
 }

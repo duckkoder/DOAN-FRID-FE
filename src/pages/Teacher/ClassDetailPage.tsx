@@ -115,7 +115,7 @@ interface Student {
   totalSessions: number;
   presentCount: number;
   absentCount: number;
-  lateCount: number;
+  excusedCount: number;
   attendanceRate: number;
 }
 
@@ -126,7 +126,7 @@ interface AttendanceSession {
   status: 'completed' | 'ongoing' | 'upcoming';
   presentCount: number;
   absentCount: number;
-  lateCount: number;
+  excusedCount: number;
 }
 
 // ✅ Schedule Session Interface
@@ -813,7 +813,7 @@ const ClassDetailPage: React.FC = () => {
       totalSessions: 15,
       presentCount: 14,
       absentCount: 1,
-      lateCount: 2,
+      excusedCount: 0,
       attendanceRate: 93.3
     },
   ];
@@ -827,7 +827,7 @@ const ClassDetailPage: React.FC = () => {
       status: 'completed',
       presentCount: 33,
       absentCount: 2,
-      lateCount: 0
+      excusedCount: 0
     },
     {
       id: "2", 
@@ -836,7 +836,7 @@ const ClassDetailPage: React.FC = () => {
       status: 'completed',
       presentCount: 32,
       absentCount: 2,
-      lateCount: 1
+      excusedCount: 1
     },
   ];
 
@@ -1013,12 +1013,12 @@ const ClassDetailPage: React.FC = () => {
       )
     },
     {
-      title: 'Muộn',
-      key: 'lateCount',
+      title: 'Có phép',
+      key: 'excusedCount',
       align: 'center' as const,
       render: (record: SessionWithStats) => (
         record.status === 'finished' && record.statistics ? 
-          <Tag color="#f59e0b">{record.statistics.late_count}</Tag> : 
+          <Tag color="#8b5cf6">{record.statistics.excused_count || 0}</Tag> : 
           <Text type="secondary">-</Text>
       )
     },
@@ -1215,9 +1215,6 @@ const ClassDetailPage: React.FC = () => {
               prefix={<CalendarOutlined />}
               valueStyle={{ color: '#10b981', fontSize: 20 }}
             />
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Tổng số buổi đã điểm danh
-            </Text>
           </Card>
         </Col>
         
@@ -1246,10 +1243,6 @@ const ClassDetailPage: React.FC = () => {
               valueStyle={{ color: '#8b5cf6', fontSize: 20 }}
               prefix={<SafetyCertificateOutlined />}
             />
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {verificationPercent}% đã xác thực
-            </Text>
-            {/* ❌ REMOVED Progress bar */}
           </Card>
         </Col>
       </Row>
@@ -1459,9 +1452,9 @@ const ClassDetailPage: React.FC = () => {
               </Col>
               <Col span={8}>
                 <Statistic
-                  title="Đi muộn"
-                  value={selectedStudent.lateCount}
-                  valueStyle={{ color: '#f59e0b' }}
+                  title="Nghỉ có phép"
+                  value={selectedStudent.excusedCount}
+                  valueStyle={{ color: '#8b5cf6' }}
                 />
               </Col>
             </Row>

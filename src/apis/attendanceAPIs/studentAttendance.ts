@@ -175,10 +175,10 @@ export const getAttendanceStatusColor = (status: string): string => {
   switch (status) {
     case 'present':
       return 'success';
-    case 'late':
-      return 'warning';
     case 'absent':
       return 'error';
+    case 'excused':
+      return 'warning';
     default:
       return 'default';
   }
@@ -191,8 +191,6 @@ export const getAttendanceStatusText = (status: string): string => {
   switch (status) {
     case 'present':
       return 'Có mặt';
-    case 'late':
-      return 'Trễ';
     case 'absent':
       return 'Vắng';
     case 'excused':
