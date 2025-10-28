@@ -63,6 +63,7 @@ const AdminFaceRegistrationTable: React.FC = () => {
   // Approve/Reject Modal
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
   const [actionType, setActionType] = useState<'approve' | 'reject'>('approve');
+  const [processingEmbeddings, setProcessingEmbeddings] = useState(false);  // NEW: For embedding processing
   const [form] = Form.useForm();
 
   // ==================== Load Data ====================
@@ -160,10 +161,26 @@ const AdminFaceRegistrationTable: React.FC = () => {
       setLoading(true);
 
       if (actionType === 'approve') {
-        await approveFaceRegistration(viewingRegistration.id, {
+        // Show embedding processing state
+        setProcessingEmbeddings(true);
+        
+        const startTime = Date.now();
+        const response = await approveFaceRegistration(viewingRegistration.id, {
           note: values.note,
         });
-        message.success('Đã phê duyệt đăng ký khuôn mặt');
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        
+        // Show success with embedding info
+        const embeddingInfo = response.embeddings_created 
+          ? ` (${response.embeddings_created} embeddings đã tạo trong ${response.processing_time_seconds || elapsed}s)`
+          : '';
+        
+        message.success({
+          content: `Đã phê duyệt đăng ký khuôn mặt${embeddingInfo}`,
+          duration: 5,
+        });
+        
+        setProcessingEmbeddings(false);
       } else {
         await rejectFaceRegistration(viewingRegistration.id, {
           rejection_reason: values.reason,
@@ -178,9 +195,23 @@ const AdminFaceRegistrationTable: React.FC = () => {
       fetchRegistrations();
     } catch (error: any) {
       console.error('Error processing registration:', error);
-      message.error(
-        error?.response?.data?.detail || 'Không thể xử lý đăng ký'
-      );
+      setProcessingEmbeddings(false);
+      
+      // Better error messages
+      let errorMessage = 'Không thể xử lý đăng ký';
+      
+      if (error?.code === 'ECONNABORTED') {
+        errorMessage = 'Timeout: Quá trình xử lý mất quá lâu. Vui lòng thử lại.';
+      } else if (error?.response?.status === 500) {
+        errorMessage = 'Lỗi server: ' + (error?.response?.data?.detail || 'Không thể kết nối AI-service');
+      } else if (error?.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      }
+      
+      message.error({
+        content: errorMessage,
+        duration: 8,
+      });
     } finally {
       setLoading(false);
     }
@@ -552,7 +583,28 @@ const AdminFaceRegistrationTable: React.FC = () => {
         confirmLoading={loading}
         okText={actionType === 'approve' ? 'Phê duyệt' : 'Từ chối'}
         cancelText="Hủy"
+        okButtonProps={{ disabled: processingEmbeddings }}
+        cancelButtonProps={{ disabled: processingEmbeddings }}
       >
+        {/* Embedding Processing Indicator */}
+        {processingEmbeddings && (
+          <Alert
+            message="Đang xử lý embeddings..."
+            description={
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Spin />
+                <Text type="secondary">
+                  Đang trích xuất đặc trưng khuôn mặt từ 14 ảnh. 
+                  Quá trình này có thể mất 10-30 giây. Vui lòng đợi...
+                </Text>
+              </Space>
+            }
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        )}
+        
         <Form form={form} layout="vertical" style={{ marginTop: 24 }}>
           {actionType === 'reject' && (
             <Form.Item
@@ -565,6 +617,7 @@ const AdminFaceRegistrationTable: React.FC = () => {
                 placeholder="Nhập lý do từ chối đăng ký khuôn mặt..."
                 maxLength={500}
                 showCount
+                disabled={processingEmbeddings}
               />
             </Form.Item>
           )}
@@ -574,8 +627,19 @@ const AdminFaceRegistrationTable: React.FC = () => {
               placeholder="Nhập ghi chú nếu cần..."
               maxLength={300}
               showCount
+              disabled={processingEmbeddings}
             />
           </Form.Item>
+          
+          {actionType === 'approve' && (
+            <Alert
+              message="Lưu ý"
+              description="Sau khi phê duyệt, hệ thống sẽ tự động trích xuất embeddings từ 14 ảnh khuôn mặt. Quá trình này mất khoảng 10-30 giây."
+              type="warning"
+              showIcon
+              style={{ marginTop: 16 }}
+            />
+          )}
         </Form>
       </Modal>
     </>
