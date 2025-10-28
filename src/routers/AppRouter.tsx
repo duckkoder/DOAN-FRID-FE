@@ -10,12 +10,13 @@ import AdminStudentPage from "../pages/Admin/AdminStudentPage";
 import AdminModalAIPage from "../pages/Admin/AdminModalAIPage";
 
 import TeacherClassPage from "../pages/Teacher/TeacherClassPage";
-
+import SessionDetailPage from "../pages/Teacher/SessionDetailPage";
 import TeacherReportPage from "../pages/Teacher/TeacherReportPage";
 
 import StudentClassDetailPage from "../pages/Student/StudentClassDetailPage";
 import StudentClassPage from "../pages/Student/StudentClassPage";
 import StudentAttendancePage from "../pages/Student/StudentAttendancePage";
+import StudentAttendanceListPage from "../pages/Student/StudentAttendanceListPage";
 import StudentReportPage from "../pages/Student/StudentReportPage";
 import AdminHomePage from "../pages/Admin/AdminHomePage";
 import TeacherHomePage from "../pages/Teacher/TeacherHomePage";
@@ -50,6 +51,7 @@ const router = createBrowserRouter(
               <Route index element={<TeacherHomePage />} />
               <Route path="classes" element={<TeacherClassPage />} />
               <Route path="class/:classId" element={<ClassDetailPage />} />
+              <Route path="attendance/:sessionId" element={<SessionDetailPage />} />
               <Route path="reports" element={<TeacherReportPage />} />
               <Route path="leave-requests" element={<TeacherLeaveRequestPage />} />
               <Route path="classes/create" element={<ClassCreatePage />} />
@@ -59,7 +61,8 @@ const router = createBrowserRouter(
             <Route path="/student">
               <Route index element={<StudentHomePage />} />
               <Route path="classes" element={<StudentClassPage />} />
-              <Route path="class/:classId" element={<StudentClassDetailPage />} />
+              <Route path="classes/:classId" element={<StudentClassDetailPage />} />
+              <Route path="classes/:classId/attendance" element={<StudentAttendanceListPage />} />
               <Route path="attendance" element={<StudentAttendancePage />} />
               <Route path="reports" element={<StudentReportPage />} />
               <Route path="register-face" element={<FaceRegisterPage />} />

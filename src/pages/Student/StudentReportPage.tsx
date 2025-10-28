@@ -79,8 +79,8 @@ const StudentReportPage: React.FC = () => {
   }));
 
   const breadcrumbItems = [
-    { title: "Dashboard", href: "/student" },
-    { title: "Leave Requests" }
+    { title: "Trang chủ", href: "/student" },
+    { title: "Đơn nghỉ học" }
   ];
 
   // ✅ Convert English day to Vietnamese
@@ -627,7 +627,7 @@ const StudentReportPage: React.FC = () => {
             fontSize: 36,
             fontWeight: 700
           }}>
-            📝 Leave Requests
+            📝 Đơn nghỉ học
           </Title>
           <Text style={{ 
             fontSize: 18, 

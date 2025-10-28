@@ -45,8 +45,8 @@ const FaceRegisterPage: React.FC = () => {
   const [initialStatus, setInitialStatus] = useState<FaceRegistrationStatus | null>(null);
 
   const breadcrumbItems = [
-    { title: 'Dashboard', href: '/student' },
-    { title: 'Face Registration' },
+    { title: "Trang chủ", href: "/student" },
+    { title: "Đăng ký khuôn mặt" }
   ];
 
   // Check registration status on mount

@@ -20,7 +20,9 @@ import {
   Select,
   message,
   Divider,
-  Alert
+  Alert,
+  Empty,
+  Spin
 } from "antd";
 import { 
   UserOutlined,
@@ -28,17 +30,16 @@ import {
   CloseCircleOutlined,
   ClockCircleOutlined,
   CalendarOutlined,
+  EyeOutlined,
   BookOutlined,
   EnvironmentOutlined,
   ArrowLeftOutlined,
   EditOutlined,
-  FileTextOutlined,
-  EyeOutlined,
-  FilterOutlined,
-  PlusOutlined,
-  DeleteOutlined,
   ExclamationCircleOutlined,
-  PlayCircleOutlined
+  PlayCircleOutlined,
+  SafetyCertificateOutlined, // ✅ Add this import
+  TeamOutlined,
+  ReloadOutlined, // ✅ Add this if missing
 } from "@ant-design/icons";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Breadcrumb from "../../components/Breadcrumb";
@@ -47,10 +48,19 @@ import {
   getClassDetails, 
   updateClass,
   convertFrontendScheduleToBackend,
+  getClassStudentsDetails, // ✅ Import API
   type GetClassDetailsResponse,
   type UpdateClassRequest,
-  type ApiError
+  type ApiError,
+  type StudentDetailInClass // ✅ Import type
 } from "../../apis/classesAPIs/teacherClass";
+import AttendanceCamera from "../../components/AttendanceCamera";
+import type { 
+  EndSessionResponse,
+  SessionWithStats,
+  getClassSessions as getClassSessionsAPI
+} from "../../apis/attendanceAPIs/attendanceAPIs";
+
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -105,7 +115,7 @@ interface Student {
   totalSessions: number;
   presentCount: number;
   absentCount: number;
-  lateCount: number;
+  excusedCount: number;
   attendanceRate: number;
 }
 
@@ -116,19 +126,7 @@ interface AttendanceSession {
   status: 'completed' | 'ongoing' | 'upcoming';
   presentCount: number;
   absentCount: number;
-  lateCount: number;
-}
-
-interface LeaveRequest {
-  id: string;
-  studentName: string;
-  studentId: string;
-  startDate: string;
-  endDate: string;
-  reason: string;
-  status: 'pending' | 'approved' | 'rejected';
-  submittedDate: string;
-  approverNote?: string;
+  excusedCount: number;
 }
 
 // ✅ Schedule Session Interface
@@ -164,9 +162,7 @@ const ClassDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const params = useParams<{ classId: string }>();
   
-  // ✅ Ưu tiên lấy từ URL params, sau đó mới đến location.state
   const classId = useMemo(() => {
-    // Lấy từ URL param trước
     if (params.classId) {
       const parsed = parseInt(params.classId, 10);
       if (!isNaN(parsed)) return parsed;
@@ -174,19 +170,11 @@ const ClassDetailPage: React.FC = () => {
     return null;
   }, [params.classId]);
 
+  // ✅ FIXED: Initialize all state variables properly
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isStudentDetailVisible, setIsStudentDetailVisible] = useState(false);
-  const [isRequestDetailVisible, setIsRequestDetailVisible] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
-  const [requestFilter, setRequestFilter] = useState<'all' | 'active' | 'expired'>('all');
-
-  const [classData, setClassData] = useState<ClassData | null>(null);
-  const [loadingClass, setLoadingClass] = useState<boolean>(false);
-  const [classError, setClassError] = useState<string | null>(null);
-
-  // ✅ Edit form states
   const [editForm] = Form.useForm();
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
@@ -194,11 +182,22 @@ const ClassDetailPage: React.FC = () => {
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [dayPeriods, setDayPeriods] = useState<Record<number, number[]>>({});
   const [editSchedules, setEditSchedules] = useState<EditClassSchedule[]>([]);
-
-  // ✅ Add state for attendance modal
   const [isAttendanceModalVisible, setIsAttendanceModalVisible] = useState(false);
   const [selectedAttendanceSession, setSelectedAttendanceSession] = useState<UpcomingSession | null>(null);
   const [upcomingSessions, setUpcomingSessions] = useState<UpcomingSession[]>([]);
+  const [isAttendanceCameraVisible, setIsAttendanceCameraVisible] = useState(false);
+  const [attendanceSessions, setAttendanceSessions] = useState<SessionWithStats[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(false); // ✅ Add this missing state
+  
+  // ✅ FIXED: Initialize classData state
+  const [classData, setClassData] = useState<ClassData | null>(null);
+  const [loadingClass, setLoadingClass] = useState<boolean>(false);
+  const [classError, setClassError] = useState<string | null>(null);
+  
+  // ✅ Students state
+  const [studentsData, setStudentsData] = useState<StudentDetailInClass[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [classSummary, setClassSummary] = useState<any>(null); // ✅ Add summary state
 
   const weekDays = [
     { value: 1, label: "Thứ 2" },
@@ -461,10 +460,10 @@ const ClassDetailPage: React.FC = () => {
           status: cls.status === "inactive" ? "inactive" : "active",
           teacher: cls.teacher || "N/A",
           teacherId: cls.teacherId || 0,
-          maxStudents: cls.maxStudents || 30,
+          maxStudents: 30, // Default value
           studentCount: cls.students || 0,
-          schedule: cls.schedule || {},
-          attendanceStats: refreshedData.data.attendanceStats
+          schedule: cls.schedule as Record<string, string[]> || {},
+          attendanceStats: refreshedData.data.attendance
         };
         setClassData(mapped);
       }
@@ -608,19 +607,66 @@ const ClassDetailPage: React.FC = () => {
     setIsAttendanceModalVisible(true);
   };
 
-  // ✅ Handle start attendance
+  // ✅ Handle start attendance with camera
   const handleStartAttendance = () => {
     if (!selectedAttendanceSession) {
       message.warning('Vui lòng chọn buổi học để bắt đầu điểm danh!');
       return;
     }
 
-    // TODO: Navigate to attendance page or start attendance session
-    message.info(`Bắt đầu điểm danh cho ${selectedAttendanceSession.dayLabel}, ${selectedAttendanceSession.periods}`);
-    console.log('Selected session:', selectedAttendanceSession);
-    
-    // Close modal
+    // Close selection modal
     setIsAttendanceModalVisible(false);
+    
+    // Open camera modal
+    setIsAttendanceCameraVisible(true);
+  };
+
+  // ✅ Handle session end
+  const handleSessionEnd = async () => {
+    message.success('Kết thúc phiên điểm danh!');
+    
+    setIsAttendanceCameraVisible(false);
+    
+    // ✅ Reload attendance sessions để cập nhật lịch sử
+    if (classId) {
+      try {
+        const { getClassSessions: getClassSessionsAPI } = await import('../../apis/attendanceAPIs/attendanceAPIs');
+        const response = await getClassSessionsAPI(classId, undefined, 0, 100);
+        console.log('attendance sessions:', response.sessions);
+        setAttendanceSessions(response.sessions);
+      } catch (error: any) {
+        console.error('Failed to reload attendance sessions:', error);
+      }
+    }
+    
+    // ✅ Fetch lại dữ liệu lớp học để cập nhật trạng thái và thống kê
+    if (classId) {
+      try {
+        const res: GetClassDetailsResponse = await getClassDetails(classId);
+        const cls = res?.data?.class;
+        if (cls) {
+          const mapped: ClassData = {
+            id: cls.id,
+            subject: cls.subject || "Không tên",
+            classCode: cls.classCode || "",
+            description: cls.description || "",
+            room: cls.room || "N/A",
+            status: cls.status === "inactive" ? "inactive" : "active",
+            teacher: cls.teacher || "N/A",
+            teacherId: cls.teacherId || 0,
+            maxStudents: 30, // Default value
+            studentCount: cls.students || 0,
+            schedule: cls.schedule as Record<string, string[]> || {},
+            attendanceStats: res.data.attendance
+          };
+          setClassData(mapped);
+          message.success('Đã cập nhật thông tin lớp học!');
+        }
+      } catch (err: any) {
+        console.error("Failed to refresh class details:", err);
+        message.warning('Không thể cập nhật thông tin lớp học. Vui lòng làm mới trang.');
+      }
+    }
   };
 
   // Fetch class details when page loads / classId changes
@@ -636,8 +682,6 @@ const ClassDetailPage: React.FC = () => {
 
       try {
         const res: GetClassDetailsResponse = await getClassDetails(classId);
-
-        console.log("Fetched class details:", res);
         
         const cls = res?.data?.class;
         if (!cls) {
@@ -654,10 +698,10 @@ const ClassDetailPage: React.FC = () => {
           status: cls.status === "inactive" ? "inactive" : "active",
           teacher: cls.teacher || "N/A",
           teacherId: cls.teacherId || 0,
-          maxStudents: cls.maxStudents || 30,
+          maxStudents: 30, // Default value, backend doesn't have this field
           studentCount: cls.students || 0,
-          schedule: cls.schedule || {},
-          attendanceStats: res.data.attendanceStats
+          schedule: cls.schedule as Record<string, string[]> || {},
+          attendanceStats: res.data.attendance
         };
 
         setClassData(mapped);
@@ -673,6 +717,51 @@ const ClassDetailPage: React.FC = () => {
 
     fetchClass();
   }, [classId]); // ✅ Chỉ phụ thuộc vào classId
+
+  // ✅ Fetch attendance sessions when classId changes or tab switches to attendance
+  useEffect(() => {
+    const fetchAttendanceSessions = async () => {
+      if (!classId || activeTab !== 'attendance') return;
+
+      setLoadingSessions(true);
+      try {
+        const { getClassSessions: getClassSessionsAPI } = await import('../../apis/attendanceAPIs/attendanceAPIs');
+        const response = await getClassSessionsAPI(classId, undefined, 0, 100);
+        console.log('Fetched attendance sessions:', response.sessions);
+        setAttendanceSessions(response.sessions);
+      } catch (error: any) {
+        console.error('Failed to load attendance sessions:', error);
+        message.error('Không thể tải lịch sử điểm danh');
+      } finally {
+        setLoadingSessions(false);
+      }
+    };
+
+    fetchAttendanceSessions();
+  }, [classId, activeTab]);
+
+  // ✅ Fetch students details
+  const fetchStudentsDetails = async (classId: number) => {
+    setLoadingStudents(true);
+    try {
+      const response = await getClassStudentsDetails(classId);
+      console.log('✅ Fetched students:', response.data);
+      setStudentsData(response.data.students);
+      setClassSummary(response.data.summary); // ✅ Save summary data
+    } catch (error: any) {
+      console.error('❌ Failed to fetch students:', error);
+      message.error('Không thể tải danh sách học sinh');
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  // ✅ Fetch students when classId changes or tab is overview
+  useEffect(() => {
+    if (classId && activeTab === 'overview') {
+      fetchStudentsDetails(classId);
+    }
+  }, [classId, activeTab]);
 
   // If loading, show simple loading state
   if (loadingClass) {
@@ -724,48 +813,8 @@ const ClassDetailPage: React.FC = () => {
       totalSessions: 15,
       presentCount: 14,
       absentCount: 1,
-      lateCount: 2,
+      excusedCount: 0,
       attendanceRate: 93.3
-    },
-  ];
-
-  const attendanceSessions: AttendanceSession[] = [];
-  const leaveRequests: LeaveRequest[] = [];
-
-  // Mock data for students
-  const studentsMock: Student[] = [
-    {
-      id: "1",
-      name: "Nguyễn Văn An",
-      studentId: "SV001",
-      email: "an.nv@student.hust.edu.vn",
-      totalSessions: 15,
-      presentCount: 14,
-      absentCount: 1,
-      lateCount: 2,
-      attendanceRate: 93.3
-    },
-    {
-      id: "2",
-      name: "Trần Thị Bình",
-      studentId: "SV002",
-      email: "binh.tt@student.hust.edu.vn",
-      totalSessions: 15,
-      presentCount: 13,
-      absentCount: 2,
-      lateCount: 1,
-      attendanceRate: 86.7
-    },
-    {
-      id: "3",
-      name: "Lê Văn Cường",
-      studentId: "SV003",
-      email: "cuong.lv@student.hust.edu.vn",
-      totalSessions: 15,
-      presentCount: 15,
-      absentCount: 0,
-      lateCount: 0,
-      attendanceRate: 100
     },
   ];
 
@@ -778,7 +827,7 @@ const ClassDetailPage: React.FC = () => {
       status: 'completed',
       presentCount: 33,
       absentCount: 2,
-      lateCount: 0
+      excusedCount: 0
     },
     {
       id: "2", 
@@ -787,21 +836,7 @@ const ClassDetailPage: React.FC = () => {
       status: 'completed',
       presentCount: 32,
       absentCount: 2,
-      lateCount: 1
-    },
-  ];
-
-  // Mock data for leave requests
-  const leaveRequestsMock: LeaveRequest[] = [
-    {
-      id: "1",
-      studentName: "Nguyễn Văn An",
-      studentId: "SV001",
-      startDate: "2024-10-15",
-      endDate: "2024-10-15",
-      reason: "Bị sốt cao, cần nghỉ ngơi",
-      status: 'pending',
-      submittedDate: "2024-10-10"
+      excusedCount: 1
     },
   ];
 
@@ -810,24 +845,6 @@ const ClassDetailPage: React.FC = () => {
     { title: "Class Management", href: "/teacher/classes" },
     { title: classData.subject }
   ];
-
-  const getFilteredRequests = () => {
-    const currentDate = dayjs();
-    
-    switch(requestFilter) {
-      case 'active':
-        return leaveRequestsMock.filter(req => {
-          const startDate = dayjs(req.startDate);
-          const endDate = dayjs(req.endDate);
-          return startDate.diff(currentDate) > 0 || 
-                 (startDate.diff(currentDate) <= 0 && endDate.diff(currentDate) >= 0);
-        });
-      case 'expired':
-        return leaveRequestsMock.filter(req => dayjs(req.endDate).diff(currentDate) < 0);
-      default:
-        return leaveRequestsMock;
-    }
-  };
 
   const getStatusConfig = (status: string) => {
     switch(status) {
@@ -845,6 +862,10 @@ const ClassDetailPage: React.FC = () => {
         return { color: '#64748b', text: 'Đã hoàn thành' };
       case 'ongoing':
         return { color: '#10b981', text: 'Đang diễn ra' };
+      case 'scheduled':
+        return { color: '#3b82f6', text: 'Đã lên lịch' };
+      case 'finished':
+        return { color: '#64748b', text: 'Đã kết thúc' };
       case 'upcoming':
         return { color: '#3b82f6', text: 'Sắp diễn ra' };
       default:
@@ -864,116 +885,100 @@ const ClassDetailPage: React.FC = () => {
     setIsStudentDetailVisible(true);
   };
 
-  const totalSessions = classData.attendanceStats?.totalSessions || 0;
-  const avgAttendance = classData.attendanceStats?.averageAttendance || 0;
-  const pendingRequests = 0;
-
   const studentColumns = [
     {
       title: 'Học sinh',
       key: 'student',
-      render: (record: Student) => (
+      render: (record: StudentDetailInClass) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Avatar size={40} icon={<UserOutlined />} src={record.avatar} />
+          <Avatar size={40} src={record.avatar} icon={<UserOutlined />} />
           <div>
-            <Text strong>{record.name}</Text>
+            <Text strong>{record.fullName}</Text>
             <br />
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {record.studentId}
-            </Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>{record.studentId}</Text>
             <br />
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              {record.email}
-            </Text>
+            <Text type="secondary" style={{ fontSize: 11 }}>{record.email}</Text>
           </div>
         </div>
       )
     },
     {
+      title: 'Khoa',
+      dataIndex: 'department',
+      key: 'department',
+      render: (dept: string) => dept || <Text type="secondary">-</Text>
+    },
+    {
       title: 'Tổng buổi',
-      dataIndex: 'totalSessions',
       key: 'totalSessions',
-      align: 'center' as const
+      align: 'center' as const,
+      render: (record: StudentDetailInClass) => record.attendanceStats.totalSessions
     },
     {
       title: 'Có mặt',
-      dataIndex: 'presentCount',
       key: 'presentCount',
       align: 'center' as const,
-      render: (count: number) => (
-        <Tag color="#10b981" icon={<CheckCircleOutlined />}>{count}</Tag>
+      render: (record: StudentDetailInClass) => (
+        <Tag color="#10b981" icon={<CheckCircleOutlined />}>
+          {record.attendanceStats.presentCount}
+        </Tag>
       )
     },
     {
       title: 'Vắng',
-      dataIndex: 'absentCount',
       key: 'absentCount',
       align: 'center' as const,
-      render: (count: number) => (
-        <Tag color="#ef4444" icon={<CloseCircleOutlined />}>{count}</Tag>
+      render: (record: StudentDetailInClass) => (
+        <Tag color="#ef4444" icon={<CloseCircleOutlined />}>
+          {record.attendanceStats.absentCount}
+        </Tag>
       )
     },
     {
-      title: 'Muộn',
-      dataIndex: 'lateCount',
-      key: 'lateCount',
-      align: 'center' as const,
-      render: (count: number) => (
-        <Tag color="#f59e0b" icon={<ClockCircleOutlined />}>{count}</Tag>
-      )
-    },
-    {
-      title: 'Tỷ lệ điểm danh',
-      dataIndex: 'attendanceRate',
+      title: 'Tỷ lệ',
       key: 'attendanceRate',
       align: 'center' as const,
-      render: (rate: number) => (
-        <div style={{ textAlign: 'center' }}>
-          <Progress 
-            percent={rate} 
-            size="small"
-            strokeColor={getAttendanceColor(rate)}
-            style={{ width: 80, marginBottom: 4 }}
-            showInfo={false}
-          />
-          <div>
-            <Text style={{ 
-              color: getAttendanceColor(rate), 
-              fontWeight: 600, 
-              fontSize: 12 
-            }}>
+      render: (record: StudentDetailInClass) => {
+        const rate = record.attendanceStats.attendanceRate;
+        return (
+          <div style={{ textAlign: 'center' }}>
+            <Progress 
+              percent={rate} 
+              size="small"
+              strokeColor={getAttendanceColor(rate)}
+              style={{ width: 80 }}
+              showInfo={false}
+            />
+            <Text style={{ color: getAttendanceColor(rate), fontWeight: 600, fontSize: 12 }}>
               {rate.toFixed(1)}%
             </Text>
           </div>
-        </div>
-      )
+        );
+      }
     },
     {
-      title: 'Thao tác',
-      key: 'actions',
+      title: 'Xác thực',
+      dataIndex: 'isVerified',
+      key: 'isVerified',
       align: 'center' as const,
-      render: (record: Student) => (
-        <Button 
-          size="small" 
-          icon={<EyeOutlined />}
-          onClick={() => handleViewStudentDetail(record)}
-        >
-          Chi tiết
-        </Button>
+      render: (verified: boolean) => (
+        <Tag color={verified ? 'success' : 'warning'}>
+          {verified ? 'Đã xác thực' : 'Chưa'}
+        </Tag>
       )
     }
   ];
 
   const sessionColumns = [
     {
-      title: 'Buổi học',
+      title: 'Phiên điểm danh',
       key: 'session',
-      render: (record: AttendanceSession) => (
+      render: (record: SessionWithStats) => (
         <div>
-          <Text strong>Buổi {record.sessionNumber}</Text>
+          <Text strong>Thứ {record.day_of_week}, buổi {record.period_range}</Text>
           <br />
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {dayjs(record.date).format('DD/MM/YYYY')}
+            {dayjs(record.start_time).format('DD/MM/YYYY HH:mm')}
           </Text>
         </div>
       )
@@ -989,50 +994,66 @@ const ClassDetailPage: React.FC = () => {
     },
     {
       title: 'Có mặt',
-      dataIndex: 'presentCount',
       key: 'presentCount',
       align: 'center' as const,
-      render: (count: number, record: AttendanceSession) => (
-        record.status === 'completed' ? 
-          <Tag color="#10b981">{count}</Tag> : 
+      render: (record: SessionWithStats) => (
+        record.status === 'finished' && record.statistics ? 
+          <Tag color="#10b981">{record.statistics.present_count}</Tag> : 
           <Text type="secondary">-</Text>
       )
     },
     {
       title: 'Vắng',
-      dataIndex: 'absentCount', 
-      key: 'absentCount',
+      key: 'absentCount', 
       align: 'center' as const,
-      render: (count: number, record: AttendanceSession) => (
-        record.status === 'completed' ? 
-          <Tag color="#ef4444">{count}</Tag> : 
+      render: (record: SessionWithStats) => (
+        record.status === 'finished' && record.statistics ? 
+          <Tag color="#ef4444">{record.statistics.absent_count}</Tag> : 
           <Text type="secondary">-</Text>
       )
     },
     {
-      title: 'Muộn',
-      dataIndex: 'lateCount',
-      key: 'lateCount', 
+      title: 'Có phép',
+      key: 'excusedCount',
       align: 'center' as const,
-      render: (count: number, record: AttendanceSession) => (
-        record.status === 'completed' ? 
-          <Tag color="#f59e0b">{count}</Tag> : 
+      render: (record: SessionWithStats) => (
+        record.status === 'finished' && record.statistics ? 
+          <Tag color="#8b5cf6">{record.statistics.excused_count || 0}</Tag> : 
+          <Text type="secondary">-</Text>
+      )
+    },
+    {
+      title: 'Tỷ lệ (%)',
+      key: 'attendance_rate',
+      align: 'center' as const,
+      render: (record: SessionWithStats) => (
+        record.status === 'finished' && record.statistics ? 
+          <Text strong style={{ color: getAttendanceColor(record.statistics.attendance_rate) }}>
+            {record.statistics.attendance_rate.toFixed(1)}%
+          </Text> : 
           <Text type="secondary">-</Text>
       )
     },
     {
       title: 'Thao tác',
       key: 'actions',
-      render: (record: AttendanceSession) => (
+      render: (record: SessionWithStats) => (
         <Space>
           {record.status === 'ongoing' && (
             <Button type="primary" size="small">
               Điểm danh
             </Button>
           )}
-          {record.status === 'completed' && (
-            <Button size="small" icon={<EditOutlined />}>
-              Sửa
+          {record.status === 'finished' && (
+            <Button 
+              size="small" 
+              icon={<EyeOutlined />}
+              onClick={() => {
+                // Navigate to session detail or show modal
+                navigate(`/teacher/attendance/${record.id}`);
+              }}
+            >
+              Chi tiết
             </Button>
           )}
         </Space>
@@ -1040,114 +1061,13 @@ const ClassDetailPage: React.FC = () => {
     }
   ];
 
-  const requestColumns = [
-    {
-      title: 'Học sinh',
-      key: 'student',
-      render: (record: LeaveRequest) => (
-        <div>
-          <Text strong>{record.studentName}</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.studentId}
-          </Text>
-        </div>
-      )
-    },
-    {
-      title: 'Thời gian nghỉ',
-      key: 'duration',
-      render: (record: LeaveRequest) => {
-        const isExpired = dayjs(record.endDate).diff(dayjs()) < 0;
-        return (
-          <div>
-            <Text>{dayjs(record.startDate).format('DD/MM/YYYY')}</Text>
-            {record.startDate !== record.endDate && (
-              <>
-                <Text> - </Text>
-                <Text>{dayjs(record.endDate).format('DD/MM/YYYY')}</Text>
-              </>
-            )}
-            {isExpired && (
-              <div>
-                <Tag color="#64748b" size="small" style={{ marginTop: 4 }}>
-                  Đã qua hạn
-                </Tag>
-              </div>
-            )}
-          </div>
-        );
-      }
-    },
-    {
-      title: 'Lý do',
-      dataIndex: 'reason',
-      key: 'reason',
-      render: (reason: string) => (
-        <Tooltip title={reason}>
-          <Text style={{ 
-            display: 'block',
-            maxWidth: 200,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}>
-            {reason}
-          </Text>
-        </Tooltip>
-      )
-    },
-    {
-      title: 'Trạng thái',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => {
-        const config = getStatusConfig(status);
-        return <Tag color={config.color}>{config.text}</Tag>;
-      }
-    },
-    {
-      title: 'Ngày gửi',
-      dataIndex: 'submittedDate',
-      key: 'submittedDate',
-      render: (date: string) => dayjs(date).format('DD/MM/YYYY')
-    },
-    {
-      title: 'Thao tác',
-      key: 'actions',
-      render: (record: LeaveRequest) => (
-        <Space>
-          <Button 
-            size="small" 
-            icon={<EyeOutlined />}
-            onClick={() => handleViewRequestDetail(record)}
-          >
-            Chi tiết
-          </Button>
-          {record.status === 'pending' && (
-            <>
-              <Button 
-                size="small" 
-                type="primary"
-                onClick={() => handleApproveRequest(record.id)}
-              >
-                Duyệt
-              </Button>
-              <Button 
-                size="small" 
-                danger
-                onClick={() => handleRejectRequest(record.id)}
-              >
-                Từ chối
-              </Button>
-            </>
-          )}
-        </Space>
-      )
-    }
-  ];
-
-  const filteredRequests = getFilteredRequests();
+  const totalStudents = studentsData.length;
+  const totalSessions = classSummary?.totalSessions || 0; // ✅ From API summary
+  const avgAttendance = classSummary?.averageAttendanceRate || 0; // ✅ From API summary
+  const verifiedCount = classSummary?.verifiedStudents || 0;
+  const verificationPercent = totalStudents > 0 
+    ? ((verifiedCount / totalStudents) * 100).toFixed(1) 
+    : 0;
 
   return (
     <div style={{ 
@@ -1155,7 +1075,7 @@ const ClassDetailPage: React.FC = () => {
       background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)", 
       padding: "32px 48px" 
     }}>
-      {/* Breadcrumb */}
+      {/* Breadcrumb */}Buổi học đã có
       <Breadcrumb items={breadcrumbItems} />
 
       {/* Header */}
@@ -1181,7 +1101,7 @@ const ClassDetailPage: React.FC = () => {
                 fontSize: 32,
                 fontWeight: 700
               }}>
-                📚 {classData.subject}
+                📚 {classData?.subject || 'Loading...'}
               </Title>
               <Space size={16} wrap>
                 <Tag color={getStatusConfig(classData.status).color} style={{ fontSize: 14, padding: '4px 12px' }}>
@@ -1274,27 +1194,30 @@ const ClassDetailPage: React.FC = () => {
       </div>
 
       {/* Statistics */}
+      {/* ✅ Updated Statistics Cards - Remove Progress bars */}
       <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
               title="Tổng sinh viên"
-              value={classData.studentCount}
-              prefix={<UserOutlined />}
+              value={totalStudents}
+              prefix={<TeamOutlined />}
               valueStyle={{ color: '#2563eb', fontSize: 20 }}
             />
           </Card>
         </Col>
+        
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
-              title="Buổi học đã có"
+              title="Phiên điểm danh"
               value={totalSessions}
-              prefix={<BookOutlined />}
+              prefix={<CalendarOutlined />}
               valueStyle={{ color: '#10b981', fontSize: 20 }}
             />
           </Card>
         </Col>
+        
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
@@ -1302,20 +1225,24 @@ const ClassDetailPage: React.FC = () => {
               value={avgAttendance}
               suffix="%"
               prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#f59e0b', fontSize: 20 }}
+              valueStyle={{ 
+                color: avgAttendance >= 80 ? '#10b981' : avgAttendance >= 60 ? '#f59e0b' : '#ef4444',
+                fontSize: 20 
+              }}
             />
+            {/* ❌ REMOVED Progress bar */}
           </Card>
         </Col>
+        
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
-            <Badge count={pendingRequests} offset={[10, 0]}>
-              <Statistic
-                title="Đơn xin nghỉ"
-                value={leaveRequests.length}
-                prefix={<FileTextOutlined />}
-                valueStyle={{ color: '#8b5cf6', fontSize: 20 }}
-              />
-            </Badge>
+            <Statistic
+              title="Đã xác thực"
+              value={verifiedCount}
+              suffix={`/${totalStudents}`}
+              valueStyle={{ color: '#8b5cf6', fontSize: 20 }}
+              prefix={<SafetyCertificateOutlined />}
+            />
           </Card>
         </Col>
       </Row>
@@ -1331,31 +1258,115 @@ const ClassDetailPage: React.FC = () => {
           onChange={setActiveTab}
           size="large"
         >
-          <TabPane tab="📊 Tổng quan" key="overview">
+          {/* Overview Tab */}
+          <TabPane 
+            tab={
+              <span>
+                <TeamOutlined />
+                Tổng quan ({totalStudents})
+              </span>
+            } 
+            key="overview"
+          >
             <Row gutter={[24, 24]}>
+              {/* ✅ Summary Statistics Card - Also remove progress bars here */}
               <Col span={24}>
                 <Card 
-                  title={
-                    <Space>
-                      <Text strong>📝 Mô tả lớp học</Text>
-                    </Space>
-                  }
+                  title="📊 Thống kê lớp học"
                   style={{ borderRadius: 12, marginBottom: 24 }}
                 >
-                  <Text>{classData.description || "Chưa có mô tả"}</Text>
+                  <Row gutter={[16, 16]}>
+                    <Col xs={12} sm={6}>
+                      <div style={{ textAlign: 'center' }}>
+                        <Text type="secondary">Tổng sinh viên</Text>
+                        <div style={{ fontSize: 28, fontWeight: 'bold', color: '#2563eb' }}>
+                          {totalStudents}
+                        </div>
+                      </div>
+                    </Col>
+                    <Col xs={12} sm={6}>
+                      <div style={{ textAlign: 'center' }}>
+                        <Text type="secondary">Phiên điểm danh</Text>
+                        <div style={{ fontSize: 28, fontWeight: 'bold', color: '#10b981' }}>
+                          {totalSessions}
+                        </div>
+                      </div>
+                    </Col>
+                    <Col xs={12} sm={6}>
+                      <div style={{ textAlign: 'center' }}>
+                        <Text type="secondary">Điểm danh TB</Text>
+                        <div style={{ 
+                          fontSize: 28, 
+                          fontWeight: 'bold', 
+                          color: avgAttendance >= 80 ? '#10b981' : avgAttendance >= 60 ? '#f59e0b' : '#ef4444'
+                        }}>
+                          {avgAttendance.toFixed(1)}%
+                        </div>
+                        {/* ❌ REMOVED Progress bar */}
+                      </div>
+                    </Col>
+                    <Col xs={12} sm={6}>
+                      <div style={{ textAlign: 'center' }}>
+                        <Text type="secondary">Đã xác thực</Text>
+                        <div style={{ fontSize: 28, fontWeight: 'bold', color: '#8b5cf6' }}>
+                          {verifiedCount}/{totalStudents}
+                        </div>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          ({verificationPercent}%)
+                        </Text>
+                        {/* ❌ REMOVED Progress bar */}
+                      </div>
+                    </Col>
+                  </Row>
                 </Card>
               </Col>
 
               <Col span={24}>
-                <Card title="📋 Danh sách học sinh" style={{ borderRadius: 12 }}>
+                <Card 
+                  title="📝 Mô tả lớp học"
+                  style={{ borderRadius: 12, marginBottom: 24 }}
+                >
+                  <Text>{classData?.description || "Chưa có mô tả"}</Text>
+                </Card>
+              </Col>
+
+              <Col span={24}>
+                <Card 
+                  title={
+                    <Space>
+                      <TeamOutlined style={{ color: '#1890ff' }} />
+                      <Text strong>📋 Danh sách học sinh</Text>
+                      <Badge count={studentsData.length} style={{ backgroundColor: '#52c41a' }} />
+                    </Space>
+                  }
+                  style={{ borderRadius: 12 }}
+                  extra={
+                    <Button 
+                      icon={<ReloadOutlined />}
+                      onClick={() => classId && fetchStudentsDetails(classId)}
+                      loading={loadingStudents}
+                    >
+                      Làm mới
+                    </Button>
+                  }
+                >
                   <Table
-                    dataSource={students}
+                    dataSource={studentsData}
                     columns={studentColumns}
                     rowKey="id"
+                    loading={loadingStudents}
                     pagination={{
                       pageSize: 10,
+                      showSizeChanger: true,
                       showTotal: (total, range) => 
                         `${range[0]}-${range[1]} của ${total} học sinh`
+                    }}
+                    locale={{
+                      emptyText: loadingStudents ? (
+                        <Spin tip="Đang tải danh sách học sinh..." />
+                      ) : (
+                        <Empty description="Chưa có học sinh nào trong lớp" />
+                      )
                     }}
                   />
                 </Card>
@@ -1363,59 +1374,24 @@ const ClassDetailPage: React.FC = () => {
             </Row>
           </TabPane>
 
+          {/* Attendance Tab - Keep existing */}
           <TabPane tab="📅 Điểm danh" key="attendance">
             <Card title="📊 Lịch sử điểm danh" style={{ borderRadius: 12 }}>
               <Table
                 dataSource={attendanceSessions}
                 columns={sessionColumns}
                 rowKey="id"
+                loading={loadingSessions}
                 pagination={{
                   pageSize: 10,
                   showTotal: (total, range) => 
-                    `${range[0]}-${range[1]} của ${total} buổi học`
+                    `${range[0]}-${range[1]} của ${total} phiên điểm danh`
                 }}
               />
             </Card>
           </TabPane>
 
-          <TabPane 
-            tab={
-              <Badge count={pendingRequests} size="small">
-                📝 Đơn xin nghỉ
-              </Badge>
-            } 
-            key="requests"
-          >
-            <Card 
-              title="📋 Đơn xin nghỉ học" 
-              style={{ borderRadius: 12 }}
-              extra={
-                <Space>
-                  <FilterOutlined />
-                  <Select
-                    value={requestFilter}
-                    onChange={setRequestFilter}
-                    style={{ width: 150 }}
-                  >
-                    <Select.Option value="all">Tất cả đơn</Select.Option>
-                    <Select.Option value="active">Chưa quá hạn</Select.Option>
-                    <Select.Option value="expired">Đã quá hạn</Select.Option>
-                  </Select>
-                </Space>
-              }
-            >
-              <Table
-                dataSource={filteredRequests}
-                columns={requestColumns}
-                rowKey="id"
-                pagination={{
-                  pageSize: 10,
-                  showTotal: (total, range) => 
-                    `${range[0]}-${range[1]} của ${total} đơn`
-                }}
-              />
-            </Card>
-          </TabPane>
+          {/* ❌ REMOVED: Leave Requests Tab */}
         </Tabs>
       </Card>
 
@@ -1476,111 +1452,11 @@ const ClassDetailPage: React.FC = () => {
               </Col>
               <Col span={8}>
                 <Statistic
-                  title="Đi muộn"
-                  value={selectedStudent.lateCount}
-                  valueStyle={{ color: '#f59e0b' }}
+                  title="Nghỉ có phép"
+                  value={selectedStudent.excusedCount}
+                  valueStyle={{ color: '#8b5cf6' }}
                 />
               </Col>
-            </Row>
-          </div>
-        )}
-      </Modal>
-
-      {/* Request Detail Modal */}
-      <Modal
-        title="Chi tiết đơn xin nghỉ"
-        open={isRequestDetailVisible}
-        onCancel={() => setIsRequestDetailVisible(false)}
-        footer={[
-          <Button key="close" onClick={() => setIsRequestDetailVisible(false)}>
-            Đóng
-          </Button>
-        ]}
-        width={600}
-      >
-        {selectedRequest && (
-          <div style={{ padding: 16 }}>
-            <Row gutter={[16, 16]}>
-              <Col span={12}>
-                <Text strong>Học sinh:</Text>
-                <br />
-                <Text>{selectedRequest.studentName}</Text>
-                <br />
-                <Text type="secondary">{selectedRequest.studentId}</Text>
-              </Col>
-              <Col span={12}>
-                <Text strong>Trạng thái:</Text>
-                <br />
-                <Tag color={getStatusConfig(selectedRequest.status).color}>
-                  {getStatusConfig(selectedRequest.status).text}
-                </Tag>
-              </Col>
-              
-              <Col span={12}>
-                <Text strong>Ngày bắt đầu:</Text>
-                <br />
-                <Text>{dayjs(selectedRequest.startDate).format('DD/MM/YYYY')}</Text>
-              </Col>
-              <Col span={12}>
-                <Text strong>Ngày kết thúc:</Text>
-                <br />
-                <Text>{dayjs(selectedRequest.endDate).format('DD/MM/YYYY')}</Text>
-              </Col>
-              
-              <Col span={12}>
-                <Text strong>Ngày gửi:</Text>
-                <br />
-                <Text>{dayjs(selectedRequest.submittedDate).format('DD/MM/YYYY')}</Text>
-              </Col>
-             <Col span={12}>
-                <Text strong>Tình trạng:</Text>
-                <br />
-                {dayjs(selectedRequest.endDate).diff(dayjs()) < 0 ? (
-                  <Tag color="#64748b">Đã qua hạn</Tag>
-                ) : (
-                  <Tag color="#10b981">Còn hiệu lực</Tag>
-                )}
-              </Col>
-              
-              <Col span={24}>
-                <Text strong>Lý do nghỉ học:</Text>
-                <br />
-                <Text>{selectedRequest.reason}</Text>
-              </Col>
-              
-              {selectedRequest.approverNote && (
-                <Col span={24}>
-                  <Text strong>Ghi chú từ giảng viên:</Text>
-                  <br />
-                  <Text style={{ 
-                    background: '#f8fafc', 
-                    padding: 8, 
-                    borderRadius: 4,
-                    display: 'block'
-                  }}>
-                    {selectedRequest.approverNote}
-                  </Text>
-                </Col>
-              )}
-              
-              {selectedRequest.status === 'pending' && (
-                <Col span={24} style={{ marginTop: 16 }}>
-                  <Space style={{ width: '100%', justifyContent: 'center' }}>
-                    <Button 
-                      type="primary" 
-                      onClick={() => handleApproveRequest(selectedRequest.id)}
-                    >
-                      Duyệt đơn
-                    </Button>
-                    <Button 
-                      danger
-                      onClick={() => handleRejectRequest(selectedRequest.id)}
-                    >
-                      Từ chối
-                    </Button>
-                  </Space>
-                </Col>
-              )}
             </Row>
           </div>
         )}
@@ -1729,7 +1605,7 @@ const ClassDetailPage: React.FC = () => {
                           <Text strong style={{ color: '#0369a1', fontSize: 12 }}>
                             Buổi {index + 1}:
                           </Text>{' '}
-                          <Tag color="blue" size="small">
+                          <Tag color="blue">
                             {formatTimeRange(session.periods)}
                           </Tag>
                         </div>
@@ -1742,7 +1618,6 @@ const ClassDetailPage: React.FC = () => {
                         type="info"
                         showIcon
                         style={{ marginTop: 12 }}
-                        size="small"
                       />
                     )}
                   </div>
@@ -1817,7 +1692,7 @@ const ClassDetailPage: React.FC = () => {
           {upcomingSessions.length > 0 ? (
             <div style={{ maxHeight: 400, overflowY: 'auto' }}>
               <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                {upcomingSessions.map((session, index) => {
+                {upcomingSessions.map((session) => {
                   const isSelected = selectedAttendanceSession?.day === session.day && 
                                    selectedAttendanceSession?.sessionIndex === session.sessionIndex;
                   const isToday = dayjs().day() === session.day;
@@ -1928,6 +1803,19 @@ const ClassDetailPage: React.FC = () => {
           )}
         </div>
       </Modal>
+
+      {/* Attendance Camera Modal */}
+      {classData && (
+        <AttendanceCamera
+          classId={classData.id}
+          visible={isAttendanceCameraVisible}
+          onClose={() => setIsAttendanceCameraVisible(false)}
+          onSessionEnd={handleSessionEnd}
+          dayOfWeek={selectedAttendanceSession?.day}
+          periodRange={selectedAttendanceSession?.periods}
+          sessionIndex={selectedAttendanceSession?.sessionIndex}
+        />
+      )}
     </div>
   );
 };
