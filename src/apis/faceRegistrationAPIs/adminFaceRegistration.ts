@@ -95,15 +95,39 @@ export const getFaceRegistrationDetail = async (
 };
 
 /**
+ * Response from approve endpoint (includes embedding info)
+ */
+export interface ApproveRegistrationResponse {
+  success: boolean;
+  message: string;
+  registration_id: number;
+  status: string;
+  reviewed_at: string;
+  embeddings_created?: number;  // New field
+  processing_time_seconds?: number;  // New field
+}
+
+/**
  * Approve face registration (admin only)
+ * 
+ * This will:
+ * 1. Download cropped face images from S3
+ * 2. Send to AI-service for embedding extraction
+ * 3. Save embeddings to database
+ * 4. Update status to 'approved'
+ * 
+ * Processing time: ~8-30 seconds depending on GPU/CPU
  */
 export const approveFaceRegistration = async (
   registrationId: number,
   data: ApproveRegistrationRequest
-): Promise<{ success: boolean; message: string }> => {
+): Promise<ApproveRegistrationResponse> => {
   const response = await axiosInstance.post(
     `/admin/face-registrations/${registrationId}/approve`,
-    data
+    data,
+    {
+      timeout: 120000,  // 2 minutes timeout for embedding processing
+    }
   );
   return response.data;
 };
