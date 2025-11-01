@@ -81,14 +81,45 @@ const StudentHomePage: React.FC = () => {
   ];
 
   return (
-    <div style={{ 
+    <div className="responsive-container" style={{ 
       minHeight: "100vh", 
-      background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)", 
-      padding: "32px 48px" 
+      background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)"
     }}>
+      <style>
+        {`
+          @media (max-width: 768px) {
+            .stats-grid {
+              grid-template-columns: 1fr !important;
+            }
+            
+            .quick-actions-row {
+              flex-direction: column !important;
+            }
+            
+            .quick-actions-row > div {
+              width: 100% !important;
+            }
+            
+            .chart-card {
+              margin-bottom: 16px !important;
+            }
+          }
+          
+          @media (max-width: 480px) {
+            .page-title {
+              font-size: 24px !important;
+            }
+            
+            .page-subtitle {
+              font-size: 14px !important;
+            }
+          }
+        `}
+      </style>
+
       {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <Title level={1} style={{ 
+      <div style={{ marginBottom: 24 }}>
+        <Title level={1} className="page-title" style={{ 
           marginBottom: 8, 
           color: "#2563eb",
           fontSize: 36,
@@ -96,11 +127,10 @@ const StudentHomePage: React.FC = () => {
         }}>
           🎓 Bảng Điều Khiển Sinh Viên
         </Title>
-        <Text style={{ 
+        <Text className="page-subtitle" style={{ 
           fontSize: 18, 
           color: "#64748b",
-          display: "block",
-          marginBottom: 24
+          display: "block"
         }}>
           Chào mừng trở lại! Theo dõi điểm danh và tiến độ học tập của bạn tại đây.
         </Text>
@@ -108,70 +138,74 @@ const StudentHomePage: React.FC = () => {
 
       {/* Quick Actions */}
       <Card style={{ 
-        marginBottom: 32, 
+        marginBottom: 24, 
         borderRadius: 16,
         boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
         border: "none"
       }}>
-        <Row gutter={16}>
-          <Col>
+        <Row className="quick-actions-row" gutter={[16, 16]}>
+          <Col xs={24} sm={12} md={6}>
             <Button 
               type="primary" 
               size="large" 
+              block
               style={{ borderRadius: 8, height: 48 }}
               onClick={() => navigate('/student/attendance')}
             >
-              Xem Điểm Danh Của Tôi
+              Xem Điểm Danh
             </Button>
           </Col>
-          <Col>
+          <Col xs={24} sm={12} md={6}>
             <Button 
               size="large" 
+              block
               style={{ borderRadius: 8, height: 48 }}
               onClick={() => navigate('/student/classes')}
             >
-              Xem Danh Sách Lớp
+              Danh Sách Lớp
             </Button>
           </Col>
         </Row>
       </Card>
 
-      {/* 5 thẻ ngang hàng */}
-      <div style={{ display: "flex", gap: 16, marginBottom: 32 }}>
+      {/* Stats Cards */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         {stats.map((item) => (
-          <Card key={item.title} style={{
-            flex: 1,
-            borderRadius: 16,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-            border: "none",
-            background: "linear-gradient(135deg, #fff 0%, #f8fafc 100%)",
-            textAlign: "center"
-          }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>{item.icon}</div>
-            <Statistic
-              title={<Text style={{ color: "#64748b", fontSize: 13 }}>{item.title}</Text>}
-              value={item.value}
-              valueStyle={{ color: item.color, fontWeight: 700, fontSize: 22 }}
-            />
-          </Card>
+          <Col xs={24} sm={12} md={8} lg={4.8} key={item.title}>
+            <Card style={{
+              borderRadius: 16,
+              boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+              border: "none",
+              background: "linear-gradient(135deg, #fff 0%, #f8fafc 100%)",
+              textAlign: "center",
+              height: "100%"
+            }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>{item.icon}</div>
+              <Statistic
+                title={<Text style={{ color: "#64748b", fontSize: 13 }}>{item.title}</Text>}
+                value={item.value}
+                valueStyle={{ color: item.color, fontWeight: 700, fontSize: 22 }}
+              />
+            </Card>
+          </Col>
         ))}
-      </div>
+      </Row>
 
       {/* Charts Section */}
-      <Row gutter={[24, 24]}>
+      <Row gutter={[16, 16]}>
         {/* Attendance Distribution Pie Chart */}
         <Col xs={24} lg={8}>
-          <Card style={{
+          <Card className="chart-card" style={{
             borderRadius: 16,
             boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
             border: "none",
-            height: 400
+            minHeight: 350
           }}>
-            <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
+            <Title level={4} style={{ marginBottom: 16, color: "#374151", fontSize: 16 }}>
               📊 Phân Bố Điểm Danh
             </Title>
             {attendanceData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
                   <Pie
                     data={attendanceData}
@@ -181,7 +215,7 @@ const StudentHomePage: React.FC = () => {
                     outerRadius={80}
                     paddingAngle={5}
                     dataKey="value"
-                    label={(entry) => `${entry.name}: ${entry.percentage.toFixed(1)}%`}
+                    label={(entry: any) => `${entry.name}: ${entry.percentage.toFixed(1)}%`}
                   >
                     {attendanceData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
@@ -198,22 +232,22 @@ const StudentHomePage: React.FC = () => {
 
         {/* Weekly Attendance Bar Chart */}
         <Col xs={24} lg={8}>
-          <Card style={{
+          <Card className="chart-card" style={{
             borderRadius: 16,
             boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
             border: "none",
-            height: 400
+            minHeight: 350
           }}>
-            <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
+            <Title level={4} style={{ marginBottom: 16, color: "#374151", fontSize: 16 }}>
               📈 Điểm Danh Theo Tuần
             </Title>
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={260}>
               <BarChart data={weeklyData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="day" />
-                <YAxis />
+                <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
-                <Legend />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="present" fill="#10b981" name="Có mặt" />
                 <Bar dataKey="absent" fill="#ef4444" name="Vắng" />
               </BarChart>
@@ -223,22 +257,22 @@ const StudentHomePage: React.FC = () => {
 
         {/* Monthly Trend Line Chart */}
         <Col xs={24} lg={8}>
-          <Card style={{
+          <Card className="chart-card" style={{
             borderRadius: 16,
             boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
             border: "none",
-            height: 400
+            minHeight: 350
           }}>
-            <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
+            <Title level={4} style={{ marginBottom: 16, color: "#374151", fontSize: 16 }}>
               📉 Xu Hướng Theo Tháng
             </Title>
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={260}>
               <LineChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis domain={[0, 100]} />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
                 <Tooltip />
-                <Legend />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Line 
                   type="monotone" 
                   dataKey="rate" 
@@ -253,12 +287,12 @@ const StudentHomePage: React.FC = () => {
 
         {/* Subject-wise Progress */}
         <Col xs={24} lg={12}>
-          <Card style={{
+          <Card className="chart-card" style={{
             borderRadius: 16,
             boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
             border: "none"
           }}>
-            <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
+            <Title level={4} style={{ marginBottom: 16, color: "#374151", fontSize: 16 }}>
               📚 Điểm Danh Theo Môn Học
             </Title>
             {subjectData.length > 0 ? (
@@ -290,12 +324,12 @@ const StudentHomePage: React.FC = () => {
 
         {/* Recent Activity */}
         <Col xs={24} lg={12}>
-          <Card style={{
+          <Card className="chart-card" style={{
             borderRadius: 16,
             boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
             border: "none"
           }}>
-            <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
+            <Title level={4} style={{ marginBottom: 16, color: "#374151", fontSize: 16 }}>
               🕒 Hoạt Động Gần Đây
             </Title>
             <div style={{ color: "#64748b" }}>

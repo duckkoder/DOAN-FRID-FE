@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { Outlet, Navigate, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { logout as apiLogout } from "../apis/authAPIs/auth";
@@ -80,6 +80,22 @@ const RoleLayout: React.FC = () => {
   const auth = useContext(AuthContext);
   const navigate = useNavigate();
   const user = auth?.user;
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [drawerVisible, setDrawerVisible] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      // Auto close drawer when switching to desktop
+      if (!mobile) {
+        setDrawerVisible(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   if (!user) return <Navigate to="/auth" />;
 
@@ -115,13 +131,30 @@ const RoleLayout: React.FC = () => {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f6f9fc", display: "flex", flexDirection: "column" }}>
-      <Header username={username} role={user.role} />
-      <div style={{ display: "flex", flex: 1 }}>
-        <LeftBar 
-          sections={leftBarSections} 
-          onLogout={handleLogout}
-        />
-        <div style={{ flex: 1 }}>
+      <Header 
+        username={username} 
+        role={user.role}
+        showMenuButton={isMobile}
+        onMenuClick={() => setDrawerVisible(true)}
+      />
+      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+        {!isMobile && (
+          <LeftBar 
+            sections={leftBarSections} 
+            onLogout={handleLogout}
+            isMobile={false}
+          />
+        )}
+        {isMobile && (
+          <LeftBar 
+            sections={leftBarSections} 
+            onLogout={handleLogout}
+            isMobile={true}
+            visible={drawerVisible}
+            onClose={() => setDrawerVisible(false)}
+          />
+        )}
+        <div style={{ flex: 1, overflow: "auto" }}>
           <Outlet />
         </div>
       </div>

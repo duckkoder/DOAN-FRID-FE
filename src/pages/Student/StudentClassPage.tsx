@@ -14,8 +14,7 @@ import {
   Spin,
   Empty,
   Alert,
-  Divider,
-  Tooltip
+  Divider
 } from "antd";
 import { 
   PlusOutlined, 
@@ -25,7 +24,6 @@ import {
   ExclamationCircleOutlined,
   EnvironmentOutlined,
   BookOutlined,
-  ClockCircleOutlined,
   UserOutlined,
   FileTextOutlined
 } from "@ant-design/icons";
@@ -46,27 +44,13 @@ interface ClassData {
   name: string;
   teacher: string;
   students: number;
-  schedule: Record<string, string[]>;
+  schedule: any;
   status: 'active' | 'inactive';
   classCode: string;
   location: string | null;
   description: string | null;
   createdAt: string;
 }
-
-// ✅ Time slots mapping
-const TIME_SLOTS: Record<number, { start: string; end: string }> = {
-  1: { start: "07:00", end: "07:50" },
-  2: { start: "08:00", end: "08:50" },
-  3: { start: "09:00", end: "09:50" },
-  4: { start: "10:00", end: "10:50" },
-  5: { start: "11:00", end: "11:50" },
-  6: { start: "13:00", end: "13:50" },
-  7: { start: "14:00", end: "14:50" },
-  8: { start: "15:00", end: "15:50" },
-  9: { start: "16:00", end: "16:50" },
-  10: { start: "17:00", end: "17:50" },
-};
 
 const StudentClassPage: React.FC = () => {
   const navigate = useNavigate();
@@ -98,13 +82,13 @@ const StudentClassPage: React.FC = () => {
     try {
       const response = await getStudentClasses(statusFilter);
       
-      const mappedClasses: ClassData[] = response.data.classes.map((cls: StudentClassItem) => ({
+      const mappedClasses = response.data.classes.map((cls: StudentClassItem) => ({
         id: cls.id,
         name: cls.className,
         teacher: cls.teacherName,
         students: 0,
-        schedule: cls.schedule,
-        status: cls.isActive ? 'active' : 'inactive',
+        schedule: cls.schedule as any,
+        status: cls.isActive ? 'active' : 'inactive' as 'active' | 'inactive',
         classCode: cls.classCode,
         location: cls.location,
         description: cls.description,
@@ -224,23 +208,54 @@ const StudentClassPage: React.FC = () => {
   };
 
   return (
-    <div style={{ 
+    <div className="responsive-container" style={{ 
       minHeight: "100vh", 
-      background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)", 
-      padding: "32px 48px" 
+      background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)"
     }}>
+      <style>
+        {`
+          @media (max-width: 768px) {
+            .student-class-header {
+              flex-direction: column !important;
+              align-items: flex-start !important;
+              gap: 16px;
+            }
+            
+            .student-class-title {
+              font-size: 24px !important;
+            }
+            
+            .student-class-subtitle {
+              font-size: 14px !important;
+            }
+            
+            .student-class-actions {
+              width: 100%;
+            }
+            
+            .student-class-actions .ant-space {
+              width: 100%;
+            }
+            
+            .student-class-actions .ant-btn {
+              flex: 1;
+            }
+          }
+        `}
+      </style>
+      
       {/* Breadcrumb */}
       <Breadcrumb items={breadcrumbItems} />
 
       {/* Header */}
-      <div style={{ 
+      <div className="student-class-header" style={{ 
         display: "flex", 
         justifyContent: "space-between", 
         alignItems: "center", 
-        marginBottom: 32 
+        marginBottom: 24 
       }}>
         <div>
-          <Title level={1} style={{ 
+          <Title level={1} className="student-class-title" style={{ 
             marginBottom: 8, 
             color: "#2563eb",
             fontSize: 36,
@@ -248,37 +263,40 @@ const StudentClassPage: React.FC = () => {
           }}>
             📚 Lớp học của tôi
           </Title>
-          <Text style={{ 
+          <Text className="student-class-subtitle" style={{ 
             fontSize: 18, 
-            color: "#64748b"
+            color: "#64748b",
+            display: "block"
           }}>
             Quản lý và theo dõi các lớp học bạn đã tham gia
           </Text>
         </div>
-        <Space>
-          <Button 
-            icon={<ReloadOutlined />}
-            size="large"
-            onClick={() => fetchClasses()}
-            loading={loading}
-            style={{ borderRadius: 8, height: 48 }}
-          >
-            Làm mới
-          </Button>
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />}
-            size="large"
-            onClick={() => setIsModalVisible(true)}
-            style={{ 
-              borderRadius: 8, 
-              height: 48,
-              fontSize: 16
-            }}
-          >
-            Tham gia lớp học
-          </Button>
-        </Space>
+        <div className="student-class-actions">
+          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Button 
+              icon={<ReloadOutlined />}
+              size="large"
+              onClick={() => fetchClasses()}
+              loading={loading}
+              style={{ borderRadius: 8, height: 48 }}
+            >
+              Làm mới
+            </Button>
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />}
+              size="large"
+              onClick={() => setIsModalVisible(true)}
+              style={{ 
+                borderRadius: 8, 
+                height: 48,
+                fontSize: 16
+              }}
+            >
+              Tham gia
+            </Button>
+          </Space>
+        </div>
       </div>
 
       {/* Error Alert */}
@@ -339,12 +357,12 @@ const StudentClassPage: React.FC = () => {
         </Card>
       ) : (
         /* Classes Grid */
-        <Row gutter={[24, 24]}>
+        <Row gutter={[16, 16]}>
           {classes.map((classItem) => {
             const scheduleText = formatScheduleSimple(classItem.schedule);
             
             return (
-              <Col xs={24} md={12} lg={8} key={classItem.id}>
+              <Col xs={24} sm={24} md={12} lg={8} key={classItem.id}>
                 <Card
                   style={{
                     borderRadius: 16,
