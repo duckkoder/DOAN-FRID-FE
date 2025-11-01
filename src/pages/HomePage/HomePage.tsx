@@ -63,41 +63,84 @@ const HomePage: React.FC = () => {
         width: "100%",
         background: "#fff",
         borderBottom: "1px solid #eaeaea",
-        padding: "20px 48px",
+        padding: "16px 24px",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
         position: "sticky",
         top: 0,
         zIndex: 1000,
-        boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
+        boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <RobotOutlined style={{ fontSize: 32, color: "#2563eb" }} />
-          <span style={{ fontSize: 28, fontWeight: "bold", color: "#2563eb" }}>
+        <div style={{ 
+          display: "flex", 
+          alignItems: "center", 
+          gap: 12, 
+          flex: "1 1 auto",
+          minWidth: 0,
+          marginRight: "16px"
+        }}>
+          <RobotOutlined style={{ fontSize: 28, color: "#2563eb", flexShrink: 0 }} />
+          <span 
+            className="homepage-header-logo"
+            style={{ 
+              fontSize: 24, 
+              fontWeight: "bold", 
+              color: "#2563eb",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis"
+            }}
+          >
             DUT Attendance System
           </span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Button size="large" onClick={() => navigate("/auth")}>
+        <div 
+          className="homepage-header-buttons"
+          style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: 12, 
+            flexShrink: 0 ,
+            minWidth: 0,          // Cho phép text truncate
+            marginRight: "32px",  // Khoảng cách với buttons
+
+          }}
+        >
+          <Button 
+            size="large"
+            onClick={() => navigate("/auth")}
+          >
             Đăng nhập
-          </Button>
-          <Button type="primary" size="large" onClick={() => navigate("/auth")}>
-            Đăng ký
           </Button>
         </div>
       </div>
 
+      <style>
+        {`
+          @media (max-width: 768px) {
+            .homepage-header-logo {
+              font-size: 18px !important;
+            }
+            .homepage-header-buttons button {
+              font-size: 14px !important;
+              padding: 4px 12px !important;
+              height: auto !important;
+            }
+          }
+        `}
+      </style>
+
       {/* Hero Section */}
       <div style={{
         background: "linear-gradient(135deg, #2563eb 0%, #1e40af 100%)",
-        padding: "80px 48px",
+        padding: "clamp(40px, 10vw, 80px) clamp(20px, 5vw, 48px)",
         textAlign: "center",
         color: "#fff"
       }}>
         <Title level={1} style={{ 
           color: "#fff", 
-          fontSize: 48, 
+          fontSize: "clamp(28px, 6vw, 48px)", 
           marginBottom: 24,
           fontWeight: 700
         }}>
@@ -105,17 +148,18 @@ const HomePage: React.FC = () => {
         </Title>
         <Title level={2} style={{ 
           color: "#e0e7ff", 
-          fontSize: 28, 
+          fontSize: "clamp(18px, 4vw, 28px)", 
           fontWeight: 400,
           marginBottom: 16
         }}>
           Trường Đại học Bách Khoa - Đại học Đà Nẵng
         </Title>
         <Paragraph style={{ 
-          fontSize: 18, 
+          fontSize: "clamp(14px, 2.5vw, 18px)", 
           color: "#e0e7ff",
           maxWidth: 800,
-          margin: "0 auto 32px"
+          margin: "0 auto 32px",
+          padding: "0 16px"
         }}>
           Giải pháp điểm danh hiện đại với công nghệ nhận diện khuôn mặt AI, 
           giúp tự động hóa quy trình điểm danh, tiết kiệm thời gian và nâng cao hiệu quả quản lý.
@@ -124,13 +168,14 @@ const HomePage: React.FC = () => {
           type="primary" 
           size="large" 
           style={{ 
-            height: 56, 
-            fontSize: 18,
+            height: "clamp(44px, 8vw, 56px)", 
+            fontSize: "clamp(14px, 2.5vw, 18px)",
             borderRadius: 8,
             background: "#fff",
             color: "#2563eb",
             border: "none",
-            fontWeight: 600
+            fontWeight: 600,
+            padding: "0 24px"
           }}
           onClick={() => navigate("/auth")}
         >
@@ -139,12 +184,15 @@ const HomePage: React.FC = () => {
       </div>
 
       {/* Features Section */}
-      <div style={{ padding: "80px 48px", background: "#fff" }}>
+      <div style={{ 
+        padding: "clamp(40px, 10vw, 80px) clamp(20px, 5vw, 48px)", 
+        background: "#fff" 
+      }}>
         <Title level={2} style={{ 
           textAlign: "center", 
           marginBottom: 48,
           color: "#1f2937",
-          fontSize: 36
+          fontSize: "clamp(24px, 5vw, 36px)"
         }}>
           ✨ Tính năng nổi bật
         </Title>
@@ -177,14 +225,14 @@ const HomePage: React.FC = () => {
 
       {/* Roles Section */}
       <div style={{ 
-        padding: "80px 48px", 
+        padding: "clamp(40px, 10vw, 80px) clamp(20px, 5vw, 48px)", 
         background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)" 
       }}>
         <Title level={2} style={{ 
           textAlign: "center", 
           marginBottom: 48,
           color: "#1f2937",
-          fontSize: 36
+          fontSize: "clamp(24px, 5vw, 36px)"
         }}>
           👥 Dành cho ai?
         </Title>
@@ -213,23 +261,24 @@ const HomePage: React.FC = () => {
 
       {/* CTA Section */}
       <div style={{
-        padding: "80px 48px",
+        padding: "clamp(40px, 10vw, 80px) clamp(20px, 5vw, 48px)",
         background: "#fff",
         textAlign: "center"
       }}>
         <Title level={2} style={{ 
           marginBottom: 24,
           color: "#1f2937",
-          fontSize: 36
+          fontSize: "clamp(24px, 5vw, 36px)"
         }}>
           Sẵn sàng trải nghiệm?
         </Title>
         <Paragraph style={{ 
-          fontSize: 18, 
+          fontSize: "clamp(14px, 2.5vw, 18px)", 
           color: "#64748b",
           marginBottom: 32,
           maxWidth: 600,
-          margin: "0 auto 32px"
+          margin: "0 auto 32px",
+          padding: "0 16px"
         }}>
           Đăng ký ngay để khám phá các tính năng tuyệt vời của hệ thống điểm danh thông minh DUT!
         </Paragraph>
@@ -237,10 +286,11 @@ const HomePage: React.FC = () => {
           type="primary" 
           size="large"
           style={{ 
-            height: 56, 
-            fontSize: 18,
+            height: "clamp(44px, 8vw, 56px)", 
+            fontSize: "clamp(14px, 2.5vw, 18px)",
             borderRadius: 8,
-            fontWeight: 600
+            fontWeight: 600,
+            padding: "0 24px"
           }}
           onClick={() => navigate("/auth")}
         >
@@ -250,12 +300,15 @@ const HomePage: React.FC = () => {
 
       {/* Footer */}
       <div style={{
-        padding: "32px 48px",
+        padding: "24px 20px",
         background: "#1f2937",
         color: "#fff",
         textAlign: "center"
       }}>
-        <Text style={{ color: "#9ca3af" }}>
+        <Text style={{ 
+          color: "#9ca3af",
+          fontSize: "clamp(12px, 2vw, 14px)"
+        }}>
           © 2025 Trường Đại học Bách Khoa - Đại học Đà Nẵng. All rights reserved.
         </Text>
       </div>

@@ -46,6 +46,10 @@ import {
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Breadcrumb from "../../components/Breadcrumb";
 import dayjs from 'dayjs';
+import isBetween from 'dayjs/plugin/isBetween';
+
+dayjs.extend(isBetween);
+
 import { 
   getClassDetails, 
   updateClass,
@@ -202,7 +206,7 @@ const ClassDetailPage: React.FC = () => {
   const [classSummary, setClassSummary] = useState<any>(null); // ✅ Add summary state
   
   // ✅ Schedule collapse state
-  const [isScheduleExpanded, setIsScheduleExpanded] = useState(true);
+  const [isScheduleExpanded, setIsScheduleExpanded] = useState(false);
 
   const weekDays = [
     { value: 1, label: "Thứ 2" },
@@ -528,7 +532,7 @@ const ClassDetailPage: React.FC = () => {
     );
   };
 
-    // ✅ Calculate upcoming sessions in current week (only future sessions)
+    // ✅ Calculate upcoming sessions (TESTING MODE: allow future weeks)
   const calculateUpcomingSessions = (): UpcomingSession[] => {
     if (!classData || !classData.schedule) return [];
 
@@ -558,32 +562,35 @@ const ClassDetailPage: React.FC = () => {
 
     const sessions: UpcomingSession[] = [];
 
-    Object.entries(classData.schedule).forEach(([dayName, periodRanges]) => {
-      const dayNum = dayMapping[dayName.toLowerCase()];
-      if (dayNum === undefined || !periodRanges || periodRanges.length === 0) return;
+    // ⚠️ TESTING MODE: Generate sessions for current week + next 2 weeks (3 weeks total)
+    // TODO: For PRODUCTION, change weeksToShow to 1 to only show current week
+    const weeksToShow = 3; // Set to 1 for production
 
-      periodRanges.forEach((range, index) => {
-        const [start, end] = range.split('-').map(Number);
-        const startTime = TIME_SLOTS[start]?.start || '00:00';
-        const endTime = TIME_SLOTS[end]?.end || '00:00';
+    for (let weekOffset = 0; weekOffset < weeksToShow; weekOffset++) {
+      Object.entries(classData.schedule).forEach(([dayName, periodRanges]) => {
+        const dayNum = dayMapping[dayName.toLowerCase()];
+        if (dayNum === undefined || !periodRanges || periodRanges.length === 0) return;
 
-        // Calculate days until session
-        let daysUntilSession = dayNum - currentDayOfWeek;
-        
-        // If day is in the past this week, skip it
-        if (daysUntilSession < 0) {
-          return; // Don't show past days
-        }
-        
-        // If today, check if session time has passed
-        if (daysUntilSession === 0 && currentTime >= endTime) {
-          return; // Session already ended today
-        }
+        periodRanges.forEach((range, index) => {
+          const [start, end] = range.split('-').map(Number);
+          const startTime = TIME_SLOTS[start]?.start || '00:00';
+          const endTime = TIME_SLOTS[end]?.end || '00:00';
 
-        const sessionDate = now.add(daysUntilSession, 'day');
+          // Calculate days until session for this specific week offset
+          let daysUntilSession = dayNum - currentDayOfWeek + (weekOffset * 7);
+          
+          // For week 0 (current week): skip past days
+          if (weekOffset === 0 && daysUntilSession < 0) {
+            return; // Skip past days in current week
+          }
+          
+          // If today in current week, check if session time has passed
+          if (weekOffset === 0 && daysUntilSession === 0 && currentTime >= endTime) {
+            return; // Session already ended today
+          }
 
-        // Only include sessions from today onwards (within current week)
-        if (daysUntilSession >= 0 && daysUntilSession <= 6) {
+          const sessionDate = now.add(daysUntilSession, 'day');
+
           sessions.push({
             day: dayNum,
             dayLabel: dayLabelMapping[dayNum] || dayName,
@@ -592,12 +599,24 @@ const ClassDetailPage: React.FC = () => {
             timeRange: `${startTime} - ${endTime}`,
             date: sessionDate.format('DD/MM/YYYY')
           });
-        }
+        });
       });
-    });
+    }
+
+    // Remove duplicates (just in case) based on date + day + sessionIndex
+    const uniqueSessions = sessions.reduce((acc, current) => {
+      const key = `${current.date}-${current.day}-${current.sessionIndex}`;
+      const exists = acc.some(item => 
+        `${item.date}-${item.day}-${item.sessionIndex}` === key
+      );
+      if (!exists) {
+        acc.push(current);
+      }
+      return acc;
+    }, [] as UpcomingSession[]);
 
     // Sort by date and time
-    return sessions.sort((a, b) => {
+    return uniqueSessions.sort((a, b) => {
       const dateCompare = dayjs(a.date, 'DD/MM/YYYY').diff(dayjs(b.date, 'DD/MM/YYYY'));
       if (dateCompare !== 0) return dateCompare;
       return a.day - b.day;
@@ -1160,7 +1179,13 @@ const ClassDetailPage: React.FC = () => {
             
             /* Cards in tabs */
             .ant-card-head-title {
-              font-size: 16px !important;
+              font-size: 14px !important;
+              padding: 0 !important;
+            }
+            
+            .ant-card-head {
+              padding: 12px 16px !important;
+              min-height: auto !important;
             }
             
             .ant-statistic-title {
@@ -1169,6 +1194,25 @@ const ClassDetailPage: React.FC = () => {
             
             .ant-statistic-content {
               font-size: 18px !important;
+            }
+            
+            /* Student list card title responsive */
+            .ant-card-head-title > div {
+              width: 100%;
+            }
+            
+            .ant-card-head-title .ant-typography {
+              font-size: 14px !important;
+            }
+            
+            .ant-card-head-title .anticon {
+              font-size: 16px !important;
+            }
+            
+            .ant-card-head-title .ant-btn {
+              padding: 4px 8px !important;
+              font-size: 13px !important;
+              height: auto !important;
             }
           }
           
@@ -1541,22 +1585,29 @@ const ClassDetailPage: React.FC = () => {
               <Col span={24}>
                 <Card 
                   title={
-                    <Space>
-                      <TeamOutlined style={{ color: '#1890ff' }} />
-                      <Text strong>📋 Danh sách học sinh</Text>
-                      <Badge count={studentsData.length} style={{ backgroundColor: '#52c41a' }} />
-                    </Space>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '8px'
+                    }}>
+                      <Space>
+                        <TeamOutlined style={{ color: '#1890ff' }} />
+                        <Text strong style={{ fontSize: '16px' }}>📋 Danh sách học sinh</Text>
+                        <Badge count={studentsData.length} style={{ backgroundColor: '#52c41a' }} />
+                      </Space>
+                      <Button 
+                        icon={<ReloadOutlined />}
+                        onClick={() => classId && fetchStudentsDetails(classId)}
+                        loading={loadingStudents}
+                        size="small"
+                      >
+                        Làm mới
+                      </Button>
+                    </div>
                   }
                   style={{ borderRadius: 12 }}
-                  extra={
-                    <Button 
-                      icon={<ReloadOutlined />}
-                      onClick={() => classId && fetchStudentsDetails(classId)}
-                      loading={loadingStudents}
-                    >
-                      Làm mới
-                    </Button>
-                  }
                 >
                   <div style={{ overflowX: 'auto' }}>
                     <Table
@@ -1898,6 +1949,15 @@ const ClassDetailPage: React.FC = () => {
           </Button>
         ]}
       >
+        <Alert
+          message="Chế độ Testing"
+          description="Hiện đang cho phép tạo phiên điểm danh cho các tuần tới để test. Trong production, chỉ cho phép tạo phiên cho tuần hiện tại."
+          type="info"
+          showIcon
+          closable
+          style={{ marginBottom: 16 }}
+        />
+        
         <div style={{ marginTop: 16 }}>
           <Title level={5} style={{ marginBottom: 16, fontSize: 16 }}>
             Chọn buổi học để điểm danh
@@ -1908,12 +1968,34 @@ const ClassDetailPage: React.FC = () => {
               <Space direction="vertical" size={12} style={{ width: '100%' }}>
                 {upcomingSessions.map((session) => {
                   const isSelected = selectedAttendanceSession?.day === session.day && 
-                                   selectedAttendanceSession?.sessionIndex === session.sessionIndex;
-                  const isToday = dayjs().day() === session.day;
+                                   selectedAttendanceSession?.sessionIndex === session.sessionIndex &&
+                                   selectedAttendanceSession?.date === session.date;
+                  const isToday = dayjs().day() === session.day && dayjs().format('DD/MM/YYYY') === session.date;
+                  
+                  // Calculate if session is in current week, next week, or later
+                  const sessionDate = dayjs(session.date, 'DD/MM/YYYY');
+                  const today = dayjs();
+                  const startOfWeek = today.startOf('week');
+                  const endOfWeek = today.endOf('week');
+                  const startOfNextWeek = endOfWeek.add(1, 'day');
+                  const endOfNextWeek = startOfNextWeek.add(6, 'day');
+                  
+                  let weekLabel = '';
+                  let weekColor = '';
+                  if (sessionDate.isBetween(startOfWeek, endOfWeek, 'day', '[]')) {
+                    weekLabel = 'Tuần này';
+                    weekColor = '#1890ff';
+                  } else if (sessionDate.isBetween(startOfNextWeek, endOfNextWeek, 'day', '[]')) {
+                    weekLabel = 'Tuần sau';
+                    weekColor = '#722ed1';
+                  } else if (sessionDate.isAfter(endOfNextWeek)) {
+                    weekLabel = 'Tuần tới';
+                    weekColor = '#13c2c2';
+                  }
 
                   return (
                     <Card
-                      key={`${session.day}-${session.sessionIndex}`}
+                      key={`${session.day}-${session.sessionIndex}-${session.date}`}
                       size="small"
                       hoverable
                       onClick={() => setSelectedAttendanceSession(session)}
@@ -1953,11 +2035,18 @@ const ClassDetailPage: React.FC = () => {
                             <Text type="secondary" style={{ fontSize: 11 }}>
                               {session.date}
                             </Text>
-                            {isToday && (
-                              <Tag color="warning" style={{ marginTop: 4, fontSize: 11 }}>
-                                Hôm nay
-                              </Tag>
-                            )}
+                            <Space size={4} style={{ marginTop: 4 }}>
+                              {isToday && (
+                                <Tag color="warning" style={{ fontSize: 11, margin: 0 }}>
+                                  Hôm nay
+                                </Tag>
+                              )}
+                              {weekLabel && (
+                                <Tag color={weekColor} style={{ fontSize: 11, margin: 0 }}>
+                                  {weekLabel}
+                                </Tag>
+                              )}
+                            </Space>
                           </Space>
                         </Col>
                         <Col xs={12} sm={8}>

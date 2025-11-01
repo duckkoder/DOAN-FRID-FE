@@ -18,6 +18,7 @@ import {
   Alert,
   Typography,
   Progress,
+  Tabs,
 } from 'antd';
 import {
   CameraOutlined,
@@ -27,12 +28,16 @@ import {
   ExclamationCircleOutlined,
   WifiOutlined,
   DisconnectOutlined,
+  BarChartOutlined,
+  TeamOutlined,
+  SwapOutlined,
 } from '@ant-design/icons';
 import { startAttendanceSessionWithAI, endAttendanceSession, type AISessionResponse } from '../apis/attendanceAPIs/attendanceAPIs';
 import { AIWebSocketClient, type DetectionInfo, type ValidatedStudent } from '../services/aiWebSocket';
 import { useSmartPolling } from '../hooks/useSmartPolling';
 
 const { Text } = Typography;
+const { TabPane } = Tabs;
 
 interface AttendanceCameraProps {
   classId: number;
@@ -65,6 +70,13 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   const [validatedStudents, setValidatedStudents] = useState<ValidatedStudent[]>([]);
   const [totalFaces, setTotalFaces] = useState(0);
   const [fps, setFps] = useState(0);
+  
+  // Responsive state
+  const [isMobile, setIsMobile] = useState(false);
+  const [activeTab, setActiveTab] = useState('camera');
+  
+  // Camera state
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user'); // 'user' = front, 'environment' = back
   
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -142,15 +154,20 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   /**
    * Start camera
    */
-  const startCamera = async () => {
+  const startCamera = async (mode: 'user' | 'environment' = facingMode) => {
     try {
-      console.log('[Camera] Starting camera...');
+      console.log('[Camera] Starting camera with facingMode:', mode);
+      
+      // Stop existing stream if any
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
       
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 1280 },
           height: { ideal: 720 },
-          facingMode: 'user',
+          facingMode: mode,
         },
         audio: false,
       });
@@ -163,11 +180,28 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       }
 
       setCameraActive(true);
-      console.log('[Camera] Camera started');
+      console.log('[Camera] Camera started with facingMode:', mode);
 
     } catch (err) {
       console.error('[Camera] Error:', err);
       throw new Error('Không thể truy cập camera');
+    }
+  };
+
+  /**
+   * Toggle between front and back camera (mobile only)
+   */
+  const toggleCamera = async () => {
+    if (!isMobile || !cameraActive) return;
+    
+    try {
+      const newMode = facingMode === 'user' ? 'environment' : 'user';
+      setFacingMode(newMode);
+      await startCamera(newMode);
+      console.log('[Camera] Switched to', newMode === 'user' ? 'front' : 'back', 'camera');
+    } catch (err) {
+      console.error('[Camera] Toggle error:', err);
+      setError('Không thể chuyển đổi camera');
     }
   };
 
@@ -524,7 +558,25 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   }, []);
 
   /**
-   * Update canvas size on window resize
+   * Detect if device is mobile (not just based on width)
+   */
+  const detectMobileDevice = () => {
+    // Check if device has touch capability
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    
+    // Check user agent for mobile keywords
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+    
+    // Check screen size (both portrait and landscape)
+    const smallScreen = Math.min(window.innerWidth, window.innerHeight) <= 768;
+    
+    // Device is mobile if it has touch AND (is in mobile UA OR has small screen in portrait)
+    return hasTouch && (isMobileUA || smallScreen);
+  };
+
+  /**
+   * Update canvas size on window resize and detect mobile
    */
   useEffect(() => {
     const updateCanvasSize = () => {
@@ -538,28 +590,539 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         
         console.log('[Canvas] Size updated:', { width: rect.width, height: rect.height });
       }
+      
+      // Detect mobile device (works in both portrait and landscape)
+      const mobile = detectMobileDevice();
+      setIsMobile(mobile);
+      
+      console.log('[Mobile Detection]', {
+        isMobile: mobile,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        minDimension: Math.min(window.innerWidth, window.innerHeight),
+        userAgent: navigator.userAgent,
+        hasTouch: 'ontouchstart' in window
+      });
     };
     
-    // Listen for window resize
+    // Listen for window resize and orientation change
     window.addEventListener('resize', updateCanvasSize);
+    window.addEventListener('orientationchange', updateCanvasSize);
     
     // Initial size update
     updateCanvasSize();
     
     return () => {
       window.removeEventListener('resize', updateCanvasSize);
+      window.removeEventListener('orientationchange', updateCanvasSize);
     };
-  }, []); // ✅ Empty dependency - chỉ setup listener một lần
+  }, []); // ✅ Run only once on mount
+
+  /**
+   * Auto switch to camera tab on mobile when session starts (only once)
+   */
+  useEffect(() => {
+    if (isMobile && sessionInfo && activeTab !== 'camera') {
+      setActiveTab('camera');
+    }
+  }, [isMobile, sessionInfo]); // Only run when isMobile or sessionInfo changes
+
+  // Render Camera View
+  const renderCameraView = () => (
+    <Card
+      title={
+        <Space>
+          <CameraOutlined />
+          <span>Camera</span>
+          {wsConnected && (
+            <Tag icon={<WifiOutlined />} color="success">
+              Connected
+            </Tag>
+          )}
+          {!wsConnected && sessionInfo && (
+            <Tag icon={<DisconnectOutlined />} color="warning">
+              Disconnected
+            </Tag>
+          )}
+        </Space>
+      }
+      extra={
+        <Space>
+          <Text type="secondary">{fps} FPS</Text>
+          <Text type="secondary">Faces: {totalFaces}</Text>
+        </Space>
+      }
+      style={{ height: '100%' }}
+    >
+      <div 
+        style={{ 
+          position: 'relative', 
+          width: '100%', 
+          height: isMobile 
+            ? (window.innerHeight < window.innerWidth 
+              ? '70vh'  // Landscape mode - taller
+              : '60vh') // Portrait mode
+            : '450px',  // Desktop
+          backgroundColor: '#000',
+          borderRadius: '8px',
+          overflow: 'hidden',
+        }}
+      >
+        <video
+          ref={videoRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            display: cameraActive ? 'block' : 'none',
+          }}
+          autoPlay
+          playsInline
+          muted
+        />
+        <canvas
+          ref={overlayCanvasRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+          }}
+        />
+        <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+        {!cameraActive && (
+          <div 
+            style={{ 
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              textAlign: 'center',
+              width: '80%',
+            }}
+          >
+            <CameraOutlined style={{ fontSize: 64, color: '#d9d9d9' }} />
+            <div style={{ marginTop: 16 }}>
+              <Text type="secondary" style={{ fontSize: 14 }}>
+                {loading ? 'Đang khởi động camera...' : 'Camera chưa bật'}
+              </Text>
+            </div>
+          </div>
+        )}
+        
+        {/* Connection Status Overlay */}
+        {sessionInfo && !wsConnected && (
+          <div 
+            style={{ 
+              position: 'absolute',
+              top: 16,
+              right: 16,
+              background: 'rgba(255, 77, 79, 0.9)',
+              padding: '8px 16px',
+              borderRadius: 8,
+              color: '#fff',
+            }}
+          >
+            <Space>
+              <DisconnectOutlined />
+              <Text style={{ color: '#fff', fontSize: 12 }}>Mất kết nối AI</Text>
+            </Space>
+          </div>
+        )}
+        
+        {/* Camera Toggle Button (Mobile Only) */}
+        {isMobile && cameraActive && (
+          <Button
+            type="primary"
+            shape="circle"
+            size="large"
+            icon={<SwapOutlined rotate={90} />}
+            onClick={toggleCamera}
+            style={{
+              position: 'absolute',
+              bottom: 16,
+              right: 16,
+              width: 56,
+              height: 56,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+              zIndex: 10,
+            }}
+            title={facingMode === 'user' ? 'Chuyển sang camera sau' : 'Chuyển sang camera trước'}
+          />
+        )}
+      </div>
+
+      {/* Status messages below camera */}
+      {sessionInfo && (
+        <div style={{ marginTop: 12 }}>
+          {!wsConnected ? (
+            <Alert
+              message="Mất kết nối"
+              description="Đang cố gắng kết nối lại với AI Service..."
+              type="error"
+              showIcon
+            />
+          ) : detections.length === 0 ? (
+            <Alert
+              message="Không phát hiện khuôn mặt"
+              description="Đảm bảo có đủ ánh sáng và khuôn mặt được nhìn rõ trong camera"
+              type="info"
+              showIcon
+            />
+          ) : (
+            <Alert
+              message={`Đang nhận diện ${detections.length} khuôn mặt`}
+              type="success"
+              showIcon
+            />
+          )}
+        </div>
+      )}
+
+      <div style={{ marginTop: 16 }}>
+        {!sessionInfo ? (
+          <Button
+            type="primary"
+            icon={<CameraOutlined />}
+            onClick={handleStartSession}
+            loading={loading}
+            block
+            size="large"
+          >
+            Bắt đầu điểm danh
+          </Button>
+        ) : (
+          <Button
+            danger
+            icon={<StopOutlined />}
+            onClick={handleStopSession}
+            loading={loading}
+            block
+            size="large"
+          >
+            Kết thúc điểm danh
+          </Button>
+        )}
+      </div>
+    </Card>
+  );
+
+  // Render Statistics View
+  const renderStatistics = () => (
+    <Card 
+      title={<Space><BarChartOutlined /> Thống kê</Space>} 
+      style={{ height: isMobile ? 'auto' : '100%' }}
+    >
+      {!sessionInfo ? (
+        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <BarChartOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
+          <Text type="secondary">Bắt đầu phiên điểm danh để xem thống kê</Text>
+        </div>
+      ) : (
+        <>
+          {wsConnected && !attendanceData && (
+            <Alert
+              message="Đang tải dữ liệu"
+              description="Đang kết nối với server để lấy thống kê điểm danh..."
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+          )}
+          <Row gutter={[16, 16]}>
+            <Col xs={12} sm={12}>
+              <Statistic
+                title="Đã xác nhận"
+                value={attendanceData?.statistics?.present || validatedStudents.length}
+                valueStyle={{ color: '#3f8600' }}
+                prefix={<CheckCircleOutlined />}
+              />
+            </Col>
+            <Col xs={12} sm={12}>
+              <Statistic
+                title="Tổng số"
+                value={attendanceData?.statistics?.total_students || 0}
+                prefix={<UserOutlined />}
+              />
+            </Col>
+          </Row>
+          <div style={{ marginTop: 16 }}>
+            <Text type="secondary">Tỷ lệ điểm danh:</Text>
+            <Progress
+              percent={attendanceData?.statistics?.attendance_rate || 0}
+              status="active"
+              strokeColor={
+                (attendanceData?.statistics?.attendance_rate || 0) >= 80 
+                  ? '#52c41a' 
+                  : (attendanceData?.statistics?.attendance_rate || 0) >= 50 
+                  ? '#faad14' 
+                  : '#f5222d'
+              }
+            />
+          </div>
+          {currentInterval && (
+            <div style={{ marginTop: 8 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Polling: {(currentInterval / 1000).toFixed(1)}s
+              </Text>
+            </div>
+          )}
+          {wsConnected && validatedStudents.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                ⚡ Realtime: {validatedStudents.length} sinh viên đã được AI nhận diện
+              </Text>
+            </div>
+          )}
+        </>
+      )}
+    </Card>
+  );
+
+  // Render Student List View
+  const renderStudentList = () => (
+    <Card
+      title={<Space><TeamOutlined /> Sinh viên đã xác nhận</Space>}
+      extra={
+        !isMobile && sessionInfo && (
+          <Badge 
+            count={validatedStudents.length} 
+            showZero 
+            style={{ backgroundColor: validatedStudents.length > 0 ? '#52c41a' : '#d9d9d9' }}
+          />
+        )
+      }
+      style={{ 
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column'
+      }}
+      bodyStyle={{ 
+        flex: 1, 
+        overflow: 'auto',
+        padding: isMobile ? '12px' : '16px',
+        maxHeight: isMobile ? 'none' : undefined
+      }}
+    >
+      {!sessionInfo ? (
+        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <TeamOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
+          <Text type="secondary">Bắt đầu phiên điểm danh để xem danh sách</Text>
+        </div>
+      ) : (
+        <>
+          {wsConnected && validatedStudents.length === 0 && (
+            <Alert
+              message="Đang chờ nhận diện"
+              description="Camera đang hoạt động. Sinh viên sẽ xuất hiện ở đây khi được AI nhận diện và xác nhận."
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+          )}
+          <List
+            dataSource={validatedStudents}
+            renderItem={(student) => (
+              <List.Item>
+                <List.Item.Meta
+                  avatar={
+                    <Avatar
+                      size={isMobile ? 40 : 48}
+                      style={{ backgroundColor: '#52c41a' }}
+                      icon={<UserOutlined />}
+                    />
+                  }
+                  title={student.student_name}
+                  description={
+                    <Space direction="vertical" size={0}>
+                      <Text type="secondary">{student.student_code}</Text>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        Confidence: {(student.avg_confidence * 100).toFixed(1)}%
+                      </Text>
+                      {!isMobile && (
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          Frames: {student.frame_count}/{student.recognition_count}
+                        </Text>
+                      )}
+                    </Space>
+                  }
+                />
+                <CheckCircleOutlined style={{ color: '#52c41a', fontSize: isMobile ? 18 : 20 }} />
+              </List.Item>
+            )}
+            locale={{ 
+              emptyText: wsConnected 
+                ? 'Đang chờ nhận diện sinh viên...' 
+                : 'Chưa có sinh viên nào được xác nhận' 
+            }}
+            style={{ 
+              maxHeight: isMobile ? 'calc(100vh - 350px)' : 350, 
+              overflow: 'auto',
+              minHeight: isMobile ? 150 : 'auto'
+            }}
+          />
+        </>
+      )}
+    </Card>
+  );
 
   return (
     <Modal
       title="Điểm danh bằng AI"
       open={visible}
       onCancel={handleModalClose}
-      width={1200}
+      width={isMobile ? '100%' : 1200}
+      style={isMobile ? { top: 0, padding: 0, maxWidth: '100vw' } : undefined}
+      styles={isMobile ? { body: { padding: 16 } } : undefined}
       footer={null}
       destroyOnClose
     >
+      <style>
+        {`
+          @media (max-width: 768px) {
+            .ant-modal {
+              max-width: 100vw !important;
+              margin: 0 !important;
+              height: 100vh !important;
+              top: 0 !important;
+            }
+            
+            .ant-modal-content {
+              border-radius: 0 !important;
+              height: 100vh !important;
+              display: flex !important;
+              flex-direction: column !important;
+            }
+            
+            .ant-modal-body {
+              flex: 1 !important;
+              overflow-y: auto !important;
+            }
+            
+            .ant-tabs {
+              height: 100% !important;
+            }
+            
+            .ant-tabs-content {
+              height: 100% !important;
+            }
+            
+            .ant-tabs-tabpane {
+              height: 100% !important;
+            }
+            
+            .ant-tabs-tab {
+              padding: 12px 8px !important;
+              font-size: 13px !important;
+              flex: 1 !important;
+              justify-content: center !important;
+            }
+            
+            .ant-tabs-nav {
+              margin-bottom: 12px !important;
+            }
+            
+            .ant-card {
+              border-radius: 8px !important;
+            }
+            
+            .ant-card-head {
+              padding: 12px 16px !important;
+              min-height: auto !important;
+            }
+            
+            .ant-card-head-title {
+              font-size: 14px !important;
+            }
+            
+            .ant-card-body {
+              padding: 12px !important;
+            }
+            
+            .ant-statistic-title {
+              font-size: 12px !important;
+            }
+            
+            .ant-statistic-content {
+              font-size: 20px !important;
+            }
+            
+            .ant-list-item {
+              padding: 12px 0 !important;
+            }
+            
+            .ant-list-item-meta-title {
+              font-size: 14px !important;
+            }
+            
+            .ant-list-item-meta-description {
+              font-size: 12px !important;
+            }
+            
+            .ant-btn-lg {
+              height: 48px !important;
+              font-size: 16px !important;
+            }
+            
+            /* Floating action button */
+            .ant-btn-circle {
+              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+            }
+            
+            /* Smooth scrolling */
+            .ant-list {
+              -webkit-overflow-scrolling: touch;
+            }
+            
+            /* Progress bar */
+            .ant-progress {
+              margin-top: 8px;
+            }
+            
+            /* Badge in tabs */
+            .ant-tabs-tab .ant-badge {
+              margin-left: 4px;
+            }
+          }
+          
+          @media (max-width: 480px) {
+            .ant-tabs-tab {
+              font-size: 11px !important;
+              padding: 10px 2px !important;
+            }
+            
+            .ant-tabs-tab .anticon {
+              font-size: 16px !important;
+            }
+            
+            .ant-tabs-tab span {
+              display: none; /* Hide text on very small screens */
+            }
+            
+            .ant-statistic-content {
+              font-size: 18px !important;
+            }
+            
+            .ant-card-head {
+              padding: 10px 12px !important;
+            }
+            
+            .ant-card-body {
+              padding: 10px !important;
+            }
+          }
+        `}
+      </style>
+
       {error && (
         <Alert
           message="Lỗi"
@@ -571,192 +1134,123 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         />
       )}
 
-      <Row gutter={[16, 16]}>
-        {/* Camera View */}
-        <Col span={16}>
-          <Card
-            title={
-              <Space>
-                <CameraOutlined />
-                <span>Camera</span>
-                {wsConnected && (
-                  <Tag icon={<WifiOutlined />} color="success">
-                    Connected
-                  </Tag>
-                )}
-                {!wsConnected && sessionInfo && (
-                  <Tag icon={<DisconnectOutlined />} color="warning">
-                    Disconnected
-                  </Tag>
-                )}
-              </Space>
-            }
-            extra={
-              <Space>
-                <Text type="secondary">{fps} FPS</Text>
-                <Text type="secondary">Faces: {totalFaces}</Text>
-              </Space>
-            }
+      {isMobile ? (
+        // Mobile Layout - Tabs
+        <>
+          <Tabs 
+            activeKey={activeTab} 
+            onChange={setActiveTab}
+            size="large"
+            style={{ marginTop: -8 }}
+            tabBarStyle={{ 
+              position: 'sticky', 
+              top: 0, 
+              zIndex: 10, 
+              backgroundColor: '#fff',
+              marginBottom: 0,
+              paddingTop: 8
+            }}
           >
-            <div 
-              style={{ 
-                position: 'relative', 
-                width: '100%', 
-                height: '450px', // ✅ Fixed height thay vì paddingTop
-                backgroundColor: '#000',
-                borderRadius: '8px',
-                overflow: 'hidden',
+            <TabPane 
+              tab={<Space><CameraOutlined /> Camera</Space>} 
+              key="camera"
+            >
+              {renderCameraView()}
+            </TabPane>
+            <TabPane 
+              tab={
+                <Space>
+                  <BarChartOutlined /> 
+                  <span>Thống kê</span>
+                  {(attendanceData?.statistics?.present || 0) > 0 && (
+                    <Badge 
+                      count={attendanceData?.statistics?.present || 0} 
+                      style={{ backgroundColor: '#52c41a' }}
+                    />
+                  )}
+                </Space>
+              } 
+              key="stats"
+            >
+              <div style={{ 
+                padding: '8px 0',
+                height: 'calc(100vh - 280px)',
+                overflow: 'auto'
+              }}>
+                {renderStatistics()}
+              </div>
+            </TabPane>
+            <TabPane 
+              tab={
+                <Space>
+                  <TeamOutlined /> 
+                  <span>Danh sách</span>
+                  {validatedStudents.length > 0 && (
+                    <Badge 
+                      count={validatedStudents.length} 
+                      style={{ backgroundColor: '#1890ff' }}
+                    />
+                  )}
+                </Space>
+              } 
+              key="students"
+            >
+              <div style={{ 
+                padding: '8px 0',
+                height: 'calc(100vh - 280px)',
+                overflow: 'auto'
+              }}>
+                {renderStudentList()}
+              </div>
+            </TabPane>
+          </Tabs>
+
+          {/* Floating Action Button for Mobile - Show in Stats/Students tabs */}
+          {sessionInfo && activeTab !== 'camera' && (
+            <div
+              style={{
+                position: 'fixed',
+                bottom: 24,
+                right: 24,
+                zIndex: 1000,
               }}
             >
-              <video
-                ref={videoRef}
+              <Button
+                danger
+                shape="circle"
+                size="large"
+                icon={<StopOutlined />}
+                onClick={handleStopSession}
+                loading={loading}
                 style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain',
-                  display: cameraActive ? 'block' : 'none',
-                }}
-                autoPlay
-                playsInline
-                muted
-              />
-              <canvas
-                ref={overlayCanvasRef}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  pointerEvents: 'none',
+                  width: 56,
+                  height: 56,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                  fontSize: 20,
                 }}
               />
-              <canvas ref={canvasRef} style={{ display: 'none' }} />
-
-              {!cameraActive && (
-                <div 
-                  style={{ 
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    textAlign: 'center',
-                  }}
-                >
-                  <CameraOutlined style={{ fontSize: 64, color: '#d9d9d9' }} />
-                  <div style={{ marginTop: 16 }}>
-                    <Text type="secondary">Camera chưa bật</Text>
-                  </div>
-                </div>
-              )}
             </div>
+          )}
+        </>
+      ) : (
+        // Desktop Layout - Side by Side
+        <Row gutter={[16, 16]} style={{ maxHeight: '75vh', overflow: 'hidden' }}>
+          {/* Camera View */}
+          <Col span={16}>
+            {renderCameraView()}
+          </Col>
 
-            <div style={{ marginTop: 16 }}>
-              {!sessionInfo ? (
-                <Button
-                  type="primary"
-                  icon={<CameraOutlined />}
-                  onClick={handleStartSession}
-                  loading={loading}
-                  block
-                  size="large"
-                >
-                  Bắt đầu điểm danh
-                </Button>
-              ) : (
-                <Button
-                  danger
-                  icon={<StopOutlined />}
-                  onClick={handleStopSession}
-                  loading={loading}
-                  block
-                  size="large"
-                >
-                  Kết thúc điểm danh
-                </Button>
-              )}
+          {/* Statistics & Student List */}
+          <Col span={8} style={{ display: 'flex', flexDirection: 'column', height: '75vh', overflow: 'hidden' }}>
+            <div style={{ marginBottom: 16, flexShrink: 0 }}>
+              {renderStatistics()}
             </div>
-          </Card>
-        </Col>
-
-        {/* Statistics & Student List */}
-        <Col span={8}>
-          {/* Statistics */}
-          <Card title="Thống kê" style={{ marginBottom: 16 }}>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Statistic
-                  title="Đã xác nhận"
-                  value={attendanceData?.statistics.present || 0}
-                  valueStyle={{ color: '#3f8600' }}
-                  prefix={<CheckCircleOutlined />}
-                />
-              </Col>
-              <Col span={12}>
-                <Statistic
-                  title="Tổng số"
-                  value={attendanceData?.statistics.total_students || 0}
-                  prefix={<UserOutlined />}
-                />
-              </Col>
-            </Row>
-            <div style={{ marginTop: 16 }}>
-              <Text type="secondary">Tỷ lệ điểm danh:</Text>
-              <Progress
-                percent={attendanceData?.statistics.attendance_rate || 0}
-                status="active"
-              />
+            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              {renderStudentList()}
             </div>
-            {currentInterval && (
-              <div style={{ marginTop: 8 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Polling: {(currentInterval / 1000).toFixed(1)}s
-                </Text>
-              </div>
-            )}
-          </Card>
-
-          {/* Validated Students */}
-          <Card
-            title="Sinh viên đã xác nhận"
-            extra={<Badge count={attendanceData?.statistics.present || validatedStudents.length} showZero />}
-          >
-            <List
-              dataSource={validatedStudents}
-              renderItem={(student) => (
-                <List.Item>
-                  <List.Item.Meta
-                    avatar={
-                      <Avatar
-                        style={{ backgroundColor: '#52c41a' }}
-                        icon={<UserOutlined />}
-                      />
-                    }
-                    title={student.student_name}
-                    description={
-                      <Space direction="vertical" size={0}>
-                        <Text type="secondary">{student.student_code}</Text>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          Confidence: {(student.avg_confidence * 100).toFixed(1)}%
-                        </Text>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          Frames: {student.frame_count}/{student.recognition_count}
-                        </Text>
-                      </Space>
-                    }
-                  />
-                  <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 20 }} />
-                </List.Item>
-              )}
-              locale={{ emptyText: 'Chưa có sinh viên nào được xác nhận' }}
-              style={{ maxHeight: 400, overflow: 'auto' }}
-            />
-          </Card>
-        </Col>
-      </Row>
+          </Col>
+        </Row>
+      )}
     </Modal>
   );
 };
