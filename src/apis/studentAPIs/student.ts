@@ -80,6 +80,17 @@ export interface DeleteStudentResponse {
   message: string;
 }
 
+export interface ResetPasswordRequest {
+  new_password: string;
+}
+
+export interface ResetPasswordResponse {
+  success: boolean;
+  message: string;
+  user_id: number;
+  email: string;
+}
+
 // ==================== API Functions ====================
 
 /**
@@ -139,6 +150,20 @@ export const deleteStudent = async (
   studentId: number
 ): Promise<DeleteStudentResponse> => {
   const response = await api.delete(`/admin/students/${studentId}`);
+  return response.data;
+};
+
+/**
+ * Reset student password
+ * Requires: Admin role
+ */
+export const resetStudentPassword = async (
+  studentId: number,
+  newPassword: string
+): Promise<ResetPasswordResponse> => {
+  const response = await api.post(`/admin/students/${studentId}/reset-password`, {
+    new_password: newPassword,
+  });
   return response.data;
 };
 

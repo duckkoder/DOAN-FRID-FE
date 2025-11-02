@@ -32,6 +32,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   CameraOutlined,
+  LockOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import Breadcrumb from "@/components/Breadcrumb";
@@ -40,6 +41,7 @@ import {
   createTeacher,
   updateTeacher,
   deleteTeacher,
+  resetTeacherPassword,
   getStatusColor,
   getStatusText,
   type TeacherResponse,
@@ -58,6 +60,7 @@ import {
   validateImageFile,
 } from "@/apis/fileAPIs/file";
 import PasswordRequirements from "@/components/PasswordRequirements";
+import ResetPasswordModal from "@/components/ResetPasswordModal";
 import { validatePassword } from "@/utils/passwordValidation";
 
 const AdminTeacherPage: React.FC = () => {
@@ -67,10 +70,14 @@ const AdminTeacherPage: React.FC = () => {
   const [passwordValue, setPasswordValue] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<TeacherResponse | null>(
     null
   );
   const [viewingTeacher, setViewingTeacher] = useState<TeacherResponse | null>(
+    null
+  );
+  const [resettingTeacher, setResettingTeacher] = useState<TeacherResponse | null>(
     null
   );
   const [form] = Form.useForm();
@@ -300,6 +307,31 @@ const AdminTeacherPage: React.FC = () => {
   const handleDetailModalCancel = () => {
     setIsDetailModalOpen(false);
     setViewingTeacher(null);
+  };
+
+  const showResetPasswordModal = (teacher: TeacherResponse) => {
+    setResettingTeacher(teacher);
+    setIsResetPasswordModalOpen(true);
+  };
+
+  const handleResetPassword = async (newPassword: string) => {
+    if (!resettingTeacher) return;
+    
+    try {
+      setLoading(true);
+      await resetTeacherPassword(resettingTeacher.id, newPassword);
+      setIsResetPasswordModalOpen(false);
+      setResettingTeacher(null);
+    } catch (error: any) {
+      throw error; // Let modal handle the error
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPasswordCancel = () => {
+    setIsResetPasswordModalOpen(false);
+    setResettingTeacher(null);
   };
 
   const handleDepartmentChange = (departmentId: number) => {
@@ -984,6 +1016,12 @@ const AdminTeacherPage: React.FC = () => {
               >
                 Chỉnh sửa
               </Button>
+              <Button
+                icon={<LockOutlined />}
+                onClick={() => showResetPasswordModal(viewingTeacher)}
+              >
+                Đặt lại mật khẩu
+              </Button>
               <Popconfirm
                 title="Vô hiệu hóa giáo viên"
                 description="Bạn có chắc muốn vô hiệu hóa tài khoản này?"
@@ -1007,6 +1045,16 @@ const AdminTeacherPage: React.FC = () => {
           </div>
         )}
       </Modal>
+
+      {/* Reset Password Modal */}
+      <ResetPasswordModal
+        visible={isResetPasswordModalOpen}
+        onCancel={handleResetPasswordCancel}
+        onSuccess={handleResetPassword}
+        userType="teacher"
+        userName={resettingTeacher?.full_name || ""}
+        loading={loading}
+      />
     </div>
   );
 };

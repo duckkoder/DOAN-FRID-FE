@@ -71,6 +71,17 @@ export interface DeleteTeacherResponse {
   message: string;
 }
 
+export interface ResetPasswordRequest {
+  new_password: string;
+}
+
+export interface ResetPasswordResponse {
+  success: boolean;
+  message: string;
+  user_id: number;
+  email: string;
+}
+
 // ==================== API Functions ====================
 
 /**
@@ -130,6 +141,20 @@ export const deleteTeacher = async (
   teacherId: number
 ): Promise<DeleteTeacherResponse> => {
   const response = await api.delete(`/admin/teachers/${teacherId}`);
+  return response.data;
+};
+
+/**
+ * Reset teacher password
+ * Requires: Admin role
+ */
+export const resetTeacherPassword = async (
+  teacherId: number,
+  newPassword: string
+): Promise<ResetPasswordResponse> => {
+  const response = await api.post(`/admin/teachers/${teacherId}/reset-password`, {
+    new_password: newPassword,
+  });
   return response.data;
 };
 
