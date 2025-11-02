@@ -6,6 +6,7 @@ export interface FaceRegistrationListItem {
   student_id: number;
   student_code: string;
   student_name: string;
+  student_is_verified: boolean;
   status: string;
   total_images_captured: number;
   registration_progress: number;
@@ -23,6 +24,7 @@ export interface FaceRegistrationDetail {
   student_code: string;
   student_name: string;
   student_email: string;
+  student_is_verified: boolean;
   status: string;
   total_images_captured: number;
   registration_progress: number;
