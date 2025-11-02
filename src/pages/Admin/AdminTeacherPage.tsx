@@ -57,11 +57,14 @@ import {
   uploadAvatar,
   validateImageFile,
 } from "@/apis/fileAPIs/file";
+import PasswordRequirements from "@/components/PasswordRequirements";
+import { validatePassword } from "@/utils/passwordValidation";
 
 const AdminTeacherPage: React.FC = () => {
   // ==================== State Management ====================
   const [teachers, setTeachers] = useState<TeacherResponse[]>([]);
   const [loading, setLoading] = useState(false);
+  const [passwordValue, setPasswordValue] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<TeacherResponse | null>(
@@ -121,7 +124,7 @@ const AdminTeacherPage: React.FC = () => {
 
       // Upload to S3
       const response = await uploadAvatar(file);
-      setAvatarUrl(response.data.url);
+      setAvatarUrl(response.data.url || "");
       
       message.success("Upload ảnh đại diện thành công!");
       return true;
@@ -235,6 +238,7 @@ const AdminTeacherPage: React.FC = () => {
     form.resetFields();
     setFilteredSpecializations(specializations);
     setAvatarUrl("");
+    setPasswordValue(""); // Reset password state
     
     // Generate and set teacher code automatically
     setLoading(true);
@@ -289,6 +293,7 @@ const AdminTeacherPage: React.FC = () => {
     setIsModalOpen(false);
     setEditingTeacher(null);
     setAvatarUrl("");
+    setPasswordValue(""); // Reset password state
     form.resetFields();
   };
 
@@ -721,10 +726,24 @@ const AdminTeacherPage: React.FC = () => {
               name="password"
               rules={[
                 { required: true, message: "Vui lòng nhập mật khẩu!" },
-                { min: 6, message: "Mật khẩu phải có ít nhất 6 ký tự" },
+                { min: 8, message: "Mật khẩu phải có ít nhất 8 ký tự" },
+                {
+                  validator: (_, value) => {
+                    if (!value) return Promise.resolve();
+                    const validation = validatePassword(value);
+                    if (validation.isValid) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error(validation.errors.join(", ")));
+                  },
+                },
               ]}
+              extra={<PasswordRequirements password={passwordValue} />}
             >
-              <Input.Password placeholder="Nhập mật khẩu" />
+              <Input.Password 
+                placeholder="Nhập mật khẩu"
+                onChange={(e) => setPasswordValue(e.target.value)}
+              />
             </Form.Item>
           )}
 
