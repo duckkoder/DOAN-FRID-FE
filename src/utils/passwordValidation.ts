@@ -19,9 +19,9 @@ export interface PasswordRequirement {
  */
 export const PASSWORD_REQUIREMENTS: PasswordRequirement[] = [
   {
-    regex: /.{8,}/,
-    message: "Ít nhất 8 ký tự",
-    check: (password: string) => password.length >= 8,
+    regex: /.{9,}/,
+    message: "Ít nhất 9 ký tự",
+    check: (password: string) => password.length >= 9,
   },
   {
     regex: /[A-Z]/,
@@ -43,7 +43,7 @@ export const PASSWORD_REQUIREMENTS: PasswordRequirement[] = [
 /**
  * Combined regex pattern for password validation
  */
-export const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+export const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{9,}$/;
 
 /**
  * Validate password strength
@@ -123,5 +123,5 @@ export const INVALID_PASSWORD_EXAMPLES = [
   { password: "pass1234", reason: "Thiếu chữ hoa" },
   { password: "PASS1234", reason: "Thiếu chữ thường" },
   { password: "Password", reason: "Thiếu chữ số" },
-  { password: "Pass12", reason: "Ít hơn 8 ký tự" },
+  { password: "Pass123", reason: "Ít hơn 9 ký tự" },
 ];
