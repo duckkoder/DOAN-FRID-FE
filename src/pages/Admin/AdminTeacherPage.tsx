@@ -365,9 +365,23 @@ const AdminTeacherPage: React.FC = () => {
       fetchTeachers();
     } catch (error: any) {
       console.error("Error creating teacher:", error);
-      message.error(
-        error?.response?.data?.detail || "Không thể tạo tài khoản giáo viên"
-      );
+      
+      // Check if error is "Email already registered"
+      const errorDetail = error?.response?.data?.detail;
+      if (errorDetail === "Email already registered" || errorDetail?.includes("Email already registered")) {
+        // Set form field error for email
+        form.setFields([
+          {
+            name: "email",
+            errors: ["Email này đã được đăng ký. Vui lòng sử dụng email khác."],
+          },
+        ]);
+      } else {
+        // Show general error message
+        message.error(
+          errorDetail || "Không thể tạo tài khoản giáo viên"
+        );
+      }
     } finally {
       setLoading(false);
     }
