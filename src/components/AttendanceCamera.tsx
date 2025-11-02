@@ -19,6 +19,8 @@ import {
   Typography,
   Progress,
   Tabs,
+  Drawer,
+  FloatButton,
 } from 'antd';
 import {
   CameraOutlined,
@@ -74,6 +76,9 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   // Responsive state
   const [isMobile, setIsMobile] = useState(false);
   const [activeTab, setActiveTab] = useState('camera');
+  const [landscapePanel, setLandscapePanel] = useState<'stats' | 'students' | null>(null);
+  const isBrowser = typeof window !== 'undefined';
+  const isLandscapeMode = isMobile && isBrowser && window.innerWidth > window.innerHeight;
   
   // Camera state
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user'); // 'user' = front, 'environment' = back
@@ -87,6 +92,9 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   const frameIntervalRef = useRef<number | null>(null);
   const fpsCounterRef = useRef({ count: 0, lastTime: Date.now() });
   const isProcessingFrameRef = useRef(false); // ✅ Track nếu đang xử lý frame
+  const orientationRestartTimeoutRef = useRef<number | null>(null);
+  const lastOrientationRef = useRef<'portrait' | 'landscape' | null>(null);
+  const isRestartingRef = useRef(false);
 
   // Smart polling cho attendance records từ Backend
   const { data: attendanceData, currentInterval } = useSmartPolling({
@@ -107,8 +115,100 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       setError(null);
       setCameraActive(false);
       setWsConnected(false);
+      setLandscapePanel(null);
     }
   }, [visible, sessionInfo]);
+
+  // Reset landscape drawers when orientation changes back
+  useEffect(() => {
+    if (!isLandscapeMode) {
+      setLandscapePanel(null);
+    }
+  }, [isLandscapeMode]);
+
+  useEffect(() => {
+    if (!visible) {
+      setLandscapePanel(null);
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    if (!cameraActive) return;
+
+    const getOrientation = () => (window.innerWidth > window.innerHeight ? 'landscape' : 'portrait');
+    lastOrientationRef.current = getOrientation();
+
+    const ensureVideoPlaying = () => {
+      if (!videoRef.current) return;
+      const playPromise = videoRef.current.play();
+      playPromise?.catch(err => console.warn('[Camera] Replay failed after ensureVideoPlaying:', err));
+
+      if (overlayCanvasRef.current) {
+        const rect = videoRef.current.getBoundingClientRect();
+        overlayCanvasRef.current.width = rect.width;
+        overlayCanvasRef.current.height = rect.height;
+      }
+    };
+
+    const restartCamera = async () => {
+      if (isRestartingRef.current) return;
+      isRestartingRef.current = true;
+      try {
+        await startCamera(facingMode);
+        ensureVideoPlaying();
+      } catch (err) {
+        console.error('[Camera] Orientation restart failed:', err);
+        setError('Không thể khởi động lại camera sau khi xoay thiết bị');
+      } finally {
+        if (orientationRestartTimeoutRef.current) {
+          window.clearTimeout(orientationRestartTimeoutRef.current);
+          orientationRestartTimeoutRef.current = null;
+        }
+        isRestartingRef.current = false;
+      }
+    };
+
+    const scheduleAction = (shouldRestart: boolean) => {
+      if (orientationRestartTimeoutRef.current) {
+        window.clearTimeout(orientationRestartTimeoutRef.current);
+      }
+      orientationRestartTimeoutRef.current = window.setTimeout(() => {
+        ensureVideoPlaying();
+        if (shouldRestart) {
+          void restartCamera();
+        }
+      }, shouldRestart ? 200 : 0);
+    };
+
+    const handleOrientationChange = () => {
+      if (!cameraActive) return;
+      const currentOrientation = getOrientation();
+      const orientationChanged = lastOrientationRef.current !== currentOrientation;
+      lastOrientationRef.current = currentOrientation;
+      scheduleAction(orientationChanged);
+    };
+
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        scheduleAction(false);
+      }
+    };
+
+    window.addEventListener('orientationchange', handleOrientationChange);
+    window.addEventListener('resize', handleOrientationChange);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      window.removeEventListener('resize', handleOrientationChange);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (orientationRestartTimeoutRef.current) {
+        window.clearTimeout(orientationRestartTimeoutRef.current);
+        orientationRestartTimeoutRef.current = null;
+      }
+      isRestartingRef.current = false;
+    };
+  }, [cameraActive, facingMode]);
 
   /**
    * Start attendance session
@@ -628,44 +728,83 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   }, [isMobile, sessionInfo]); // Only run when isMobile or sessionInfo changes
 
   // Render Camera View
-  const renderCameraView = () => (
-    <Card
-      title={
-        <Space>
-          <CameraOutlined />
-          <span>Camera</span>
-          {wsConnected && (
-            <Tag icon={<WifiOutlined />} color="success">
-              Connected
-            </Tag>
-          )}
-          {!wsConnected && sessionInfo && (
-            <Tag icon={<DisconnectOutlined />} color="warning">
-              Disconnected
-            </Tag>
-          )}
-        </Space>
-      }
-      extra={
-        <Space>
-          <Text type="secondary">{fps} FPS</Text>
-          <Text type="secondary">Faces: {totalFaces}</Text>
-        </Space>
-      }
-      style={{ height: '100%' }}
-    >
+  const renderCameraView = () => {
+    const isLandscape = isLandscapeMode;
+    
+    return (
+      <Card
+        title={
+          isLandscape && isMobile ? null : (
+            isMobile ? (
+              // Compact title for mobile portrait
+              <Space size={4}>
+                <CameraOutlined style={{ fontSize: 14 }} />
+                {wsConnected && <Tag icon={<WifiOutlined />} color="success" style={{ fontSize: 10, padding: '0 4px' }}>OK</Tag>}
+              </Space>
+            ) : (
+              // Full title for desktop
+              <Space>
+                <CameraOutlined />
+                <span>Camera</span>
+                {wsConnected && (
+                  <Tag icon={<WifiOutlined />} color="success">
+                    Connected
+                  </Tag>
+                )}
+                {!wsConnected && sessionInfo && (
+                  <Tag icon={<DisconnectOutlined />} color="warning">
+                    Disconnected
+                  </Tag>
+                )}
+              </Space>
+            )
+          )
+        }
+        extra={
+          isLandscape && isMobile ? null : (
+            <Space size={isMobile ? 4 : 8}>
+              <Text type="secondary" style={{ fontSize: isMobile ? 10 : 12 }}>
+                {fps} FPS
+              </Text>
+              <Text type="secondary" style={{ fontSize: isMobile ? 10 : 12 }}>
+                Faces: {totalFaces}
+              </Text>
+            </Space>
+          )
+        }
+        style={{ 
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          border: isLandscape && isMobile ? 'none' : undefined,
+          boxShadow: isLandscape && isMobile ? 'none' : undefined,
+          margin: isLandscape && isMobile ? 0 : undefined,
+          background: isLandscape && isMobile ? 'transparent' : undefined,
+          flex: 1
+        }}
+        bodyStyle={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          padding: isLandscape && isMobile ? '0' : (isMobile ? '12px' : '16px'),
+          overflow: 'hidden',
+          paddingBottom: isLandscape && isMobile ? 0 : undefined,
+          background: isLandscape && isMobile ? 'transparent' : undefined
+        }}
+        headStyle={
+          isLandscape && isMobile ? { display: 'none' } : undefined
+        }
+      >
       <div 
         style={{ 
           position: 'relative', 
           width: '100%', 
-          height: isMobile 
-            ? (window.innerHeight < window.innerWidth 
-              ? '70vh'  // Landscape mode - taller
-              : '60vh') // Portrait mode
-            : '450px',  // Desktop
+          flex: 1,
+          minHeight: 0,
           backgroundColor: '#000',
-          borderRadius: '8px',
+          borderRadius: isLandscape && isMobile ? '0' : '8px',
           overflow: 'hidden',
+          marginBottom: isLandscape && isMobile ? 0 : 12
         }}
       >
         <video
@@ -676,7 +815,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
             left: 0,
             width: '100%',
             height: '100%',
-            objectFit: 'contain',
+            objectFit: 'cover',
             display: cameraActive ? 'block' : 'none',
           }}
           autoPlay
@@ -721,17 +860,42 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
           <div 
             style={{ 
               position: 'absolute',
-              top: 16,
-              right: 16,
+              top: isLandscape && isMobile ? 8 : 16,
+              right: isLandscape && isMobile ? 8 : 16,
               background: 'rgba(255, 77, 79, 0.9)',
-              padding: '8px 16px',
-              borderRadius: 8,
+              padding: isLandscape && isMobile ? '4px 8px' : '8px 16px',
+              borderRadius: isLandscape && isMobile ? 4 : 8,
               color: '#fff',
+              zIndex: 20
             }}
           >
-            <Space>
-              <DisconnectOutlined />
-              <Text style={{ color: '#fff', fontSize: 12 }}>Mất kết nối AI</Text>
+            <Space size={4}>
+              <DisconnectOutlined style={{ fontSize: isLandscape && isMobile ? 10 : 12 }} />
+              <Text style={{ color: '#fff', fontSize: isLandscape && isMobile ? 10 : 12 }}>
+                {isLandscape && isMobile ? 'Mất kết nối' : 'Mất kết nối AI'}
+              </Text>
+            </Space>
+          </div>
+        )}
+        
+        {/* FPS & Faces Counter Overlay for Landscape */}
+        {isLandscape && isMobile && (
+          <div 
+            style={{ 
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              background: 'rgba(0, 0, 0, 0.6)',
+              padding: '4px 8px',
+              borderRadius: 4,
+              color: '#fff',
+              zIndex: 20
+            }}
+          >
+            <Space size={8}>
+              <Text style={{ color: '#fff', fontSize: 10 }}>{fps} FPS</Text>
+              <Text style={{ color: '#fff', fontSize: 10 }}>Faces: {totalFaces}</Text>
+              {wsConnected && <Tag color="success" style={{ fontSize: 9, padding: '0 4px', margin: 0 }}>OK</Tag>}
             </Space>
           </div>
         )}
@@ -746,59 +910,54 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
             onClick={toggleCamera}
             style={{
               position: 'absolute',
-              bottom: 16,
-              right: 16,
-              width: 56,
-              height: 56,
+              bottom: isLandscape ? 48 : 16,
+              right: isLandscape ? 12 : 16,
+              width: isLandscape ? 36 : 56,
+              height: isLandscape ? 36 : 56,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-              zIndex: 10,
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              zIndex: 90,
+              fontSize: isLandscape ? 14 : 20,
+              backgroundColor: 'rgba(24, 144, 255, 0.9)',
+              backdropFilter: 'blur(8px)'
             }}
             title={facingMode === 'user' ? 'Chuyển sang camera sau' : 'Chuyển sang camera trước'}
           />
         )}
       </div>
 
-      {/* Status messages below camera */}
-      {sessionInfo && (
-        <div style={{ marginTop: 12 }}>
-          {!wsConnected ? (
-            <Alert
-              message="Mất kết nối"
-              description="Đang cố gắng kết nối lại với AI Service..."
-              type="error"
-              showIcon
-            />
-          ) : detections.length === 0 ? (
-            <Alert
-              message="Không phát hiện khuôn mặt"
-              description="Đảm bảo có đủ ánh sáng và khuôn mặt được nhìn rõ trong camera"
-              type="info"
-              showIcon
-            />
-          ) : (
-            <Alert
-              message={`Đang nhận diện ${detections.length} khuôn mặt`}
-              type="success"
-              showIcon
-            />
-          )}
-        </div>
-      )}
-
-      <div style={{ marginTop: 16 }}>
+      {/* Action buttons - compact for landscape */}
+      <div style={{ 
+        flexShrink: 0,
+        position: isLandscape && isMobile ? 'fixed' : 'relative',
+        bottom: isLandscape && isMobile ? 'calc(env(safe-area-inset-bottom, 0px) + 12px)' : 'auto',
+        left: isLandscape && isMobile ? '50%' : 'auto',
+        transform: isLandscape && isMobile ? 'translateX(-50%)' : 'none',
+        width: isLandscape && isMobile ? 'auto' : '100%',
+        zIndex: isLandscape && isMobile ? 100 : 'auto'
+      }}>
         {!sessionInfo ? (
           <Button
             type="primary"
             icon={<CameraOutlined />}
             onClick={handleStartSession}
             loading={loading}
-            block
-            size="large"
+            block={!(isLandscape && isMobile)}
+            size={isLandscape && isMobile ? "middle" : "large"}
+            style={isLandscape && isMobile ? { 
+              height: 32, 
+              fontSize: 12,
+              padding: '0 16px',
+              backgroundColor: 'rgba(24, 144, 255, 0.95)',
+              borderColor: 'rgba(24, 144, 255, 0.95)',
+              backdropFilter: 'blur(8px)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              borderRadius: 16
+            } : undefined}
           >
-            Bắt đầu điểm danh
+            {isLandscape && isMobile ? 'Bắt đầu' : 'Bắt đầu điểm danh'}
           </Button>
         ) : (
           <Button
@@ -806,15 +965,26 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
             icon={<StopOutlined />}
             onClick={handleStopSession}
             loading={loading}
-            block
-            size="large"
+            block={!(isLandscape && isMobile)}
+            size={isLandscape && isMobile ? "middle" : "large"}
+            style={isLandscape && isMobile ? { 
+              height: 32, 
+              fontSize: 12,
+              padding: '0 16px',
+              backgroundColor: 'rgba(255, 77, 79, 0.95)',
+              borderColor: 'rgba(255, 77, 79, 0.95)',
+              backdropFilter: 'blur(8px)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              borderRadius: 16
+            } : undefined}
           >
-            Kết thúc điểm danh
+            {isLandscape && isMobile ? 'Kết thúc' : 'Kết thúc điểm danh'}
           </Button>
         )}
       </div>
     </Card>
   );
+  };
 
   // Render Statistics View
   const renderStatistics = () => (
@@ -977,12 +1147,15 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
 
   return (
     <Modal
-      title="Điểm danh bằng AI"
+      title={isLandscapeMode ? null : 'Điểm danh bằng AI'}
       open={visible}
       onCancel={handleModalClose}
       width={isMobile ? '100%' : 1200}
       style={isMobile ? { top: 0, padding: 0, maxWidth: '100vw' } : undefined}
-      styles={isMobile ? { body: { padding: 16 } } : undefined}
+      styles={isMobile ? { 
+        body: { padding: isLandscapeMode ? 0 : 16 },
+        content: isLandscapeMode ? { backgroundColor: '#000' } : undefined
+      } : undefined}
       footer={null}
       destroyOnClose
     >
@@ -1120,6 +1293,82 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
               padding: 10px !important;
             }
           }
+          
+          /* Landscape mode on mobile - maximize camera space */
+          @media (max-width: 1024px) and (orientation: landscape) {
+            .ant-modal-header {
+              padding: 4px 12px !important;
+              min-height: auto !important;
+            }
+            
+            .ant-modal-title {
+              font-size: 13px !important;
+              line-height: 1.2 !important;
+            }
+            
+            .ant-modal-close {
+              top: 2px !important;
+              width: 32px !important;
+              height: 32px !important;
+              line-height: 32px !important;
+            }
+            
+            .ant-modal-body {
+              padding: 0 !important;
+              overflow: hidden !important;
+            }
+            
+            .ant-tabs {
+              margin: 0 !important;
+            }
+            
+            .ant-tabs-nav {
+              margin-bottom: 0 !important;
+              padding: 2px 4px !important;
+            }
+            
+            .ant-tabs-tab {
+              padding: 3px 8px !important;
+              font-size: 11px !important;
+              margin: 0 2px !important;
+              line-height: 1.2 !important;
+            }
+            
+            .ant-tabs-content-holder {
+              padding: 0 !important;
+            }
+            
+            .ant-card {
+              margin-bottom: 0 !important;
+              border: none !important;
+            }
+            
+            .ant-card-head {
+              display: none !important;
+            }
+            
+            .ant-card-body {
+              padding: 0 !important;
+            }
+            
+            .ant-btn-lg {
+              height: 32px !important;
+              font-size: 12px !important;
+              padding: 0 12px !important;
+            }
+            
+            .ant-tag {
+              font-size: 9px !important;
+              padding: 0 4px !important;
+              line-height: 14px !important;
+              margin: 0 !important;
+            }
+            
+            /* Hide modal title in landscape */
+            .ant-modal-header {
+              display: none !important;
+            }
+          }
         `}
       </style>
 
@@ -1134,28 +1383,107 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         />
       )}
 
-      {isMobile ? (
-        // Mobile Layout - Tabs
+      {isLandscapeMode ? (
+        <>
+          <div
+            style={{
+              position: 'relative',
+              height: '100%',
+              minHeight: 'calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))',
+              display: 'flex',
+              flexDirection: 'column',
+              flex: 1,
+              backgroundColor: '#000',
+            }}
+          >
+            {renderCameraView()}
+          </div>
+
+          <FloatButton.Group
+            shape="circle"
+            style={{
+              position: 'fixed',
+              right: 16,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              zIndex: 120,
+            }}
+          >
+            <FloatButton
+              icon={<BarChartOutlined />}
+              tooltip="Thống kê"
+              onClick={() => setLandscapePanel('stats')}
+            />
+            <FloatButton
+              icon={<TeamOutlined />}
+              tooltip="Danh sách"
+              onClick={() => setLandscapePanel('students')}
+            />
+          </FloatButton.Group>
+
+          <Drawer
+            placement="right"
+            open={landscapePanel === 'stats'}
+            onClose={() => setLandscapePanel(null)}
+            width="75%"
+            destroyOnClose
+            title="Thống kê"
+            styles={{ body: { padding: 16 } }}
+          >
+            {renderStatistics()}
+          </Drawer>
+
+          <Drawer
+            placement="right"
+            open={landscapePanel === 'students'}
+            onClose={() => setLandscapePanel(null)}
+            width="75%"
+            destroyOnClose
+            title="Sinh viên đã xác nhận"
+            styles={{ body: { padding: 16 } }}
+          >
+            {renderStudentList()}
+          </Drawer>
+        </>
+      ) : isMobile ? (
+        // Mobile Layout - Tabs (Portrait)
         <>
           <Tabs 
             activeKey={activeTab} 
             onChange={setActiveTab}
             size="large"
-            style={{ marginTop: -8 }}
+            style={{ 
+              marginTop: -8,
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
             tabBarStyle={{ 
               position: 'sticky', 
               top: 0, 
               zIndex: 10, 
               backgroundColor: '#fff',
               marginBottom: 0,
-              paddingTop: 8
+              paddingTop: isLandscapeMode ? 4 : 8,
+              flexShrink: 0
             }}
           >
             <TabPane 
               tab={<Space><CameraOutlined /> Camera</Space>} 
               key="camera"
             >
-              {renderCameraView()}
+              <div style={{ 
+                height: isLandscapeMode 
+                  ? 'calc(100vh - 110px)'
+                  : 'calc(100vh - 200px)',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                margin: 0,
+                padding: 0
+              }}>
+                {renderCameraView()}
+              </div>
             </TabPane>
             <TabPane 
               tab={
