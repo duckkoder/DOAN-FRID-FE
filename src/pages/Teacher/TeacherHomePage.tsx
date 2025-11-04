@@ -192,7 +192,7 @@ const TeacherHomePage: React.FC = () => {
     {
       title: 'Lớp học',
       key: 'class',
-      render: (record: SessionWithStats) => (
+      render: (record: SessionWithStats & { class_name?: string; subject?: string }) => (
         <div>
           <Text strong style={{ fontSize: 14 }}>{record.class_name || 'N/A'}</Text>
           <br />
@@ -266,14 +266,35 @@ const TeacherHomePage: React.FC = () => {
   }
 
   return (
-    <div style={{ 
-      padding: 32, 
+    <div className="responsive-container" style={{ 
       background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)", 
       minHeight: "100vh" 
     }}>
+      <style>
+        {`
+          @media (max-width: 768px) {
+            .teacher-page-title {
+              font-size: 24px !important;
+            }
+            
+            .teacher-page-subtitle {
+              font-size: 14px !important;
+            }
+            
+            .ant-table-wrapper {
+              overflow-x: auto;
+            }
+            
+            .ant-table {
+              min-width: 600px;
+            }
+          }
+        `}
+      </style>
+
       {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <Title level={2} style={{ 
+      <div style={{ marginBottom: 24 }}>
+        <Title level={2} className="teacher-page-title" style={{ 
           marginBottom: 8, 
           color: "#2563eb",
           fontSize: 32,
@@ -281,13 +302,13 @@ const TeacherHomePage: React.FC = () => {
         }}>
           🎓 Trang chủ
         </Title>
-        <Text type="secondary" style={{ fontSize: 16 }}>
+        <Text type="secondary" className="teacher-page-subtitle" style={{ fontSize: 16 }}>
           Chào mừng, Thầy/Cô! Tổng quan về các lớp học và điểm danh.
         </Text>
       </div>
 
       {/* Statistics */}
-      <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} md={6}>
           <Card style={{ 
             borderRadius: 16,
@@ -426,7 +447,7 @@ const TeacherHomePage: React.FC = () => {
       )}
 
       {/* Main Content */}
-      <Row gutter={[24, 24]}>
+      <Row gutter={[16, 16]}>
         {/* Classes Table */}
         <Col xs={24} lg={14}>
           <Card 

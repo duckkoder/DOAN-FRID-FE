@@ -113,3 +113,135 @@
 body {
   overflow-x: hidden;
 }
+
+/* ================== RESPONSIVE UTILITIES ================== */
+
+/* Mobile breakpoints */
+@media (max-width: 768px) {
+  /* Hide scrollbars on mobile for cleaner look */
+  ::-webkit-scrollbar {
+    width: 0px;
+    height: 0px;
+  }
+  
+  /* Better touch targets */
+  button, a, .ant-btn {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+  
+  /* Responsive text */
+  h1, .ant-typography h1 {
+    font-size: 24px !important;
+  }
+  
+  h2, .ant-typography h2 {
+    font-size: 20px !important;
+  }
+  
+  h3, .ant-typography h3 {
+    font-size: 18px !important;
+  }
+  
+  /* Responsive cards */
+  .ant-card {
+    margin-bottom: 16px !important;
+  }
+  
+  /* Responsive tables */
+  .ant-table {
+    font-size: 12px !important;
+  }
+  
+  .ant-table-thead > tr > th {
+    padding: 8px 4px !important;
+    font-size: 12px !important;
+  }
+  
+  .ant-table-tbody > tr > td {
+    padding: 8px 4px !important;
+    font-size: 12px !important;
+  }
+  
+  /* Responsive modals */
+  .ant-modal {
+    max-width: calc(100vw - 32px) !important;
+    margin: 16px auto !important;
+  }
+  
+  .ant-modal-body {
+    padding: 16px !important;
+  }
+  
+  /* Responsive forms */
+  .ant-form-item {
+    margin-bottom: 16px !important;
+  }
+  
+  /* Responsive statistics */
+  .ant-statistic {
+    text-align: center !important;
+  }
+  
+  .ant-statistic-title {
+    font-size: 12px !important;
+  }
+  
+  .ant-statistic-content {
+    font-size: 18px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Extra small devices */
+  .ant-statistic-content {
+    font-size: 16px !important;
+  }
+  
+  h1, .ant-typography h1 {
+    font-size: 20px !important;
+  }
+  
+  .ant-btn {
+    font-size: 12px !important;
+    padding: 4px 12px !important;
+  }
+}
+
+/* Tablet breakpoints */
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* Tablet specific styles */
+  .ant-card {
+    margin-bottom: 20px !important;
+  }
+}
+
+/* Responsive container utility classes */
+.responsive-container {
+  padding: 32px 48px;
+}
+
+@media (max-width: 768px) {
+  .responsive-container {
+    padding: 16px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .responsive-container {
+    padding: 12px 12px;
+  }
+}
+
+/* Responsive grid helper */
+.responsive-grid {
+  display: grid;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .responsive-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+}

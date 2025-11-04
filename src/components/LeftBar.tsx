@@ -1,5 +1,5 @@
 import React from "react";
-import { Menu } from "antd";
+import { Menu, Drawer } from "antd";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   DashboardOutlined,
@@ -27,6 +27,9 @@ type LeftBarSection = {
 type LeftBarProps = {
   sections: LeftBarSection[];
   onLogout?: () => void;
+  isMobile?: boolean;
+  visible?: boolean;
+  onClose?: () => void;
 };
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -44,7 +47,7 @@ const iconMap: Record<string, React.ReactNode> = {
   logout: <LogoutOutlined />,
 };
 
-const LeftBar: React.FC<LeftBarProps> = ({ sections, onLogout }) => {
+const LeftBar: React.FC<LeftBarProps> = ({ sections, onLogout, isMobile = false, visible = true, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -53,6 +56,10 @@ const LeftBar: React.FC<LeftBarProps> = ({ sections, onLogout }) => {
       onLogout?.();
     } else {
       navigate(item.path);
+    }
+    // Close drawer on mobile after navigation
+    if (isMobile && onClose) {
+      onClose();
     }
   };
 
@@ -73,19 +80,8 @@ const LeftBar: React.FC<LeftBarProps> = ({ sections, onLogout }) => {
     .flatMap((s) => s.items)
     .find((item) => location.pathname === item.path)?.key;
 
-  return (
-    <div
-      style={{
-        width: 260,
-        minWidth: 260,
-        maxWidth: 260,
-        flexShrink: 0, // Không cho co lại
-        background: "#fff",
-        borderRight: "1px solid #e8e8e8",
-        height: "100%",
-        overflow: "hidden", // Tránh content làm tràn
-      }}
-    >
+  const menuContent = (
+    <>
       <style>
         {`
           /* Group title */
@@ -106,7 +102,7 @@ const LeftBar: React.FC<LeftBarProps> = ({ sections, onLogout }) => {
             padding: 10px 16px !important;
             height: auto !important;
             transition: all 0.2s ease !important;
-            white-space: nowrap !important; /* Không wrap text */
+            white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
           }
@@ -116,7 +112,7 @@ const LeftBar: React.FC<LeftBarProps> = ({ sections, onLogout }) => {
             font-size: 16px !important;
             margin-right: 12px !important;
             transition: color 0.2s ease !important;
-            flex-shrink: 0 !important; /* Icon không co lại */
+            flex-shrink: 0 !important;
           }
 
           .ant-menu-item .ant-menu-title-content {
@@ -127,7 +123,7 @@ const LeftBar: React.FC<LeftBarProps> = ({ sections, onLogout }) => {
             white-space: nowrap !important;
           }
 
-          /* Hover - Nhẹ nhàng */
+          /* Hover */
           .ant-menu-item:hover {
             background: #e6f4ff !important;
           }
@@ -180,7 +176,6 @@ const LeftBar: React.FC<LeftBarProps> = ({ sections, onLogout }) => {
           /* Remove default styles */
           .ant-menu-inline {
             border-right: none !important;
-            width: 260px !important; /* Fix cứng width */
           }
 
           .ant-menu-inline .ant-menu-item::after {
@@ -208,7 +203,6 @@ const LeftBar: React.FC<LeftBarProps> = ({ sections, onLogout }) => {
         selectedKeys={selectedKey ? [selectedKey] : []}
         style={{ 
           height: "100%",
-          width: 260, // Fix cứng width
           borderRight: 0,
           background: "transparent",
           paddingTop: 8,
@@ -216,6 +210,57 @@ const LeftBar: React.FC<LeftBarProps> = ({ sections, onLogout }) => {
         }}
         items={menuItems}
       />
+    </>
+  );
+
+  // Mobile: Render as Drawer
+  if (isMobile) {
+    return (
+      <Drawer
+        placement="left"
+        onClose={onClose}
+        open={visible}
+        closable={false}
+        width={280}
+        styles={{
+          body: { padding: 0 },
+        }}
+      >
+        <div style={{ padding: "16px 0" }}>
+          <div style={{ 
+            padding: "0 24px 16px 24px", 
+            borderBottom: "1px solid #e8e8e8",
+            marginBottom: 8
+          }}>
+            <span style={{ 
+              fontSize: 20, 
+              fontWeight: "bold", 
+              color: "#2563eb" 
+            }}>
+              Menu
+            </span>
+          </div>
+          {menuContent}
+        </div>
+      </Drawer>
+    );
+  }
+
+  // Desktop: Render as fixed sidebar
+  return (
+    <div
+      style={{
+        width: 260,
+        minWidth: 260,
+        maxWidth: 260,
+        flexShrink: 0,
+        background: "#fff",
+        borderRight: "1px solid #e8e8e8",
+        height: "100%",
+        overflow: "hidden",
+      }}
+    >
+      {menuContent}
     </div>
   );
 };

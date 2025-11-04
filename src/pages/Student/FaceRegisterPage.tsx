@@ -36,7 +36,7 @@ const FaceRegisterPage: React.FC = () => {
     confirmImages,
   } = useFaceRegistration({
     studentId,
-    serverUrl: 'ws://localhost:8000',
+    serverUrl: import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8000',
     fps: 10,
   });
 

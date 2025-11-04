@@ -40,10 +40,20 @@ import {
   SafetyCertificateOutlined, // ✅ Add this import
   TeamOutlined,
   ReloadOutlined, // ✅ Add this if missing
+  DownOutlined,
+  UpOutlined,
 } from "@ant-design/icons";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Breadcrumb from "../../components/Breadcrumb";
 import dayjs from 'dayjs';
+import isBetween from 'dayjs/plugin/isBetween';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(isBetween);
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 import { 
   getClassDetails, 
   updateClass,
@@ -198,6 +208,9 @@ const ClassDetailPage: React.FC = () => {
   const [studentsData, setStudentsData] = useState<StudentDetailInClass[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [classSummary, setClassSummary] = useState<any>(null); // ✅ Add summary state
+  
+  // ✅ Schedule collapse state
+  const [isScheduleExpanded, setIsScheduleExpanded] = useState(false);
 
   const weekDays = [
     { value: 1, label: "Thứ 2" },
@@ -523,7 +536,7 @@ const ClassDetailPage: React.FC = () => {
     );
   };
 
-    // ✅ Calculate upcoming sessions in current week (only future sessions)
+    // ✅ Calculate upcoming sessions (TESTING MODE: allow future weeks)
   const calculateUpcomingSessions = (): UpcomingSession[] => {
     if (!classData || !classData.schedule) return [];
 
@@ -553,32 +566,35 @@ const ClassDetailPage: React.FC = () => {
 
     const sessions: UpcomingSession[] = [];
 
-    Object.entries(classData.schedule).forEach(([dayName, periodRanges]) => {
-      const dayNum = dayMapping[dayName.toLowerCase()];
-      if (dayNum === undefined || !periodRanges || periodRanges.length === 0) return;
+    // ⚠️ TESTING MODE: Generate sessions for current week + next 2 weeks (3 weeks total)
+    // TODO: For PRODUCTION, change weeksToShow to 1 to only show current week
+    const weeksToShow = 3; // Set to 1 for production
 
-      periodRanges.forEach((range, index) => {
-        const [start, end] = range.split('-').map(Number);
-        const startTime = TIME_SLOTS[start]?.start || '00:00';
-        const endTime = TIME_SLOTS[end]?.end || '00:00';
+    for (let weekOffset = 0; weekOffset < weeksToShow; weekOffset++) {
+      Object.entries(classData.schedule).forEach(([dayName, periodRanges]) => {
+        const dayNum = dayMapping[dayName.toLowerCase()];
+        if (dayNum === undefined || !periodRanges || periodRanges.length === 0) return;
 
-        // Calculate days until session
-        let daysUntilSession = dayNum - currentDayOfWeek;
-        
-        // If day is in the past this week, skip it
-        if (daysUntilSession < 0) {
-          return; // Don't show past days
-        }
-        
-        // If today, check if session time has passed
-        if (daysUntilSession === 0 && currentTime >= endTime) {
-          return; // Session already ended today
-        }
+        periodRanges.forEach((range, index) => {
+          const [start, end] = range.split('-').map(Number);
+          const startTime = TIME_SLOTS[start]?.start || '00:00';
+          const endTime = TIME_SLOTS[end]?.end || '00:00';
 
-        const sessionDate = now.add(daysUntilSession, 'day');
+          // Calculate days until session for this specific week offset
+          let daysUntilSession = dayNum - currentDayOfWeek + (weekOffset * 7);
+          
+          // For week 0 (current week): skip past days
+          if (weekOffset === 0 && daysUntilSession < 0) {
+            return; // Skip past days in current week
+          }
+          
+          // If today in current week, check if session time has passed
+          if (weekOffset === 0 && daysUntilSession === 0 && currentTime >= endTime) {
+            return; // Session already ended today
+          }
 
-        // Only include sessions from today onwards (within current week)
-        if (daysUntilSession >= 0 && daysUntilSession <= 6) {
+          const sessionDate = now.add(daysUntilSession, 'day');
+
           sessions.push({
             day: dayNum,
             dayLabel: dayLabelMapping[dayNum] || dayName,
@@ -587,12 +603,24 @@ const ClassDetailPage: React.FC = () => {
             timeRange: `${startTime} - ${endTime}`,
             date: sessionDate.format('DD/MM/YYYY')
           });
-        }
+        });
       });
-    });
+    }
+
+    // Remove duplicates (just in case) based on date + day + sessionIndex
+    const uniqueSessions = sessions.reduce((acc, current) => {
+      const key = `${current.date}-${current.day}-${current.sessionIndex}`;
+      const exists = acc.some(item => 
+        `${item.date}-${item.day}-${item.sessionIndex}` === key
+      );
+      if (!exists) {
+        acc.push(current);
+      }
+      return acc;
+    }, [] as UpcomingSession[]);
 
     // Sort by date and time
-    return sessions.sort((a, b) => {
+    return uniqueSessions.sort((a, b) => {
       const dateCompare = dayjs(a.date, 'DD/MM/YYYY').diff(dayjs(b.date, 'DD/MM/YYYY'));
       if (dateCompare !== 0) return dateCompare;
       return a.day - b.day;
@@ -973,15 +1001,26 @@ const ClassDetailPage: React.FC = () => {
     {
       title: 'Phiên điểm danh',
       key: 'session',
-      render: (record: SessionWithStats) => (
-        <div>
-          <Text strong>Thứ {record.day_of_week}, buổi {record.period_range}</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {dayjs(record.start_time).format('DD/MM/YYYY HH:mm')}
-          </Text>
-        </div>
-      )
+      render: (record: SessionWithStats) => {
+        // ✅ Fix: Convert day_of_week (0=Sunday, 1=Monday, ...) to Vietnamese label
+        const dayLabels = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+        const dayLabel = record.day_of_week !== null && record.day_of_week !== undefined
+          ? dayLabels[record.day_of_week]
+          : 'N/A';
+        
+        // ✅ Database already stores Vietnam time, display directly
+        const displayTime = dayjs(record.start_time);
+        
+        return (
+          <div>
+            <Text strong>{dayLabel}, buổi {record.period_range || 'N/A'}</Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {displayTime.format('DD/MM/YYYY HH:mm')}
+            </Text>
+          </div>
+        );
+      }
     },
     {
       title: 'Trạng thái',
@@ -1070,23 +1109,196 @@ const ClassDetailPage: React.FC = () => {
     : 0;
 
   return (
-    <div style={{ 
+    <div className="responsive-container" style={{ 
       minHeight: "100vh", 
-      background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)", 
-      padding: "32px 48px" 
+      background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)"
     }}>
-      {/* Breadcrumb */}Buổi học đã có
+      <style>
+        {`
+          @media (max-width: 768px) {
+            /* Header responsive */
+            .class-detail-header {
+              flex-direction: column !important;
+              gap: 16px;
+            }
+            
+            .class-detail-title-section {
+              width: 100%;
+            }
+            
+            .class-detail-back-button-wrapper {
+              flex-direction: column !important;
+              align-items: flex-start !important;
+              gap: 12px;
+            }
+            
+            .class-detail-title {
+              font-size: 24px !important;
+            }
+            
+            .class-detail-info-tags {
+              flex-wrap: wrap;
+              gap: 8px !important;
+            }
+            
+            .class-detail-info-tags .ant-space-item {
+              margin: 0 !important;
+            }
+            
+            /* Action buttons responsive */
+            .class-detail-actions {
+              width: 100%;
+              margin-left: 0 !important;
+            }
+            
+            .class-detail-actions .ant-space {
+              width: 100%;
+              flex-direction: row !important;
+            }
+            
+            .class-detail-actions .ant-btn {
+              flex: 1;
+              width: auto !important;
+              min-width: 120px !important;
+              font-size: 14px !important;
+            }
+            
+            /* Tabs responsive */
+            .ant-tabs-nav {
+              margin-bottom: 16px !important;
+            }
+            
+            .ant-tabs-tab {
+              padding: 8px 12px !important;
+              font-size: 14px !important;
+            }
+            
+            /* Table wrapper for horizontal scroll */
+            .ant-table-wrapper {
+              overflow-x: auto;
+            }
+            
+            .ant-table {
+              min-width: 600px;
+            }
+            
+            /* Modal responsive */
+            .ant-modal {
+              max-width: calc(100vw - 32px) !important;
+              margin: 16px auto !important;
+            }
+            
+            .ant-modal-body {
+              padding: 16px !important;
+            }
+            
+            /* Cards in tabs */
+            .ant-card-head-title {
+              font-size: 14px !important;
+              padding: 0 !important;
+            }
+            
+            .ant-card-head {
+              padding: 12px 16px !important;
+              min-height: auto !important;
+            }
+            
+            .ant-statistic-title {
+              font-size: 12px !important;
+            }
+            
+            .ant-statistic-content {
+              font-size: 18px !important;
+            }
+            
+            /* Student list card title responsive */
+            .ant-card-head-title > div {
+              width: 100%;
+            }
+            
+            .ant-card-head-title .ant-typography {
+              font-size: 14px !important;
+            }
+            
+            .ant-card-head-title .anticon {
+              font-size: 16px !important;
+            }
+            
+            .ant-card-head-title .ant-btn {
+              padding: 4px 8px !important;
+              font-size: 13px !important;
+              height: auto !important;
+            }
+          }
+          
+          /* Schedule collapse animation */
+          .schedule-content {
+            transition: all 0.3s ease-in-out;
+            overflow: hidden;
+          }
+          
+          .schedule-content.expanded {
+            opacity: 1;
+            max-height: 2000px;
+          }
+          
+          .schedule-content.collapsed {
+            opacity: 0;
+            max-height: 0;
+          }
+          
+          .schedule-toggle-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          
+          @media (max-width: 768px) {
+            .schedule-toggle-header .ant-space {
+              flex-wrap: wrap;
+            }
+            
+            .schedule-toggle-header .ant-btn {
+              font-size: 13px !important;
+            }
+          }
+          
+          @media (max-width: 480px) {
+            /* Extra small screens */
+            .class-detail-title {
+              font-size: 20px !important;
+            }
+            
+            .class-detail-info-tags .ant-tag,
+            .class-detail-info-tags .ant-typography {
+              font-size: 12px !important;
+            }
+            
+            .class-detail-actions .ant-btn {
+              min-width: 100px !important;
+              font-size: 13px !important;
+              padding: 4px 12px !important;
+            }
+            
+            .ant-statistic-content {
+              font-size: 16px !important;
+            }
+          }
+        `}
+      </style>
+      
+      {/* Breadcrumb */}
       <Breadcrumb items={breadcrumbItems} />
 
       {/* Header */}
-      <div style={{ 
+      <div className="class-detail-header" style={{ 
         display: "flex", 
         justifyContent: "space-between", 
         alignItems: "flex-start", 
-        marginBottom: 32 
+        marginBottom: 24 
       }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+        <div className="class-detail-title-section" style={{ flex: 1 }}>
+          <div className="class-detail-back-button-wrapper" style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
             <Button 
               icon={<ArrowLeftOutlined />}
               onClick={() => navigate(-1)}
@@ -1094,24 +1306,25 @@ const ClassDetailPage: React.FC = () => {
             >
               Quay lại
             </Button>
-            <div>
-              <Title level={1} style={{ 
-                marginBottom: 4, 
+            <div style={{ flex: 1 }}>
+              <Title level={1} className="class-detail-title" style={{ 
+                margin: 0,
+                marginBottom: 8, 
                 color: "#2563eb",
                 fontSize: 32,
                 fontWeight: 700
               }}>
                 📚 {classData?.subject || 'Loading...'}
               </Title>
-              <Space size={16} wrap>
+              <Space className="class-detail-info-tags" size={16} wrap>
                 <Tag color={getStatusConfig(classData.status).color} style={{ fontSize: 14, padding: '4px 12px' }}>
                   {getStatusConfig(classData.status).text}
                 </Tag>
-                <Text style={{ color: "#64748b", fontSize: 16 }}>
-                  <BookOutlined /> Mã lớp: {classData.classCode}
+                <Text style={{ color: "#64748b", fontSize: 14 }}>
+                  <BookOutlined /> Mã: {classData.classCode}
                 </Text>
-                <Text style={{ color: "#64748b", fontSize: 16 }}>
-                  <EnvironmentOutlined /> Phòng {classData.room}
+                <Text style={{ color: "#64748b", fontSize: 14 }}>
+                  <EnvironmentOutlined /> {classData.room}
                 </Text>
               </Space>
             </div>
@@ -1126,77 +1339,131 @@ const ClassDetailPage: React.FC = () => {
               border: '2px solid #bae6fd'
             }}
           >
-            <Title level={5} style={{ marginBottom: 16, color: '#0369a1' }}>
-              📅 Lịch dạy trong tuần
-            </Title>
-            {scheduleSessions.length > 0 ? (
-              <Row gutter={[16, 16]}>
-                {scheduleSessions.map((schedule) => (
-                  <Col xs={24} sm={12} md={8} lg={6} key={schedule.day}>
-                    <Card 
-                      size="small"
+            <div 
+              className="schedule-toggle-header"
+              style={{ 
+                marginBottom: isScheduleExpanded ? 16 : 0
+              }}
+            >
+              <Space align="center">
+                <Title level={5} style={{ margin: 0, color: '#0369a1', fontSize: 16 }}>
+                  📅 Lịch dạy trong tuần
+                </Title>
+                {!isScheduleExpanded && scheduleSessions.length > 0 && (
+                  <Badge 
+                    count={scheduleSessions.length} 
+                    style={{ backgroundColor: '#0369a1' }}
+                    title={`${scheduleSessions.length} ngày học`}
+                  />
+                )}
+              </Space>
+              <Button
+                type="text"
+                size="small"
+                icon={isScheduleExpanded ? <UpOutlined /> : <DownOutlined />}
+                onClick={() => setIsScheduleExpanded(!isScheduleExpanded)}
+                style={{ 
+                  color: '#0369a1',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  fontWeight: 500
+                }}
+              >
+                {isScheduleExpanded ? 'Thu gọn' : 'Mở rộng'}
+              </Button>
+            </div>
+            
+            <div 
+              className={`schedule-content ${isScheduleExpanded ? 'expanded' : 'collapsed'}`}
+              style={{
+                marginTop: isScheduleExpanded ? 16 : 0
+              }}
+            >
+              {scheduleSessions.length > 0 ? (
+                <div style={{ 
+                  display: 'flex', 
+                  flexWrap: 'wrap', 
+                  gap: '12px'
+                }}>
+                  {scheduleSessions.map((schedule) => (
+                    <div 
+                      key={schedule.day}
                       style={{ 
-                        background: '#ffffff',
-                        border: '1px solid #e0f2fe'
+                        flex: '1 1 calc(20% - 12px)',
+                        minWidth: '180px',
+                        maxWidth: '250px'
                       }}
                     >
-                      <Text strong style={{ color: '#0369a1', fontSize: 14 }}>
-                        <CalendarOutlined /> {schedule.dayLabel}
-                      </Text>
-                      <Divider style={{ margin: '8px 0' }} />
-                      {schedule.sessions.map((session, idx) => (
-                        <div key={idx} style={{ marginBottom: 8 }}>
-                          <Tag color="blue" style={{ marginBottom: 4 }}>
-                            {session.periods}
-                          </Tag>
-                          <br />
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            <ClockCircleOutlined /> {session.timeRange}
-                          </Text>
-                        </div>
-                      ))}
-                    </Card>
-                  </Col>
-                ))}
-              </Row>
-            ) : (
-              <Text type="secondary">Chưa có lịch học</Text>
-            )}
+                      <Card 
+                        size="small"
+                        style={{ 
+                          background: '#ffffff',
+                          border: '1px solid #e0f2fe',
+                          height: '100%'
+                        }}
+                      >
+                        <Text strong style={{ color: '#0369a1', fontSize: 14 }}>
+                          <CalendarOutlined /> {schedule.dayLabel}
+                        </Text>
+                        <Divider style={{ margin: '8px 0' }} />
+                        {schedule.sessions.map((session, idx) => (
+                          <div key={idx} style={{ marginBottom: 8 }}>
+                            <Tag color="blue" style={{ marginBottom: 4 }}>
+                              {session.periods}
+                            </Tag>
+                            <br />
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              <ClockCircleOutlined /> {session.timeRange}
+                            </Text>
+                          </div>
+                        ))}
+                      </Card>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <Text type="secondary">Chưa có lịch học</Text>
+              )}
+            </div>
           </Card>
         </div>
 
         {/* ✅ Action Buttons */}
-        <Space direction="vertical" size={12} style={{ marginLeft: 16 }}>
-          <Button 
-            type="primary"
-            icon={<PlayCircleOutlined />}
-            size="large"
-            onClick={handleOpenAttendanceModal}
-            style={{ 
-              borderRadius: 8,
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              border: 'none',
-              width: 200
-            }}
-          >
-            Tạo phiên điểm danh
-          </Button>
-          <Button 
-            type="primary"
-            icon={<EditOutlined />}
-            size="large"
-            onClick={handleOpenEditModal}
-            style={{ borderRadius: 8, width: 200 }}
-          >
-            Chỉnh sửa lớp học
-          </Button>
-        </Space>
+        <div className="class-detail-actions" style={{ marginLeft: 16 }}>
+          <Space size={12}>
+            <Button 
+              type="primary"
+              icon={<PlayCircleOutlined />}
+              size="large"
+              onClick={handleOpenAttendanceModal}
+              style={{ 
+                borderRadius: 8,
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                border: 'none',
+                minWidth: 160,
+                height: 44
+              }}
+            >
+              Điểm danh
+            </Button>
+            <Button 
+              type="primary"
+              icon={<EditOutlined />}
+              size="large"
+              onClick={handleOpenEditModal}
+              style={{ borderRadius: 8, minWidth: 160, height: 44 }}
+            >
+              Chỉnh sửa
+            </Button>
+          </Space>
+        </div>
       </div>
 
       {/* Statistics */}
       {/* ✅ Updated Statistics Cards - Remove Progress bars */}
-      <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
-        <Col xs={12} md={6}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
               title="Tổng sinh viên"
@@ -1207,7 +1474,7 @@ const ClassDetailPage: React.FC = () => {
           </Card>
         </Col>
         
-        <Col xs={12} md={6}>
+        <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
               title="Phiên điểm danh"
@@ -1218,7 +1485,7 @@ const ClassDetailPage: React.FC = () => {
           </Card>
         </Col>
         
-        <Col xs={12} md={6}>
+        <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
               title="Điểm danh TB"
@@ -1234,7 +1501,7 @@ const ClassDetailPage: React.FC = () => {
           </Card>
         </Col>
         
-        <Col xs={12} md={6}>
+        <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
               title="Đã xác thực"
@@ -1275,28 +1542,28 @@ const ClassDetailPage: React.FC = () => {
                   title="📊 Thống kê lớp học"
                   style={{ borderRadius: 12, marginBottom: 24 }}
                 >
-                  <Row gutter={[16, 16]}>
-                    <Col xs={12} sm={6}>
+                  <Row gutter={[12, 12]}>
+                    <Col xs={12} sm={12} md={6}>
                       <div style={{ textAlign: 'center' }}>
-                        <Text type="secondary">Tổng sinh viên</Text>
-                        <div style={{ fontSize: 28, fontWeight: 'bold', color: '#2563eb' }}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>Tổng sinh viên</Text>
+                        <div style={{ fontSize: 24, fontWeight: 'bold', color: '#2563eb' }}>
                           {totalStudents}
                         </div>
                       </div>
                     </Col>
-                    <Col xs={12} sm={6}>
+                    <Col xs={12} sm={12} md={6}>
                       <div style={{ textAlign: 'center' }}>
-                        <Text type="secondary">Phiên điểm danh</Text>
-                        <div style={{ fontSize: 28, fontWeight: 'bold', color: '#10b981' }}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>Phiên điểm danh</Text>
+                        <div style={{ fontSize: 24, fontWeight: 'bold', color: '#10b981' }}>
                           {totalSessions}
                         </div>
                       </div>
                     </Col>
-                    <Col xs={12} sm={6}>
+                    <Col xs={12} sm={12} md={6}>
                       <div style={{ textAlign: 'center' }}>
-                        <Text type="secondary">Điểm danh TB</Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>Điểm danh TB</Text>
                         <div style={{ 
-                          fontSize: 28, 
+                          fontSize: 24, 
                           fontWeight: 'bold', 
                           color: avgAttendance >= 80 ? '#10b981' : avgAttendance >= 60 ? '#f59e0b' : '#ef4444'
                         }}>
@@ -1305,13 +1572,13 @@ const ClassDetailPage: React.FC = () => {
                         {/* ❌ REMOVED Progress bar */}
                       </div>
                     </Col>
-                    <Col xs={12} sm={6}>
+                    <Col xs={12} sm={12} md={6}>
                       <div style={{ textAlign: 'center' }}>
-                        <Text type="secondary">Đã xác thực</Text>
-                        <div style={{ fontSize: 28, fontWeight: 'bold', color: '#8b5cf6' }}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>Đã xác thực</Text>
+                        <div style={{ fontSize: 24, fontWeight: 'bold', color: '#8b5cf6' }}>
                           {verifiedCount}/{totalStudents}
                         </div>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
+                        <Text type="secondary" style={{ fontSize: 11 }}>
                           ({verificationPercent}%)
                         </Text>
                         {/* ❌ REMOVED Progress bar */}
@@ -1333,42 +1600,52 @@ const ClassDetailPage: React.FC = () => {
               <Col span={24}>
                 <Card 
                   title={
-                    <Space>
-                      <TeamOutlined style={{ color: '#1890ff' }} />
-                      <Text strong>📋 Danh sách học sinh</Text>
-                      <Badge count={studentsData.length} style={{ backgroundColor: '#52c41a' }} />
-                    </Space>
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '8px'
+                    }}>
+                      <Space>
+                        <TeamOutlined style={{ color: '#1890ff' }} />
+                        <Text strong style={{ fontSize: '16px' }}>📋 Danh sách học sinh</Text>
+                        <Badge count={studentsData.length} style={{ backgroundColor: '#52c41a' }} />
+                      </Space>
+                      <Button 
+                        icon={<ReloadOutlined />}
+                        onClick={() => classId && fetchStudentsDetails(classId)}
+                        loading={loadingStudents}
+                        size="small"
+                      >
+                        Làm mới
+                      </Button>
+                    </div>
                   }
                   style={{ borderRadius: 12 }}
-                  extra={
-                    <Button 
-                      icon={<ReloadOutlined />}
-                      onClick={() => classId && fetchStudentsDetails(classId)}
-                      loading={loadingStudents}
-                    >
-                      Làm mới
-                    </Button>
-                  }
                 >
-                  <Table
-                    dataSource={studentsData}
-                    columns={studentColumns}
-                    rowKey="id"
-                    loading={loadingStudents}
-                    pagination={{
-                      pageSize: 10,
-                      showSizeChanger: true,
-                      showTotal: (total, range) => 
-                        `${range[0]}-${range[1]} của ${total} học sinh`
-                    }}
-                    locale={{
-                      emptyText: loadingStudents ? (
-                        <Spin tip="Đang tải danh sách học sinh..." />
-                      ) : (
-                        <Empty description="Chưa có học sinh nào trong lớp" />
-                      )
-                    }}
-                  />
+                  <div style={{ overflowX: 'auto' }}>
+                    <Table
+                      dataSource={studentsData}
+                      columns={studentColumns}
+                      rowKey="id"
+                      loading={loadingStudents}
+                      scroll={{ x: 800 }}
+                      pagination={{
+                        pageSize: 10,
+                        showSizeChanger: true,
+                        showTotal: (total, range) => 
+                          `${range[0]}-${range[1]} của ${total} học sinh`
+                      }}
+                      locale={{
+                        emptyText: loadingStudents ? (
+                          <Spin tip="Đang tải danh sách học sinh..." />
+                        ) : (
+                          <Empty description="Chưa có học sinh nào trong lớp" />
+                        )
+                      }}
+                    />
+                  </div>
                 </Card>
               </Col>
             </Row>
@@ -1377,17 +1654,20 @@ const ClassDetailPage: React.FC = () => {
           {/* Attendance Tab - Keep existing */}
           <TabPane tab="📅 Điểm danh" key="attendance">
             <Card title="📊 Lịch sử điểm danh" style={{ borderRadius: 12 }}>
-              <Table
-                dataSource={attendanceSessions}
-                columns={sessionColumns}
-                rowKey="id"
-                loading={loadingSessions}
-                pagination={{
-                  pageSize: 10,
-                  showTotal: (total, range) => 
-                    `${range[0]}-${range[1]} của ${total} phiên điểm danh`
-                }}
-              />
+              <div style={{ overflowX: 'auto' }}>
+                <Table
+                  dataSource={attendanceSessions}
+                  columns={sessionColumns}
+                  rowKey="id"
+                  loading={loadingSessions}
+                  scroll={{ x: 1000 }}
+                  pagination={{
+                    pageSize: 10,
+                    showTotal: (total, range) => 
+                      `${range[0]}-${range[1]} của ${total} phiên điểm danh`
+                  }}
+                />
+              </div>
             </Card>
           </TabPane>
 
@@ -1409,7 +1689,7 @@ const ClassDetailPage: React.FC = () => {
       >
         {selectedStudent && (
           <div style={{ padding: 16 }}>
-            <Row gutter={[16, 16]}>
+            <Row gutter={[12, 12]}>
               <Col span={24} style={{ textAlign: 'center', marginBottom: 16 }}>
                 <Avatar size={80} icon={<UserOutlined />} src={selectedStudent.avatar} />
                 <Title level={4} style={{ marginTop: 8, marginBottom: 4 }}>
@@ -1420,14 +1700,14 @@ const ClassDetailPage: React.FC = () => {
                 <Text type="secondary">{selectedStudent.email}</Text>
               </Col>
               
-              <Col span={12}>
+              <Col xs={24} sm={12}>
                 <Statistic
                   title="Tổng buổi học"
                   value={selectedStudent.totalSessions}
                   prefix={<BookOutlined />}
                 />
               </Col>
-              <Col span={12}>
+              <Col xs={24} sm={12}>
                 <Statistic
                   title="Tỷ lệ điểm danh"
                   value={selectedStudent.attendanceRate.toFixed(1)}
@@ -1436,21 +1716,21 @@ const ClassDetailPage: React.FC = () => {
                 />
               </Col>
               
-              <Col span={8}>
+              <Col xs={8} sm={8}>
                 <Statistic
                   title="Có mặt"
                   value={selectedStudent.presentCount}
                   valueStyle={{ color: '#10b981' }}
                 />
               </Col>
-              <Col span={8}>
+              <Col xs={8} sm={8}>
                 <Statistic
                   title="Vắng mặt"
                   value={selectedStudent.absentCount}
                   valueStyle={{ color: '#ef4444' }}
                 />
               </Col>
-              <Col span={8}>
+              <Col xs={8} sm={8}>
                 <Statistic
                   title="Nghỉ có phép"
                   value={selectedStudent.excusedCount}
@@ -1684,8 +1964,17 @@ const ClassDetailPage: React.FC = () => {
           </Button>
         ]}
       >
+        <Alert
+          message="Chế độ Testing"
+          description="Hiện đang cho phép tạo phiên điểm danh cho các tuần tới để test. Trong production, chỉ cho phép tạo phiên cho tuần hiện tại."
+          type="info"
+          showIcon
+          closable
+          style={{ marginBottom: 16 }}
+        />
+        
         <div style={{ marginTop: 16 }}>
-          <Title level={5} style={{ marginBottom: 16 }}>
+          <Title level={5} style={{ marginBottom: 16, fontSize: 16 }}>
             Chọn buổi học để điểm danh
           </Title>
 
@@ -1694,12 +1983,34 @@ const ClassDetailPage: React.FC = () => {
               <Space direction="vertical" size={12} style={{ width: '100%' }}>
                 {upcomingSessions.map((session) => {
                   const isSelected = selectedAttendanceSession?.day === session.day && 
-                                   selectedAttendanceSession?.sessionIndex === session.sessionIndex;
-                  const isToday = dayjs().day() === session.day;
+                                   selectedAttendanceSession?.sessionIndex === session.sessionIndex &&
+                                   selectedAttendanceSession?.date === session.date;
+                  const isToday = dayjs().day() === session.day && dayjs().format('DD/MM/YYYY') === session.date;
+                  
+                  // Calculate if session is in current week, next week, or later
+                  const sessionDate = dayjs(session.date, 'DD/MM/YYYY');
+                  const today = dayjs();
+                  const startOfWeek = today.startOf('week');
+                  const endOfWeek = today.endOf('week');
+                  const startOfNextWeek = endOfWeek.add(1, 'day');
+                  const endOfNextWeek = startOfNextWeek.add(6, 'day');
+                  
+                  let weekLabel = '';
+                  let weekColor = '';
+                  if (sessionDate.isBetween(startOfWeek, endOfWeek, 'day', '[]')) {
+                    weekLabel = 'Tuần này';
+                    weekColor = '#1890ff';
+                  } else if (sessionDate.isBetween(startOfNextWeek, endOfNextWeek, 'day', '[]')) {
+                    weekLabel = 'Tuần sau';
+                    weekColor = '#722ed1';
+                  } else if (sessionDate.isAfter(endOfNextWeek)) {
+                    weekLabel = 'Tuần tới';
+                    weekColor = '#13c2c2';
+                  }
 
                   return (
                     <Card
-                      key={`${session.day}-${session.sessionIndex}`}
+                      key={`${session.day}-${session.sessionIndex}-${session.date}`}
                       size="small"
                       hoverable
                       onClick={() => setSelectedAttendanceSession(session)}
@@ -1715,51 +2026,58 @@ const ClassDetailPage: React.FC = () => {
                         transition: 'all 0.3s'
                       }}
                     >
-                      <Row align="middle" gutter={16}>
-                        <Col span={2}>
+                      <Row align="middle" gutter={[8, 8]}>
+                        <Col xs={3} sm={2}>
                           {isSelected ? (
                             <CheckCircleOutlined 
-                              style={{ fontSize: 24, color: '#10b981' }} 
+                              style={{ fontSize: 20, color: '#10b981' }} 
                             />
                           ) : (
                             <div style={{
-                              width: 24,
-                              height: 24,
+                              width: 20,
+                              height: 20,
                               borderRadius: '50%',
                               border: '2px solid #d1d5db',
                               background: '#ffffff'
                             }} />
                           )}
                         </Col>
-                        <Col span={6}>
+                        <Col xs={9} sm={6}>
                           <Space direction="vertical" size={0}>
-                            <Text strong style={{ color: isToday ? '#f59e0b' : '#1f2937' }}>
+                            <Text strong style={{ color: isToday ? '#f59e0b' : '#1f2937', fontSize: 14 }}>
                               {session.dayLabel}
                             </Text>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
+                            <Text type="secondary" style={{ fontSize: 11 }}>
                               {session.date}
                             </Text>
-                            {isToday && (
-                              <Tag color="warning" style={{ marginTop: 4 }}>
-                                Hôm nay
-                              </Tag>
-                            )}
+                            <Space size={4} style={{ marginTop: 4 }}>
+                              {isToday && (
+                                <Tag color="warning" style={{ fontSize: 11, margin: 0 }}>
+                                  Hôm nay
+                                </Tag>
+                              )}
+                              {weekLabel && (
+                                <Tag color={weekColor} style={{ fontSize: 11, margin: 0 }}>
+                                  {weekLabel}
+                                </Tag>
+                              )}
+                            </Space>
                           </Space>
                         </Col>
-                        <Col span={8}>
+                        <Col xs={12} sm={8}>
                           <Space direction="vertical" size={0}>
-                            <Tag color="blue">{session.periods}</Tag>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
+                            <Tag color="blue" style={{ fontSize: 11 }}>{session.periods}</Tag>
+                            <Text type="secondary" style={{ fontSize: 11 }}>
                               <ClockCircleOutlined /> {session.timeRange}
                             </Text>
                           </Space>
                         </Col>
-                        <Col span={8}>
+                        <Col xs={24} sm={8}>
                           <Space direction="vertical" size={0}>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
+                            <Text type="secondary" style={{ fontSize: 11 }}>
                               Phòng: {classData.room}
                             </Text>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
+                            <Text type="secondary" style={{ fontSize: 11 }}>
                               Buổi {session.sessionIndex + 1}
                             </Text>
                           </Space>

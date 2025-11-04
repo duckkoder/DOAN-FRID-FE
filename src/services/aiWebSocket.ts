@@ -10,6 +10,11 @@ export interface DetectionInfo {
   student_name: string | null;
   confidence: number | null;
   is_validated: boolean;
+  
+  // Anti-spoofing fields
+  is_live?: boolean | null; // True if live face, False if print/replay
+  spoofing_type?: string | null; // 'live', 'print', 'replay'
+  spoofing_confidence?: number | null; // Confidence of anti-spoofing prediction (0.0-1.0)
 }
 
 export interface ValidatedStudent {
@@ -33,6 +38,7 @@ export type WSMessageType =
   | 'frame_processed'
   | 'student_validated'
   | 'session_status'
+  | 'anti_spoofing_alert'
   | 'error';
 
 export interface WSMessage {
@@ -174,6 +180,16 @@ export class AIWebSocketClient {
         if (data.status && data.stats) {
           this.onSessionStatusCallback?.(data.status, data.stats);
         }
+        break;
+        
+      case 'anti_spoofing_alert':
+        // Log anti-spoofing alert (optional: có thể thêm callback nếu cần UI notification)
+        console.warn('[AIWebSocket] Anti-spoofing alert:', {
+          message: data.message,
+          suspicious_faces: (data as any).suspicious_faces,
+          total_suspicious: (data as any).total_suspicious,
+          total_live: (data as any).total_live
+        });
         break;
         
       case 'error':
