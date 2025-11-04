@@ -221,9 +221,16 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       console.log('[StartSession] Creating session...');
 
       // 1. Create session với Backend → nhận WebSocket info
+      // ✅ Fix: Generate session_name with Vietnam timezone (UTC+7)
+      const now = new Date();
+      const sessionName = `Điểm danh ${now.toLocaleString('vi-VN', { 
+        timeZone: 'Asia/Ho_Chi_Minh',
+        hour12: false 
+      })}`;
+      
       const response = await startAttendanceSessionWithAI({
         class_id: classId,
-        session_name: `Điểm danh ${new Date().toLocaleString('vi-VN')}`,
+        session_name: sessionName,
         late_threshold_minutes: 15,
         location: 'Classroom',
         day_of_week: dayOfWeek,
@@ -519,32 +526,67 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       const width = displayX2 - displayX1;
       const height = displayY2 - displayY1;
       
-      // Determine color based on validation status
-      const color = detection.is_validated ? '#52c41a' : '#1890ff';
-      const lineWidth = detection.is_validated ? 3 : 2;
+      // Determine anti-spoofing status and color
+      // If anti-spoofing explicitly says not live (is_live === false) OR spoofing_type is provided and not 'live',
+      // treat as spoofed/fake and render in red with label "Fake".
+      const isSpoofed = (typeof detection.is_live === 'boolean' && detection.is_live === false)
+        || (detection.spoofing_type && detection.spoofing_type !== 'live');
+      
+      // Debug anti-spoofing data
+      if (detection.is_live !== undefined || detection.spoofing_type !== undefined) {
+        console.log('[Canvas] Anti-spoofing detection:', {
+          is_live: detection.is_live,
+          spoofing_type: detection.spoofing_type,
+          spoofing_confidence: detection.spoofing_confidence,
+          isSpoofed: isSpoofed,
+          student_name: detection.student_name
+        });
+      }
+
       const confidence = detection.confidence || 0;
+
+      let color: string;
+      let lineWidth = 2;
+      if (isSpoofed) {
+        color = '#ff4d4f'; // Antd red for fake/spoof
+        lineWidth = 3;
+      } else if (detection.is_validated) {
+        color = '#52c41a';
+        lineWidth = 3;
+      } else {
+        color = '#1890ff';
+        lineWidth = 2;
+      }
       
       // Draw bounding box
       ctx.strokeStyle = color;
       ctx.lineWidth = lineWidth;
       ctx.strokeRect(displayX1, displayY1, width, height);
       
-      // Draw label if student recognized
+      // Draw label. Show student name when available, otherwise if spoofed show "Fake" label with spoof confidence.
+      let labelText: string | null = null;
       if (detection.student_name) {
-        const label = `${detection.student_name} (${(confidence * 100).toFixed(1)}%)`;
-        
+        labelText = `${detection.student_name} (${(confidence * 100).toFixed(1)}%)`;
+      } else if (isSpoofed) {
+        const spoofConf = typeof detection.spoofing_confidence === 'number'
+          ? ` (${(detection.spoofing_confidence * 100).toFixed(1)}%)`
+          : '';
+        labelText = `Fake${spoofConf}`;
+      }
+
+      if (labelText) {
         ctx.font = 'bold 14px Arial';
-        const textMetrics = ctx.measureText(label);
+        const textMetrics = ctx.measureText(labelText);
         const textWidth = textMetrics.width + 10;
         const textHeight = 20;
-        
+
         // Draw label background
         ctx.fillStyle = color;
         ctx.fillRect(displayX1, displayY1 - textHeight - 5, textWidth, textHeight);
-        
+
         // Draw label text
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(label, displayX1 + 5, displayY1 - 10);
+        ctx.fillText(labelText, displayX1 + 5, displayY1 - 10);
       }
       
       // Draw track ID if available

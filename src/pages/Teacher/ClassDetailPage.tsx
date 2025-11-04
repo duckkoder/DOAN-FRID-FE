@@ -47,8 +47,12 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Breadcrumb from "../../components/Breadcrumb";
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 
 dayjs.extend(isBetween);
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 import { 
   getClassDetails, 
@@ -997,15 +1001,26 @@ const ClassDetailPage: React.FC = () => {
     {
       title: 'Phiên điểm danh',
       key: 'session',
-      render: (record: SessionWithStats) => (
-        <div>
-          <Text strong>Thứ {record.day_of_week}, buổi {record.period_range}</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {dayjs(record.start_time).format('DD/MM/YYYY HH:mm')}
-          </Text>
-        </div>
-      )
+      render: (record: SessionWithStats) => {
+        // ✅ Fix: Convert day_of_week (0=Sunday, 1=Monday, ...) to Vietnamese label
+        const dayLabels = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+        const dayLabel = record.day_of_week !== null && record.day_of_week !== undefined
+          ? dayLabels[record.day_of_week]
+          : 'N/A';
+        
+        // ✅ Database already stores Vietnam time, display directly
+        const displayTime = dayjs(record.start_time);
+        
+        return (
+          <div>
+            <Text strong>{dayLabel}, buổi {record.period_range || 'N/A'}</Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {displayTime.format('DD/MM/YYYY HH:mm')}
+            </Text>
+          </div>
+        );
+      }
     },
     {
       title: 'Trạng thái',
