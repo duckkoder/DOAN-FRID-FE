@@ -31,3 +31,21 @@
   --footer-to: #ffffff;
   --brand-primary: #0f172a;
 }
+
+/* CSV Import Error Row Highlight */
+.error-row {
+  background-color: #fff1f0 !important;
+}
+
+.error-row:hover {
+  background-color: #ffe7e7 !important;
+}
+
+/* CSV Import Result Success Row */
+.success-row {
+  background-color: #f6ffed !important;
+}
+
+.success-row:hover {
+  background-color: #e7ffe7 !important;
+}

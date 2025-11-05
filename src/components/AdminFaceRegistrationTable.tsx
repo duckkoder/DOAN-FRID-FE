@@ -176,7 +176,7 @@ const AdminFaceRegistrationTable: React.FC = () => {
           : '';
         
         message.success({
-          content: `Đã phê duyệt đăng ký khuôn mặt${embeddingInfo}`,
+          content: `Đã phê duyệt đăng ký khuôn mặt${embeddingInfo}. Sinh viên đã được xác thực!`,
           duration: 5,
         });
         
@@ -237,6 +237,20 @@ const AdminFaceRegistrationTable: React.FC = () => {
       key: 'student_name',
       width: 200,
       ellipsis: true,
+    },
+    {
+      title: 'Xác thực',
+      dataIndex: 'student_is_verified',
+      key: 'student_is_verified',
+      width: 120,
+      render: (isVerified: boolean) => (
+        <Tag
+          color={isVerified ? 'success' : 'default'}
+          icon={isVerified ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+        >
+          {isVerified ? 'Đã xác thực' : 'Chưa xác thực'}
+        </Tag>
+      ),
     },
     {
       title: 'Trạng thái',
@@ -406,6 +420,15 @@ const AdminFaceRegistrationTable: React.FC = () => {
               </Col>
               <Col span={12}>
                 <Text strong>Email:</Text> {viewingRegistration.student_email}
+              </Col>
+              <Col span={12}>
+                <Text strong>Xác thực:</Text>{' '}
+                <Tag
+                  color={viewingRegistration.student_is_verified ? 'success' : 'default'}
+                  icon={viewingRegistration.student_is_verified ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+                >
+                  {viewingRegistration.student_is_verified ? 'Đã xác thực' : 'Chưa xác thực'}
+                </Tag>
               </Col>
               <Col span={12}>
                 <Text strong>Trạng thái:</Text>{' '}

@@ -32,6 +32,8 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   CameraOutlined,
+  LockOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import Breadcrumb from "@/components/Breadcrumb";
@@ -40,6 +42,7 @@ import {
   createTeacher,
   updateTeacher,
   deleteTeacher,
+  resetTeacherPassword,
   getStatusColor,
   getStatusText,
   type TeacherResponse,
@@ -57,17 +60,27 @@ import {
   uploadAvatar,
   validateImageFile,
 } from "@/apis/fileAPIs/file";
+import PasswordRequirements from "@/components/PasswordRequirements";
+import ResetPasswordModal from "@/components/ResetPasswordModal";
+import CSVImportModal from "@/components/CSVImportModal";
+import { validatePassword } from "@/utils/passwordValidation";
 
 const AdminTeacherPage: React.FC = () => {
   // ==================== State Management ====================
   const [teachers, setTeachers] = useState<TeacherResponse[]>([]);
   const [loading, setLoading] = useState(false);
+  const [passwordValue, setPasswordValue] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
+  const [isCSVImportModalOpen, setIsCSVImportModalOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<TeacherResponse | null>(
     null
   );
   const [viewingTeacher, setViewingTeacher] = useState<TeacherResponse | null>(
+    null
+  );
+  const [resettingTeacher, setResettingTeacher] = useState<TeacherResponse | null>(
     null
   );
   const [form] = Form.useForm();
@@ -121,7 +134,7 @@ const AdminTeacherPage: React.FC = () => {
 
       // Upload to S3
       const response = await uploadAvatar(file);
-      setAvatarUrl(response.data.url);
+      setAvatarUrl(response.data.url || "");
       
       message.success("Upload ảnh đại diện thành công!");
       return true;
@@ -235,6 +248,7 @@ const AdminTeacherPage: React.FC = () => {
     form.resetFields();
     setFilteredSpecializations(specializations);
     setAvatarUrl("");
+    setPasswordValue(""); // Reset password state
     
     // Generate and set teacher code automatically
     setLoading(true);
@@ -261,9 +275,12 @@ const AdminTeacherPage: React.FC = () => {
     setEditingTeacher(teacher);
     setAvatarUrl(teacher.avatar_url || "");
     
+    // Extract email prefix (remove @dut.udn.vn)
+    const emailPrefix = teacher.email.replace('@dut.udn.vn', '');
+    
     form.setFieldsValue({
       full_name: teacher.full_name,
-      email: teacher.email,
+      email: emailPrefix,
       teacher_code: teacher.teacher_code,
       phone: teacher.phone,
       department_id: teacher.department_id,
@@ -289,12 +306,38 @@ const AdminTeacherPage: React.FC = () => {
     setIsModalOpen(false);
     setEditingTeacher(null);
     setAvatarUrl("");
+    setPasswordValue(""); // Reset password state
     form.resetFields();
   };
 
   const handleDetailModalCancel = () => {
     setIsDetailModalOpen(false);
     setViewingTeacher(null);
+  };
+
+  const showResetPasswordModal = (teacher: TeacherResponse) => {
+    setResettingTeacher(teacher);
+    setIsResetPasswordModalOpen(true);
+  };
+
+  const handleResetPassword = async (newPassword: string) => {
+    if (!resettingTeacher) return;
+    
+    try {
+      setLoading(true);
+      await resetTeacherPassword(resettingTeacher.id, newPassword);
+      setIsResetPasswordModalOpen(false);
+      setResettingTeacher(null);
+    } catch (error: any) {
+      throw error; // Let modal handle the error
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPasswordCancel = () => {
+    setIsResetPasswordModalOpen(false);
+    setResettingTeacher(null);
   };
 
   const handleDepartmentChange = (departmentId: number) => {
@@ -311,9 +354,13 @@ const AdminTeacherPage: React.FC = () => {
   const handleCreateTeacher = async (values: any) => {
     try {
       setLoading(true);
+      
+      // Construct full email
+      const fullEmail = `${values.email}@dut.udn.vn`;
+      
       const createData: CreateTeacherRequest = {
         full_name: values.full_name,
-        email: values.email,
+        email: fullEmail,
         password: values.password,
         teacher_code: values.teacher_code,
         phone: values.phone,
@@ -328,9 +375,23 @@ const AdminTeacherPage: React.FC = () => {
       fetchTeachers();
     } catch (error: any) {
       console.error("Error creating teacher:", error);
-      message.error(
-        error?.response?.data?.detail || "Không thể tạo tài khoản giáo viên"
-      );
+      
+      // Check if error is "Email already registered"
+      const errorDetail = error?.response?.data?.detail;
+      if (errorDetail === "Email already registered" || errorDetail?.includes("Email already registered")) {
+        // Set form field error for email
+        form.setFields([
+          {
+            name: "email",
+            errors: ["Email này đã được đăng ký. Vui lòng sử dụng email khác."],
+          },
+        ]);
+      } else {
+        // Show general error message
+        message.error(
+          errorDetail || "Không thể tạo tài khoản giáo viên"
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -588,6 +649,12 @@ const AdminTeacherPage: React.FC = () => {
                 Làm mới
               </Button>
               <Button
+                icon={<UploadOutlined />}
+                onClick={() => setIsCSVImportModalOpen(true)}
+              >
+                Nhập CSV
+              </Button>
+              <Button
                 type="primary"
                 icon={<PlusOutlined />}
                 onClick={showCreateModal}
@@ -699,15 +766,20 @@ const AdminTeacherPage: React.FC = () => {
             <Col xs={24} sm={12}>
               {/* Email */}
               <Form.Item
-                label="Email"
+                label="Email (tên đăng nhập)"
                 name="email"
                 rules={[
                   { required: true, message: "Vui lòng nhập email!" },
-                  { type: "email", message: "Email không hợp lệ!" },
+                  {
+                    pattern: /^[a-zA-Z0-9._%+-]+$/,
+                    message: "Email không hợp lệ!",
+                  },
                 ]}
+                tooltip="Nhập phần trước @. Hệ thống tự động thêm @dut.udn.vn"
               >
                 <Input
-                  placeholder="example@university.edu.vn"
+                  placeholder="ten.giaovien"
+                  addonAfter="@dut.udn.vn"
                   disabled={!!editingTeacher}
                 />
               </Form.Item>
@@ -721,10 +793,24 @@ const AdminTeacherPage: React.FC = () => {
               name="password"
               rules={[
                 { required: true, message: "Vui lòng nhập mật khẩu!" },
-                { min: 6, message: "Mật khẩu phải có ít nhất 6 ký tự" },
+                { min: 8, message: "Mật khẩu phải có ít nhất 8 ký tự" },
+                {
+                  validator: (_, value) => {
+                    if (!value) return Promise.resolve();
+                    const validation = validatePassword(value);
+                    if (validation.isValid) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error(validation.errors.join(", ")));
+                  },
+                },
               ]}
+              extra={<PasswordRequirements password={passwordValue} />}
             >
-              <Input.Password placeholder="Nhập mật khẩu" />
+              <Input.Password 
+                placeholder="Nhập mật khẩu"
+                onChange={(e) => setPasswordValue(e.target.value)}
+              />
             </Form.Item>
           )}
 
@@ -965,6 +1051,12 @@ const AdminTeacherPage: React.FC = () => {
               >
                 Chỉnh sửa
               </Button>
+              <Button
+                icon={<LockOutlined />}
+                onClick={() => showResetPasswordModal(viewingTeacher)}
+              >
+                Đặt lại mật khẩu
+              </Button>
               <Popconfirm
                 title="Vô hiệu hóa giáo viên"
                 description="Bạn có chắc muốn vô hiệu hóa tài khoản này?"
@@ -988,6 +1080,27 @@ const AdminTeacherPage: React.FC = () => {
           </div>
         )}
       </Modal>
+
+      {/* Reset Password Modal */}
+      <ResetPasswordModal
+        visible={isResetPasswordModalOpen}
+        onCancel={handleResetPasswordCancel}
+        onSuccess={handleResetPassword}
+        userType="teacher"
+        userName={resettingTeacher?.full_name || ""}
+        loading={loading}
+      />
+
+      {/* CSV Import Modal */}
+      <CSVImportModal
+        visible={isCSVImportModalOpen}
+        onCancel={() => setIsCSVImportModalOpen(false)}
+        onSuccess={() => {
+          setIsCSVImportModalOpen(false);
+          fetchTeachers();
+        }}
+        type="teacher"
+      />
     </div>
   );
 };
