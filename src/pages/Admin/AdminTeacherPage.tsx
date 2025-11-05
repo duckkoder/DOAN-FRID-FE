@@ -33,6 +33,7 @@ import {
   CloseCircleOutlined,
   CameraOutlined,
   LockOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import Breadcrumb from "@/components/Breadcrumb";
@@ -61,6 +62,7 @@ import {
 } from "@/apis/fileAPIs/file";
 import PasswordRequirements from "@/components/PasswordRequirements";
 import ResetPasswordModal from "@/components/ResetPasswordModal";
+import CSVImportModal from "@/components/CSVImportModal";
 import { validatePassword } from "@/utils/passwordValidation";
 
 const AdminTeacherPage: React.FC = () => {
@@ -71,6 +73,7 @@ const AdminTeacherPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
+  const [isCSVImportModalOpen, setIsCSVImportModalOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<TeacherResponse | null>(
     null
   );
@@ -272,9 +275,12 @@ const AdminTeacherPage: React.FC = () => {
     setEditingTeacher(teacher);
     setAvatarUrl(teacher.avatar_url || "");
     
+    // Extract email prefix (remove @dut.udn.vn)
+    const emailPrefix = teacher.email.replace('@dut.udn.vn', '');
+    
     form.setFieldsValue({
       full_name: teacher.full_name,
-      email: teacher.email,
+      email: emailPrefix,
       teacher_code: teacher.teacher_code,
       phone: teacher.phone,
       department_id: teacher.department_id,
@@ -348,9 +354,13 @@ const AdminTeacherPage: React.FC = () => {
   const handleCreateTeacher = async (values: any) => {
     try {
       setLoading(true);
+      
+      // Construct full email
+      const fullEmail = `${values.email}@dut.udn.vn`;
+      
       const createData: CreateTeacherRequest = {
         full_name: values.full_name,
-        email: values.email,
+        email: fullEmail,
         password: values.password,
         teacher_code: values.teacher_code,
         phone: values.phone,
@@ -639,6 +649,12 @@ const AdminTeacherPage: React.FC = () => {
                 Làm mới
               </Button>
               <Button
+                icon={<UploadOutlined />}
+                onClick={() => setIsCSVImportModalOpen(true)}
+              >
+                Nhập CSV
+              </Button>
+              <Button
                 type="primary"
                 icon={<PlusOutlined />}
                 onClick={showCreateModal}
@@ -750,15 +766,20 @@ const AdminTeacherPage: React.FC = () => {
             <Col xs={24} sm={12}>
               {/* Email */}
               <Form.Item
-                label="Email"
+                label="Email (tên đăng nhập)"
                 name="email"
                 rules={[
                   { required: true, message: "Vui lòng nhập email!" },
-                  { type: "email", message: "Email không hợp lệ!" },
+                  {
+                    pattern: /^[a-zA-Z0-9._%+-]+$/,
+                    message: "Email không hợp lệ!",
+                  },
                 ]}
+                tooltip="Nhập phần trước @. Hệ thống tự động thêm @dut.udn.vn"
               >
                 <Input
-                  placeholder="example@university.edu.vn"
+                  placeholder="ten.giaovien"
+                  addonAfter="@dut.udn.vn"
                   disabled={!!editingTeacher}
                 />
               </Form.Item>
@@ -1068,6 +1089,17 @@ const AdminTeacherPage: React.FC = () => {
         userType="teacher"
         userName={resettingTeacher?.full_name || ""}
         loading={loading}
+      />
+
+      {/* CSV Import Modal */}
+      <CSVImportModal
+        visible={isCSVImportModalOpen}
+        onCancel={() => setIsCSVImportModalOpen(false)}
+        onSuccess={() => {
+          setIsCSVImportModalOpen(false);
+          fetchTeachers();
+        }}
+        type="teacher"
       />
     </div>
   );

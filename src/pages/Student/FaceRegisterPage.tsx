@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Button, Steps, Alert, Progress, Space, Row, Col, Tag, Spin, Badge, Statistic, Image } from 'antd';
+import { Typography, Card, Button, Steps, Alert, Progress, Space, Row, Col, Tag, Spin, Badge, Statistic, Image, message } from 'antd';
 import { CameraOutlined, CheckCircleOutlined, ReloadOutlined, SafetyCertificateOutlined, EyeOutlined, ArrowLeftOutlined, CloseCircleOutlined, LoadingOutlined, CheckOutlined, CloseOutlined, ClockCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import Breadcrumb from '../../components/Breadcrumb';
 import { useFaceRegistration } from '../../hooks/useFaceRegistration';
 import { useAuth } from '../../hooks/useAuth';
-import { getMyRegistrationStatus } from '../../apis/faceRegistrationAPIs/faceRegistration';
+import { getMyRegistrationStatus, loadPendingReviewImages, confirmPendingReview } from '../../apis/faceRegistrationAPIs/faceRegistration';
 import type { FaceRegistrationStatus } from '../../apis/faceRegistrationAPIs/faceRegistration';
 
 const { Title, Text } = Typography;
@@ -43,6 +43,9 @@ const FaceRegisterPage: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
   const [initialStatus, setInitialStatus] = useState<FaceRegistrationStatus | null>(null);
+  const [pendingReviewData, setPendingReviewData] = useState<any>(null);
+  const [isLoadingPendingReview, setIsLoadingPendingReview] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   const breadcrumbItems = [
     { title: "Trang chủ", href: "/student" },
@@ -56,6 +59,22 @@ const FaceRegisterPage: React.FC = () => {
         const statusData = await getMyRegistrationStatus();
         setInitialStatus(statusData);
         console.log('Initial registration status:', statusData);
+        
+        // If status is pending_student_review, load pending review images
+        if (statusData.status === 'pending_student_review') {
+          setIsLoadingPendingReview(true);
+          try {
+            const reviewData = await loadPendingReviewImages();
+            setPendingReviewData(reviewData);
+            console.log('Loaded pending review data:', reviewData);
+          } catch (error: any) {
+            console.error('Failed to load pending review images:', error);
+            console.error('Error response:', error?.response?.data);
+            message.error(error?.response?.data?.detail || 'Không thể tải ảnh đang chờ xác nhận');
+          } finally {
+            setIsLoadingPendingReview(false);
+          }
+        }
       } catch (error) {
         console.error('Failed to check registration status:', error);
       } finally {
@@ -65,6 +84,33 @@ const FaceRegisterPage: React.FC = () => {
 
     checkStatus();
   }, []);
+
+  // Handler for confirming pending review images via REST API
+  const handleConfirmPendingReview = async (accept: boolean) => {
+    setIsConfirming(true);
+    try {
+      const result = await confirmPendingReview(accept);
+      
+      if (result.success) {
+        message.success(result.message);
+        
+        // Clear pending review data
+        setPendingReviewData(null);
+        
+        // Refresh status
+        const newStatus = await getMyRegistrationStatus();
+        setInitialStatus(newStatus);
+        
+        // If rejected, they can register again - no need to reload
+        // If accepted, they should see the pending_admin_review status
+      }
+    } catch (error: any) {
+      console.error('Failed to confirm review:', error);
+      message.error(error?.response?.data?.detail || 'Không thể xác nhận. Vui lòng thử lại.');
+    } finally {
+      setIsConfirming(false);
+    }
+  };
 
   const steps = [
     {
@@ -149,7 +195,7 @@ const FaceRegisterPage: React.FC = () => {
       )}
 
       {/* Status Blocking UI - when student cannot register */}
-      {!isLoadingStatus && initialStatus && !initialStatus.can_register && (
+      {!isLoadingStatus && initialStatus && !initialStatus.can_register && initialStatus.status !== 'pending_student_review' && (
         <Card style={{ 
           borderRadius: 16, 
           boxShadow: '0 4px 12px rgba(0,0,0,0.08)', 
@@ -179,16 +225,6 @@ const FaceRegisterPage: React.FC = () => {
                   {initialStatus.message}
                 </Text>
               </>
-            ) : initialStatus.status === 'pending_student_review' ? (
-              <>
-                <ExclamationCircleOutlined style={{ fontSize: 64, color: '#f59e0b', marginBottom: 16 }} />
-                <Title level={3} style={{ color: '#78350f', marginBottom: 8 }}>
-                  Đang chờ xác nhận từ bạn 📸
-                </Title>
-                <Text style={{ fontSize: 16, color: '#92400e', display: 'block', marginBottom: 24 }}>
-                  Bạn có một yêu cầu đang chờ xem lại ảnh. Vui lòng làm mới trang để tiếp tục.
-                </Text>
-              </>
             ) : (
               <>
                 <ExclamationCircleOutlined style={{ fontSize: 64, color: '#6b7280', marginBottom: 16 }} />
@@ -214,8 +250,6 @@ const FaceRegisterPage: React.FC = () => {
                     }>
                       {initialStatus.status}
                     </Tag>
-                    <br />
-                    <Text strong>ID: </Text>{initialStatus.registration_id || 'N/A'}
                   </div>
                 }
                 type="info" 
@@ -233,6 +267,104 @@ const FaceRegisterPage: React.FC = () => {
             >
               Quay về Dashboard
             </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Pending Student Review UI - show review interface */}
+      {!isLoadingStatus && initialStatus && initialStatus.status === 'pending_student_review' && (
+        <Card style={{ 
+          borderRadius: 16, 
+          boxShadow: '0 4px 12px rgba(0,0,0,0.08)', 
+          border: 'none',
+          background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)'
+        }}>
+          <div style={{ textAlign: 'center', padding: '32px' }}>
+            <EyeOutlined style={{ fontSize: 64, color: '#d97706', marginBottom: 16 }} />
+            <Title level={3} style={{ color: '#92400e', marginBottom: 8 }}>
+              Xem lại ảnh đã thu thập 📸
+            </Title>
+            <Text style={{ fontSize: 16, color: '#b45309', display: 'block', marginBottom: 24 }}>
+              Vui lòng kiểm tra {pendingReviewData?.total_images || 0} ảnh khuôn mặt của bạn
+            </Text>
+            
+            {isLoadingPendingReview ? (
+              <Spin indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />} />
+            ) : pendingReviewData && pendingReviewData.preview_images ? (
+              <>
+                {/* Preview Images Grid */}
+                <Row gutter={[8, 8]} style={{ marginBottom: 16, maxHeight: '400px', overflowY: 'auto' }}>
+                  {pendingReviewData.preview_images.map((img: any, index: number) => (
+                    <Col span={6} key={index}>
+                      <div style={{ position: 'relative' }}>
+                        <Image 
+                          src={`data:image/jpeg;base64,${img.image_base64}`}
+                          alt={img.step_name}
+                          style={{ 
+                            width: '100%', 
+                            borderRadius: 8,
+                            border: '2px solid #d1d5db'
+                          }}
+                          preview={{
+                            mask: <div style={{ fontSize: 12 }}>{img.step_name}</div>
+                          }}
+                        />
+                        <div style={{ 
+                          position: 'absolute', 
+                          top: 4, 
+                          left: 4, 
+                          background: 'rgba(0,0,0,0.7)', 
+                          color: 'white', 
+                          padding: '2px 6px', 
+                          borderRadius: 4, 
+                          fontSize: 10 
+                        }}>
+                          {img.step_number}
+                        </div>
+                      </div>
+                    </Col>
+                  ))}
+                </Row>
+                
+                <Alert 
+                  message="Lưu ý" 
+                  description="Sau khi chấp nhận, ảnh sẽ được gửi cho admin duyệt. Nếu không hài lòng, bạn có thể từ chối và thu thập lại." 
+                  type="warning" 
+                  showIcon 
+                  style={{ marginBottom: 16, textAlign: 'left' }}
+                />
+                
+                <Space size="large">
+                  <Button 
+                    type="primary" 
+                    size="large" 
+                    icon={<CheckOutlined />} 
+                    onClick={() => handleConfirmPendingReview(true)}
+                    loading={isConfirming}
+                    style={{ borderRadius: 8, background: '#10b981', borderColor: '#10b981' }}
+                  >
+                    Chấp nhận
+                  </Button>
+                  <Button 
+                    size="large" 
+                    danger 
+                    icon={<CloseOutlined />} 
+                    onClick={() => handleConfirmPendingReview(false)}
+                    loading={isConfirming}
+                    style={{ borderRadius: 8 }}
+                  >
+                    Từ chối & Thu thập lại
+                  </Button>
+                </Space>
+              </>
+            ) : (
+              <Alert 
+                message="Không có dữ liệu" 
+                description="Không thể tải ảnh. Vui lòng thử lại hoặc liên hệ admin." 
+                type="error" 
+                showIcon 
+              />
+            )}
           </div>
         </Card>
       )}

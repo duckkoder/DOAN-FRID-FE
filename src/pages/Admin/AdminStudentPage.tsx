@@ -36,6 +36,7 @@ import {
   CameraOutlined,
   SafetyOutlined,
   LockOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import Breadcrumb from "@/components/Breadcrumb";
@@ -44,7 +45,6 @@ import {
   createStudent,
   updateStudent,
   deleteStudent,
-  generateStudentCode,
   resetStudentPassword,
   getStatusColor,
   getStatusText,
@@ -67,6 +67,7 @@ import dayjs from "dayjs";
 import AdminFaceRegistrationTable from "@/components/AdminFaceRegistrationTable";
 import PasswordRequirements from "@/components/PasswordRequirements";
 import ResetPasswordModal from "@/components/ResetPasswordModal";
+import CSVImportModal from "@/components/CSVImportModal";
 import { validatePassword } from "@/utils/passwordValidation";
 
 const AdminStudentPage: React.FC = () => {
@@ -77,6 +78,7 @@ const AdminStudentPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
+  const [isCSVImportModalOpen, setIsCSVImportModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentResponse | null>(
     null
   );
@@ -214,18 +216,7 @@ const AdminStudentPage: React.FC = () => {
     setAvatarUrl("");
     setPasswordValue(""); // Reset password state
     
-    // Generate and set student code automatically
-    setLoading(true);
-    try {
-      const newCode = await generateStudentCode();
-      form.setFieldsValue({ student_code: newCode });
-      message.success(`Mã sinh viên mới: ${newCode}`);
-    } catch (error) {
-      console.error("Error generating student code:", error);
-      message.warning("Không thể tạo mã tự động, vui lòng thử lại");
-    } finally {
-      setLoading(false);
-    }
+    // No need to generate student code - it will be auto-filled from email
     
     setIsModalOpen(true);
   };
@@ -239,10 +230,13 @@ const AdminStudentPage: React.FC = () => {
     setEditingStudent(student);
     setAvatarUrl(student.avatar_url || "");
     
+    // Extract student code from email (remove @sv1.dut.udn.vn)
+    const emailPrefix = student.email.replace('@sv1.dut.udn.vn', '');
+    
     form.setFieldsValue({
       full_name: student.full_name,
-      email: student.email,
       student_code: student.student_code,
+      email: emailPrefix, // Set email prefix (without domain)
       phone: student.phone,
       department_id: student.department_id,
       academic_year: student.academic_year,
@@ -297,9 +291,13 @@ const AdminStudentPage: React.FC = () => {
   const handleCreateStudent = async (values: any) => {
     try {
       setLoading(true);
+      
+      // Construct full email from student code
+      const fullEmail = `${values.email}@sv1.dut.udn.vn`;
+      
       const createData: CreateStudentRequest = {
         full_name: values.full_name,
-        email: values.email,
+        email: fullEmail,
         password: values.password,
         student_code: values.student_code,
         phone: values.phone,
@@ -325,7 +323,7 @@ const AdminStudentPage: React.FC = () => {
         form.setFields([
           {
             name: "email",
-            errors: ["Email này đã được đăng ký. Vui lòng sử dụng email khác."],
+            errors: ["Email này đã được đăng ký. Vui lòng sử dụng mã sinh viên khác."],
           },
         ]);
       } else {
@@ -672,6 +670,12 @@ const AdminStudentPage: React.FC = () => {
                 Đặt lại
               </Button>
               <Button
+                icon={<UploadOutlined />}
+                onClick={() => setIsCSVImportModalOpen(true)}
+              >
+                Nhập CSV
+              </Button>
+              <Button
                 type="primary"
                 icon={<PlusOutlined />}
                 onClick={showCreateModal}
@@ -744,55 +748,63 @@ const AdminStudentPage: React.FC = () => {
 
           <Row gutter={16}>
             <Col xs={24} sm={12}>
-              {/* Student Code - Auto-generated */}
+              {/* Student Code - User input */}
               <Form.Item
-                label={
-                  <span>
-                    Mã sinh viên
-                    {!editingStudent && (
-                      <Tag color="green" style={{ marginLeft: 8 }}>
-                        Tự động
-                      </Tag>
-                    )}
-                  </span>
-                }
+                label="Mã sinh viên"
                 name="student_code"
                 rules={[
                   { required: true, message: "Vui lòng nhập mã sinh viên!" },
                   {
-                    pattern: /^[A-Z0-9]+$/,
-                    message: "Mã SV chỉ chứa chữ in hoa và số",
+                    pattern: /^[0-9]{9}$/,
+                    message: "Mã sinh viên phải có đúng 9 chữ số!",
                   },
                 ]}
-                tooltip={
-                  !editingStudent
-                    ? "Mã sinh viên được tạo tự động và không thể chỉnh sửa"
-                    : undefined
-                }
+                tooltip="Nhập 9 chữ số mã sinh viên. Email sẽ tự động được tạo"
               >
                 <Input
-                  placeholder="SV001"
-                  disabled={true}
-                  style={{ 
-                    backgroundColor: !editingStudent ? "#f0f0f0" : undefined,
-                    cursor: "not-allowed" 
+                  placeholder="102220347"
+                  disabled={!!editingStudent}
+                  maxLength={9}
+                  onChange={(e) => {
+                    // Only allow numbers
+                    const value = e.target.value.replace(/[^0-9]/g, '');
+                    form.setFieldValue('student_code', value);
+                    // Auto-fill email from student_code
+                    if (value.length === 9) {
+                      form.setFieldValue('email', value);
+                    } else {
+                      form.setFieldValue('email', '');
+                    }
                   }}
                 />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
-              {/* Email */}
+              {/* Email - Auto-generated from student_code */}
               <Form.Item
                 label="Email"
                 name="email"
                 rules={[
-                  { required: true, message: "Vui lòng nhập email!" },
-                  { type: "email", message: "Email không hợp lệ!" },
+                  { required: true, message: "Email được tạo từ mã sinh viên!" },
+                  {
+                    pattern: /^[0-9]{9}$/,
+                    message: "Email phải có 9 chữ số (từ mã SV)",
+                  },
                 ]}
+                tooltip={
+                  !editingStudent
+                    ? "Email tự động được tạo từ mã sinh viên"
+                    : undefined
+                }
               >
                 <Input
-                  placeholder="example@university.edu.vn"
-                  disabled={!!editingStudent}
+                  placeholder="102220347"
+                  addonAfter="@sv1.dut.udn.vn"
+                  disabled={true}
+                  style={{ 
+                    backgroundColor: !editingStudent ? "#f0f0f0" : undefined,
+                    cursor: "not-allowed" 
+                  }}
                 />
               </Form.Item>
             </Col>
@@ -1143,6 +1155,17 @@ const AdminStudentPage: React.FC = () => {
         userType="student"
         userName={resettingStudent?.full_name || ""}
         loading={loading}
+      />
+
+      {/* CSV Import Modal */}
+      <CSVImportModal
+        visible={isCSVImportModalOpen}
+        onCancel={() => setIsCSVImportModalOpen(false)}
+        onSuccess={() => {
+          setIsCSVImportModalOpen(false);
+          fetchStudents();
+        }}
+        type="student"
       />
     </div>
   );
