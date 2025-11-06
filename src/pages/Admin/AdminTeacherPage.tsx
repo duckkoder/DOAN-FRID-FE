@@ -147,43 +147,6 @@ const AdminTeacherPage: React.FC = () => {
     }
   };
 
-  /**
-   * Generate next teacher code based on existing codes
-   * Format: GV001, GV002, ..., GV999
-   */
-  const generateTeacherCode = async (): Promise<string> => {
-    try {
-      // Fetch all teachers to check existing codes
-      const response = await getTeachersList({ limit: 1000 });
-      const existingCodes = response.data
-        .map((t) => t.teacher_code)
-        .filter((code) => code && code.startsWith("GV"));
-
-      // Extract numbers from codes like GV001, GV002
-      const numbers = existingCodes
-        .map((code) => {
-          const match = code.match(/^GV(\d+)$/);
-          return match ? parseInt(match[1], 10) : 0;
-        })
-        .filter((num) => num > 0);
-
-      // Find next available number
-      let nextNumber = 1;
-      if (numbers.length > 0) {
-        const maxNumber = Math.max(...numbers);
-        nextNumber = maxNumber + 1;
-      }
-
-      // Format with leading zeros (GV001, GV002, etc.)
-      return `GV${String(nextNumber).padStart(3, "0")}`;
-    } catch (error) {
-      console.error("Error generating teacher code:", error);
-      // Fallback to timestamp-based code if API fails
-      const timestamp = Date.now().toString().slice(-6);
-      return `GV${timestamp}`;
-    }
-  };
-
   // ==================== Load Data ====================
   useEffect(() => {
     fetchDepartments();
@@ -250,19 +213,6 @@ const AdminTeacherPage: React.FC = () => {
     setAvatarUrl("");
     setPasswordValue(""); // Reset password state
     
-    // Generate and set teacher code automatically
-    setLoading(true);
-    try {
-      const newCode = await generateTeacherCode();
-      form.setFieldsValue({ teacher_code: newCode });
-      message.success(`Mã giáo viên mới: ${newCode}`);
-    } catch (error) {
-      console.error("Error generating teacher code:", error);
-      message.warning("Không thể tạo mã tự động, vui lòng thử lại");
-    } finally {
-      setLoading(false);
-    }
-    
     setIsModalOpen(true);
   };
 
@@ -281,7 +231,6 @@ const AdminTeacherPage: React.FC = () => {
     form.setFieldsValue({
       full_name: teacher.full_name,
       email: emailPrefix,
-      teacher_code: teacher.teacher_code,
       phone: teacher.phone,
       department_id: teacher.department_id,
       specialization_id: teacher.specialization_id,
@@ -362,7 +311,6 @@ const AdminTeacherPage: React.FC = () => {
         full_name: values.full_name,
         email: fullEmail,
         password: values.password,
-        teacher_code: values.teacher_code,
         phone: values.phone,
         department_id: values.department_id,
         specialization_id: values.specialization_id,
@@ -504,13 +452,6 @@ const AdminTeacherPage: React.FC = () => {
           style={{ border: "1px solid #d9d9d9" }}
         />
       ),
-    },
-    {
-      title: "Mã GV",
-      dataIndex: "teacher_code",
-      key: "teacher_code",
-      width: 110,
-      fixed: "left",
     },
     {
       title: "Họ và tên",
@@ -726,43 +667,6 @@ const AdminTeacherPage: React.FC = () => {
           </Form.Item>
 
           <Row gutter={16}>
-            <Col xs={24} sm={12}>
-              {/* Teacher Code - Auto-generated for new teachers */}
-              <Form.Item
-                label={
-                  <span>
-                    Mã giáo viên
-                    {!editingTeacher && (
-                      <Tag color="green" style={{ marginLeft: 8 }}>
-                        Tự động
-                      </Tag>
-                    )}
-                  </span>
-                }
-                name="teacher_code"
-                rules={[
-                  { required: true, message: "Vui lòng nhập mã giáo viên!" },
-                  {
-                    pattern: /^[A-Z0-9]+$/,
-                    message: "Mã GV chỉ chứa chữ in hoa và số",
-                  },
-                ]}
-                tooltip={
-                  !editingTeacher
-                    ? "Mã giáo viên được tạo tự động và không thể chỉnh sửa"
-                    : undefined
-                }
-              >
-                <Input
-                  placeholder="GV001"
-                  disabled={true}
-                  style={{ 
-                    backgroundColor: !editingTeacher ? "#f0f0f0" : undefined,
-                    cursor: "not-allowed" 
-                  }}
-                />
-              </Form.Item>
-            </Col>
             <Col xs={24} sm={12}>
               {/* Email */}
               <Form.Item
@@ -991,10 +895,6 @@ const AdminTeacherPage: React.FC = () => {
                   {viewingTeacher.full_name}
                 </Title>
                 <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-                  <div>
-                    <Text strong>Mã giáo viên:</Text>{" "}
-                    <Tag color="blue">{viewingTeacher.teacher_code}</Tag>
-                  </div>
                   <div>
                     <Text strong>Email:</Text> {viewingTeacher.email}
                   </div>

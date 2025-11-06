@@ -11,7 +11,6 @@ export type User = {
   is_verified: boolean;
   created_at: string;
   // Teacher-specific fields
-  teacher_code?: string | null;
   teacher_id?: number | null;
   department?: string | null;
   // Student-specific fields
