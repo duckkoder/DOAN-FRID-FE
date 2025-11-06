@@ -10,6 +10,7 @@ export interface DetectionInfo {
   student_name: string | null;
   confidence: number | null;
   is_validated: boolean;
+  status?: 'detecting' | 'unknown' | 'recognized' | 'validated'; // ✅ Recognition status
   
   // Anti-spoofing fields
   is_live?: boolean | null; // True if live face, False if print/replay

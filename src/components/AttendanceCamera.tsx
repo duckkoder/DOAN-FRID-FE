@@ -563,15 +563,47 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       ctx.lineWidth = lineWidth;
       ctx.strokeRect(displayX1, displayY1, width, height);
       
-      // Draw label. Show student name when available, otherwise if spoofed show "Fake" label with spoof confidence.
+      // ✅ Draw label based on status field from backend
       let labelText: string | null = null;
-      if (detection.student_name) {
-        labelText = `${detection.student_name} (${(confidence * 100).toFixed(1)}%)`;
+      let labelColor = color;
+      
+      // Check status field first (new approach)
+      if (detection.status) {
+        switch (detection.status) {
+          case 'detecting':
+            labelText = 'Detecting...';
+            labelColor = '#faad14'; // Orange
+            break;
+          case 'unknown':
+            labelText = 'Unknown';
+            labelColor = '#ff4d4f'; // Red
+            break;
+          case 'recognized':
+            labelText = detection.student_name || detection.student_id || 'Recognized';
+            labelColor = '#52c41a'; // Green
+            break;
+          case 'validated':
+            labelText = `${detection.student_name || detection.student_id}`;
+            labelColor = '#389e0d'; // Dark green
+            break;
+        }
+      }
+      // Fallback to old logic if no status field
+      else if (detection.student_name) {
+        labelText = `${detection.student_name}`;
       } else if (isSpoofed) {
         const spoofConf = typeof detection.spoofing_confidence === 'number'
           ? ` (${(detection.spoofing_confidence * 100).toFixed(1)}%)`
           : '';
         labelText = `Fake${spoofConf}`;
+        labelColor = '#ff4d4f';
+      }
+      
+      // Override color for spoofing (highest priority)
+      if (isSpoofed) {
+        labelColor = '#ff4d4f';
+        ctx.strokeStyle = labelColor;
+        ctx.lineWidth = 3;
       }
 
       if (labelText) {
@@ -580,8 +612,8 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         const textWidth = textMetrics.width + 10;
         const textHeight = 20;
 
-        // Draw label background
-        ctx.fillStyle = color;
+        // Draw label background - use labelColor instead of color
+        ctx.fillStyle = labelColor;
         ctx.fillRect(displayX1, displayY1 - textHeight - 5, textWidth, textHeight);
 
         // Draw label text
@@ -592,7 +624,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       // Draw track ID if available
       if (detection.track_id) {
         const trackLabel = `#${detection.track_id}`;
-        ctx.fillStyle = color;
+        ctx.fillStyle = labelColor; // Use labelColor for consistency
         ctx.fillRect(displayX2 - 40, displayY1, 40, 20);
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 12px Arial';
@@ -1153,18 +1185,19 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
                       icon={<UserOutlined />}
                     />
                   }
+                  //! student_name same student_code 
                   title={student.student_name}
                   description={
                     <Space direction="vertical" size={0}>
                       <Text type="secondary">{student.student_code}</Text>
-                      <Text type="secondary" style={{ fontSize: 12 }}>
+                      {/* <Text type="secondary" style={{ fontSize: 12 }}>
                         Confidence: {(student.avg_confidence * 100).toFixed(1)}%
                       </Text>
                       {!isMobile && (
                         <Text type="secondary" style={{ fontSize: 12 }}>
                           Frames: {student.frame_count}/{student.recognition_count}
                         </Text>
-                      )}
+                      )} */}
                     </Space>
                   }
                 />
