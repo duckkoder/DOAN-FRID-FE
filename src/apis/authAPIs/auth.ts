@@ -13,7 +13,6 @@ export interface RegisterRequest {
   role: "teacher" | "student";
   phone?: string;
   // Teacher-specific
-  teacher_code?: string;
   department?: string;
   // Student-specific
   student_code?: string;
@@ -32,7 +31,6 @@ export interface UserResponse {
   is_verified: boolean;
   created_at: string;
   // Role-specific info
-  teacher_code?: string | null;
   teacher_id?: number | null;
   student_id?: number | null;
   department?: string | null;

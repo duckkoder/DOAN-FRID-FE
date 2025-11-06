@@ -183,11 +183,6 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
         </span>
       ),
     },
-    ...(type === 'teacher' ? [{
-      title: 'Mã GV',
-      dataIndex: 'teacher_code',
-      width: 120,
-    }] : []),
     {
       title: 'SĐT',
       dataIndex: 'phone',
@@ -243,9 +238,9 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
       link.download = 'student_template.csv';
       link.click();
     } else {
-      const template = 'full_name,email,password,teacher_code,phone,department_name,specialization_name\n' +
-        'Nguyễn Văn C,nguyenvanc,Password123,GV001,0912345678,Công nghệ thông tin,Khoa học máy tính\n' +
-        'Trần Thị D,tranthid,Password123,GV002,0987654321,Điện tử viễn thông,Điện tử';
+      const template = 'full_name,email,password,phone,department_name,specialization_name\n' +
+        'Nguyễn Văn C,nguyenvanc,Password123,0912345678,Công nghệ thông tin,Khoa học máy tính\n' +
+        'Trần Thị D,tranthid,Password123,0987654321,Điện tử viễn thông,Điện tử';
       
       const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
