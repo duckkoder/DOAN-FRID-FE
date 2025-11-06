@@ -120,17 +120,16 @@ const StudentAttendancePage: React.FC = () => {
 
 
   const getStatusConfig = (status: string | null | undefined) => {
+    console.log("Getting status config for status:", status);
     switch(status) {
       case 'present':
         return { color: '#10b981', text: 'Có mặt', icon: <CheckCircleOutlined /> };
       case 'absent':
         return { color: '#ef4444', text: 'Vắng', icon: <CloseCircleOutlined /> };
-      case 'late':
-        return { color: '#f59e42', text: 'Muộn', icon: <ExclamationCircleOutlined /> };
       case 'excused':
         return { color: '#6366f1', text: 'Vắng có phép', icon: <CheckCircleOutlined /> };
       default:
-        return { color: '#64748b', text: 'Không xác định', icon: null };
+        return { color: '#ef4444', text: 'Vắng', icon: <CloseCircleOutlined /> };
     }
   };
 
@@ -204,35 +203,6 @@ const StudentAttendancePage: React.FC = () => {
             {config.text}
           </Tag>
         );
-      }
-    },
-    {
-      title: 'Khiếu nại',
-      key: 'appeal',
-      render: (record: LocalAttendanceRecord) => {
-        if (record.appealStatus) {
-          const config = getAppealStatusConfig(record.appealStatus);
-          return (
-            <Tag color={config.color}>
-              {config.text}
-            </Tag>
-          );
-        }
-
-        if (record.canAppeal && (record.student_attendance_status === 'absent' || record.student_attendance_status === 'late')) {
-          return (
-            <Button
-              type="primary"
-              size="small"
-              onClick={() => handleAppeal(record)}
-              style={{ borderRadius: 4 }}
-            >
-              Khiếu nại
-            </Button>
-          );
-        }
-
-        return <Text type="secondary">-</Text>;
       }
     }
   ];

@@ -21,6 +21,8 @@ import StudentReportPage from "../pages/Student/StudentReportPage";
 import AdminHomePage from "../pages/Admin/AdminHomePage";
 import TeacherHomePage from "../pages/Teacher/TeacherHomePage";
 import StudentHomePage from "../pages/Student/StudentHomePage";
+import TeacherProfilePage from "../pages/Teacher/TeacherProfilePage";
+import StudentProfilePage from "../pages/Student/StudentProfilePage";
 import RoleLayout from "../layouts/RoleLayout";
 import TeacherLeaveRequestPage from "../pages/Teacher/TeacherLeaveRequestPage";
 import ClassDetailPage from "../pages/Teacher/ClassDetailPage";
@@ -55,6 +57,7 @@ const router = createBrowserRouter(
               <Route path="reports" element={<TeacherReportPage />} />
               <Route path="leave-requests" element={<TeacherLeaveRequestPage />} />
               <Route path="classes/create" element={<ClassCreatePage />} />
+              <Route path="profile" element={<TeacherProfilePage />} />
             </Route>
 
             {/* Route cho Học sinh */}
@@ -66,6 +69,7 @@ const router = createBrowserRouter(
               <Route path="attendance" element={<StudentAttendancePage />} />
               <Route path="reports" element={<StudentReportPage />} />
               <Route path="register-face" element={<FaceRegisterPage />} />
+              <Route path="profile" element={<StudentProfilePage />} />
             </Route>
           </Route>
           

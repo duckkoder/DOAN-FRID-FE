@@ -137,7 +137,225 @@ Authorization: Bearer {accessToken}
 
 ---
 
-## 👨‍🎓 STUDENT APIs
+## � PROFILE & USER APIs
+
+### Get Student Profile
+```json
+{
+  "endpoint": "/student/profile",
+  "method": "GET",
+  "headers": {
+    "Authorization": "Bearer {accessToken}"
+  },
+  "response": {
+    "success": true,
+    "data": {
+      "full_name": "string",
+      "email": "string",
+      "student_code": "string",
+      "date_of_birth": "string (YYYY-MM-DD)",
+      "department": "string",
+      "academic_year": "string",
+      "phone": "string",
+      "avatar": "string (URL)"
+    }
+  }
+}
+```
+
+### Update Student Profile
+```json
+{
+  "endpoint": "/student/profile",
+  "method": "PUT",
+  "headers": {
+    "Authorization": "Bearer {accessToken}",
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "date_of_birth": "string (YYYY-MM-DD)",
+    "department": "string",
+    "academic_year": "string",
+    "phone": "string",
+    "avatar": "string (URL)"
+  },
+  "response": {
+    "success": true,
+    "message": "Profile updated successfully",
+    "data": {
+      "full_name": "string",
+      "email": "string",
+      "student_code": "string",
+      "date_of_birth": "string",
+      "department": "string",
+      "academic_year": "string",
+      "phone": "string",
+      "avatar": "string"
+    }
+  }
+}
+```
+
+### Get Teacher Profile
+```json
+{
+  "endpoint": "/teacher/profile",
+  "method": "GET",
+  "headers": {
+    "Authorization": "Bearer {accessToken}"
+  },
+  "response": {
+    "success": true,
+    "data": {
+      "full_name": "string",
+      "email": "string",
+      "department_id": "string",
+      "specialization_id": "string",
+      "phone": "string",
+      "avatar": "string (URL)"
+    }
+  }
+}
+```
+
+### Update Teacher Profile
+```json
+{
+  "endpoint": "/teacher/profile",
+  "method": "PUT",
+  "headers": {
+    "Authorization": "Bearer {accessToken}",
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "department_id": "string",
+    "specialization_id": "string",
+    "phone": "string",
+    "avatar": "string (URL)"
+  },
+  "response": {
+    "success": true,
+    "message": "Profile updated successfully",
+    "data": {
+      "full_name": "string",
+      "email": "string",
+      "department_id": "string",
+      "specialization_id": "string",
+      "phone": "string",
+      "avatar": "string"
+    }
+  }
+}
+```
+
+### Get Admin Profile
+```json
+{
+  "endpoint": "/admin/profile",
+  "method": "GET",
+  "headers": {
+    "Authorization": "Bearer {accessToken}"
+  },
+  "response": {
+    "success": true,
+    "data": {
+      "full_name": "string",
+      "email": "string",
+      "phone": "string",
+      "avatar": "string (URL)"
+    }
+  }
+}
+```
+
+### Update Admin Profile
+```json
+{
+  "endpoint": "/admin/profile",
+  "method": "PUT",
+  "headers": {
+    "Authorization": "Bearer {accessToken}",
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "phone": "string",
+    "avatar": "string (URL)"
+  },
+  "response": {
+    "success": true,
+    "message": "Profile updated successfully",
+    "data": {
+      "full_name": "string",
+      "email": "string",
+      "phone": "string",
+      "avatar": "string"
+    }
+  }
+}
+```
+
+### Change Password
+```json
+{
+  "endpoint": "/user/change-password",
+  "method": "PUT",
+  "headers": {
+    "Authorization": "Bearer {accessToken}",
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "current_password": "string",
+    "new_password": "string"
+  },
+  "response": {
+    "success": true,
+    "message": "Password changed successfully"
+  },
+  "errorResponse": {
+    "success": false,
+    "error": {
+      "code": "INVALID_PASSWORD",
+      "message": "Current password is incorrect"
+    }
+  }
+}
+```
+
+### Upload Avatar
+```json
+{
+  "endpoint": "/upload/avatar",
+  "method": "POST",
+  "headers": {
+    "Authorization": "Bearer {accessToken}",
+    "Content-Type": "multipart/form-data"
+  },
+  "body": {
+    "file": "File (image/*)"
+  },
+  "response": {
+    "success": true,
+    "data": {
+      "url": "string (https://example.com/uploads/avatars/...)",
+      "filename": "string",
+      "size": "number (bytes)",
+      "mimetype": "string"
+    },
+    "message": "File uploaded successfully"
+  },
+  "errorResponse": {
+    "success": false,
+    "error": {
+      "code": "FILE_TOO_LARGE",
+      "message": "File size must be less than 5MB"
+    }
+  }
+}
+```
+
+---
+
+## �👨‍🎓 STUDENT APIs
 
 ### Get Dashboard Stats
 ```json

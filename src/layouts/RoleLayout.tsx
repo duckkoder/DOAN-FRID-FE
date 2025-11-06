@@ -45,6 +45,12 @@ const leftBarConfig = {
       ]
     },
     {
+      label: "Cá nhân",
+      items: [
+        { key: "profile", label: "Thông tin cá nhân", path: "/teacher/profile" }
+      ]
+    },
+    {
       label: "Hành động",
       items: [
         { key: "logout", label: "Đăng xuất", path: "/auth", action: "logout" }
@@ -69,7 +75,18 @@ const leftBarConfig = {
     {
       label: "Quản lý",
       items: [
-        { key: "registerFace", label: "Đăng ký khuôn mặt", path: "/student/register-face" },
+        { key: "registerFace", label: "Đăng ký khuôn mặt", path: "/student/register-face" }
+      ]
+    },
+    {
+      label: "Cá nhân",
+      items: [
+        { key: "profile", label: "Thông tin cá nhân", path: "/student/profile" }
+      ]
+    },
+    {
+      label: "Hành động",
+      items: [
         { key: "logout", label: "Đăng xuất", path: "/auth", action: "logout" }
       ]
     }

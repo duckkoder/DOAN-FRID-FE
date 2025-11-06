@@ -96,8 +96,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     clearInMemoryAuth();
   };
 
+  const updateUser = (updates: Partial<User>) => {
+    if (!user) return;
+    const updatedUser = { ...user, ...updates };
+    setUser(updatedUser);
+    // Persist updated user to cookie
+    const toPersist: PersistedAuth = {
+      user: updatedUser,
+      tokens: { accessToken: null, refreshToken: tokens?.refreshToken ?? null },
+    };
+    void persist(toPersist, 15).catch(() => {});
+  };
+
   return (
-    <AuthContext.Provider value={{ user, tokens, login, logout }}>
+    <AuthContext.Provider value={{ user, tokens, login, logout, updateUser }}>
       {hydrated ? children : null}
     </AuthContext.Provider>
   );
