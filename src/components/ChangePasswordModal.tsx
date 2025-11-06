@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, Form, Input, Button, message } from 'antd';
+import { Modal, Form, Input, Button, Alert } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
 import PasswordRequirements from './PasswordRequirements';
 import { validatePassword } from '../utils/passwordValidation';
@@ -28,10 +28,14 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [newPassword, setNewPassword] = useState('');
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
   const { user } = useAuth();
 
   const handleSubmit = async (values: PasswordFormValues) => {
     setLoading(true);
+    setShowNotification(false);
 
     try {
       const passwordData: PasswordChangeData = {
@@ -48,15 +52,35 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
         throw new Error('Invalid user role');
       }
 
-      message.success('Đổi mật khẩu thành công!');
-      form.resetFields();
-      setNewPassword('');
-      onClose();
+      // Thông báo thành công
+      setNotificationType('success');
+      setNotificationMessage('Đổi mật khẩu thành công!');
+      setShowNotification(true);
+      
+      // Tự động ẩn thông báo sau 3 giây
+      setTimeout(() => {
+        setShowNotification(false);
+        form.resetFields();
+        setNewPassword('');
+        onClose();
+      }, 2000);
     } catch (error: unknown) {
       console.error('Error changing password:', error);
       const axiosError = error as { response?: { data?: { detail?: string } }; message?: string };
       const errorMsg = axiosError?.response?.data?.detail || axiosError?.message || 'Mật khẩu hiện tại không đúng hoặc có lỗi xảy ra!';
-      message.error(errorMsg);
+      
+      // Hiển thị lỗi dưới ô mật khẩu hiện tại
+      form.setFields([
+        {
+          name: 'currentPassword',
+          errors: [errorMsg],
+        },
+      ]);
+      
+      // Thông báo lỗi
+      setNotificationType('error');
+      setNotificationMessage(errorMsg);
+      setShowNotification(true);
     } finally {
       setLoading(false);
     }
@@ -65,6 +89,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
   const handleCancel = () => {
     form.resetFields();
     setNewPassword('');
+    setShowNotification(false);
     onClose();
   };
 
@@ -76,6 +101,19 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
       footer={null}
       width={500}
     >
+      {/* Notification Alert */}
+      {showNotification && (
+        <Alert
+          message={notificationType === 'success' ? 'Thành công' : 'Lỗi'}
+          description={notificationMessage}
+          type={notificationType}
+          showIcon
+          closable
+          onClose={() => setShowNotification(false)}
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
       <Form
         form={form}
         layout="vertical"

@@ -66,7 +66,6 @@ export interface StudentProfileResponse {
 export interface TeacherProfileResponse {
   id: number;
   user_id: number;
-  teacher_code: string;
   department_id: number | null;
   specialization_id: number | null;
   department: string | null;

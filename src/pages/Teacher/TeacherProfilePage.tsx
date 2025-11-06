@@ -4,7 +4,7 @@ import {
   Form, 
   Input, 
   Button, 
-  message, 
+  Alert, 
   Upload, 
   Avatar, 
   Select
@@ -24,6 +24,12 @@ import {
   uploadAndUpdateTeacherAvatar,
   type TeacherProfileData
 } from "../../apis/userAPIs/profile";
+import { 
+  getDepartments, 
+  getSpecializations,
+  type DepartmentResponse,
+  type SpecializationResponse
+} from "../../apis/departmentAPIs/department";
 
 const TeacherProfilePage: React.FC = () => {
   const [form] = Form.useForm();
@@ -31,6 +37,29 @@ const TeacherProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string>("");
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
+  const [departments, setDepartments] = useState<DepartmentResponse[]>([]);
+  const [specializations, setSpecializations] = useState<SpecializationResponse[]>([]);
+
+  // Fetch departments and specializations
+  useEffect(() => {
+    const fetchDepartmentsAndSpecializations = async () => {
+      try {
+        const [depts, specs] = await Promise.all([
+          getDepartments(),
+          getSpecializations()
+        ]);
+        setDepartments(depts);
+        setSpecializations(specs);
+      } catch (error) {
+        console.error("Error fetching departments/specializations:", error);
+      }
+    };
+    
+    fetchDepartmentsAndSpecializations();
+  }, []);
 
   // Fetch teacher profile data
   useEffect(() => {
@@ -40,7 +69,6 @@ const TeacherProfilePage: React.FC = () => {
         form.setFieldsValue({
           full_name: data.full_name,
           email: data.email,
-          teacher_code: data.teacher_code,
           department_id: data.department_id,
           specialization_id: data.specialization_id,
           phone: data.phone || "",
@@ -48,12 +76,13 @@ const TeacherProfilePage: React.FC = () => {
         setAvatarUrl(data.avatar_url || "");
       } catch (error) {
         console.error("Error fetching profile:", error);
-        message.error("Không thể tải thông tin cá nhân!");
+        setNotificationType('error');
+        setNotificationMessage('Không thể tải thông tin cá nhân!');
+        setShowNotification(true);
         // Use context data as fallback
         const fallbackData = {
           full_name: authContext?.user?.full_name || "",
           email: authContext?.user?.email || "",
-          teacher_code: "",
           department_id: undefined,
           specialization_id: undefined,
           phone: "",
@@ -76,12 +105,17 @@ const TeacherProfilePage: React.FC = () => {
         authContext.updateUser({ avatar_url: result.avatar_url });
       }
       
-      message.success("Cập nhật ảnh đại diện thành công!");
+      setNotificationType('success');
+      setNotificationMessage('Cập nhật ảnh đại diện thành công!');
+      setShowNotification(true);
     } catch (error: unknown) {
       console.error("Error uploading avatar:", error);
       const axiosError = error as { response?: { data?: { detail?: string } }; message?: string };
       const errorMsg = axiosError?.response?.data?.detail || axiosError?.message || "Không thể tải ảnh lên!";
-      message.error(errorMsg);
+      
+      setNotificationType('error');
+      setNotificationMessage(errorMsg);
+      setShowNotification(true);
     } finally {
       setLoading(false);
     }
@@ -106,12 +140,17 @@ const TeacherProfilePage: React.FC = () => {
         });
       }
       
-      message.success("Cập nhật thông tin thành công!");
+      setNotificationType('success');
+      setNotificationMessage('Cập nhật thông tin thành công!');
+      setShowNotification(true);
     } catch (error: unknown) {
       console.error("Error updating profile:", error);
       const axiosError = error as { response?: { data?: { detail?: string } }; message?: string };
       const errorMsg = axiosError?.response?.data?.detail || axiosError?.message || "Không thể cập nhật thông tin!";
-      message.error(errorMsg);
+      
+      setNotificationType('error');
+      setNotificationMessage(errorMsg);
+      setShowNotification(true);
     } finally {
       setLoading(false);
     }
@@ -119,6 +158,17 @@ const TeacherProfilePage: React.FC = () => {
 
   return (
     <div style={{ padding: "24px", maxWidth: "800px", margin: "0 auto" }}>
+      {showNotification && (
+        <Alert
+          message={notificationType === 'success' ? 'Thành công' : 'Lỗi'}
+          description={notificationMessage}
+          type={notificationType}
+          showIcon
+          closable
+          onClose={() => setShowNotification(false)}
+          style={{ marginBottom: 16 }}
+        />
+      )}
       <Card 
         title="Thông tin cá nhân"
         extra={
@@ -184,13 +234,6 @@ const TeacherProfilePage: React.FC = () => {
           </Form.Item>
 
           <Form.Item
-            label="Mã giáo viên"
-            name="teacher_code"
-          >
-            <Input placeholder="Mã giáo viên" disabled />
-          </Form.Item>
-
-          <Form.Item
             label="Email"
             name="email"
           >
@@ -200,30 +243,34 @@ const TeacherProfilePage: React.FC = () => {
           <Form.Item
             label="Khoa"
             name="department_id"
-            rules={[{ required: true, message: "Vui lòng chọn khoa!" }]}
           >
-            <Select placeholder="Chọn khoa">
-              <Select.Option value={1}>Khoa học máy tính</Select.Option>
-              <Select.Option value={2}>Công nghệ thông tin</Select.Option>
-              <Select.Option value={3}>Kỹ thuật phần mềm</Select.Option>
-              <Select.Option value={4}>Điện tử viễn thông</Select.Option>
-              <Select.Option value={5}>Cơ khí</Select.Option>
-              <Select.Option value={6}>Điện</Select.Option>
+            <Select 
+              placeholder="Chọn khoa" 
+              allowClear
+              loading={departments.length === 0}
+            >
+              {departments.map(dept => (
+                <Select.Option key={dept.id} value={dept.id}>
+                  {dept.name}
+                </Select.Option>
+              ))}
             </Select>
           </Form.Item>
 
           <Form.Item
             label="Chuyên ngành"
             name="specialization_id"
-            rules={[{ required: true, message: "Vui lòng chọn chuyên ngành!" }]}
           >
-            <Select placeholder="Chọn chuyên ngành">
-              <Select.Option value={1}>Trí tuệ nhân tạo</Select.Option>
-              <Select.Option value={2}>An toàn thông tin</Select.Option>
-              <Select.Option value={3}>Khoa học dữ liệu</Select.Option>
-              <Select.Option value={4}>Phát triển phần mềm</Select.Option>
-              <Select.Option value={5}>Mạng máy tính</Select.Option>
-              <Select.Option value={6}>Hệ thống nhúng</Select.Option>
+            <Select 
+              placeholder="Chọn chuyên ngành" 
+              allowClear
+              loading={specializations.length === 0}
+            >
+              {specializations.map(spec => (
+                <Select.Option key={spec.id} value={spec.id}>
+                  {spec.name}
+                </Select.Option>
+              ))}
             </Select>
           </Form.Item>
 
@@ -231,7 +278,6 @@ const TeacherProfilePage: React.FC = () => {
             label="Số điện thoại"
             name="phone"
             rules={[
-              { required: true, message: "Vui lòng nhập số điện thoại!" },
               { pattern: /^[0-9]{10}$/, message: "Số điện thoại không hợp lệ!" }
             ]}
           >

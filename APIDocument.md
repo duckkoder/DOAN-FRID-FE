@@ -209,7 +209,6 @@ Authorization: Bearer {accessToken}
     "data": {
       "full_name": "string",
       "email": "string",
-      "teacher_code": "string",
       "department_id": "string",
       "specialization_id": "string",
       "phone": "string",
@@ -240,7 +239,6 @@ Authorization: Bearer {accessToken}
     "data": {
       "full_name": "string",
       "email": "string",
-      "teacher_code": "string",
       "department_id": "string",
       "specialization_id": "string",
       "phone": "string",

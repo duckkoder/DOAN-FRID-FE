@@ -4,10 +4,10 @@ import {
   Form, 
   Input, 
   Button, 
-  message, 
+  Alert, 
   Upload, 
-  Avatar, 
-  Select, 
+  Avatar,
+  Select,
   DatePicker
 } from "antd";
 import { 
@@ -26,6 +26,10 @@ import {
   uploadAndUpdateStudentAvatar,
   type StudentProfileData
 } from "../../apis/userAPIs/profile";
+import { 
+  getDepartments,
+  type DepartmentResponse
+} from "../../apis/departmentAPIs/department";
 
 const StudentProfilePage: React.FC = () => {
   const [form] = Form.useForm();
@@ -33,6 +37,24 @@ const StudentProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string>("");
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [departments, setDepartments] = useState<DepartmentResponse[]>([]);
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
+
+  // Fetch departments
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const depts = await getDepartments();
+        setDepartments(depts);
+      } catch (error) {
+        console.error("Error fetching departments:", error);
+      }
+    };
+    
+    fetchDepartments();
+  }, []);
 
   // Fetch student profile data
   useEffect(() => {
@@ -51,7 +73,9 @@ const StudentProfilePage: React.FC = () => {
         setAvatarUrl(data.avatar_url || "");
       } catch (error) {
         console.error("Error fetching profile:", error);
-        message.error("Không thể tải thông tin cá nhân!");
+        setNotificationType('error');
+        setNotificationMessage('Không thể tải thông tin cá nhân!');
+        setShowNotification(true);
         // Use context data as fallback
         const fallbackData = {
           full_name: authContext?.user?.full_name || "",
@@ -80,12 +104,17 @@ const StudentProfilePage: React.FC = () => {
         authContext.updateUser({ avatar_url: result.avatar_url });
       }
       
-      message.success("Cập nhật ảnh đại diện thành công!");
+      setNotificationType('success');
+      setNotificationMessage('Cập nhật ảnh đại diện thành công!');
+      setShowNotification(true);
     } catch (error: unknown) {
       console.error("Error uploading avatar:", error);
       const axiosError = error as { response?: { data?: { detail?: string } }; message?: string };
       const errorMsg = axiosError?.response?.data?.detail || axiosError?.message || "Không thể tải ảnh lên!";
-      message.error(errorMsg);
+      
+      setNotificationType('error');
+      setNotificationMessage(errorMsg);
+      setShowNotification(true);
     } finally {
       setLoading(false);
     }
@@ -111,7 +140,9 @@ const StudentProfilePage: React.FC = () => {
         });
       }
       
-      message.success("Cập nhật thông tin thành công!");
+      setNotificationType('success');
+      setNotificationMessage('Cập nhật thông tin thành công!');
+      setShowNotification(true);
       
       // Update form with latest data
       form.setFieldsValue({
@@ -122,7 +153,10 @@ const StudentProfilePage: React.FC = () => {
       console.error("Error updating profile:", error);
       const axiosError = error as { response?: { data?: { detail?: string } }; message?: string };
       const errorMsg = axiosError?.response?.data?.detail || axiosError?.message || "Không thể cập nhật thông tin!";
-      message.error(errorMsg);
+      
+      setNotificationType('error');
+      setNotificationMessage(errorMsg);
+      setShowNotification(true);
     } finally {
       setLoading(false);
     }
@@ -130,6 +164,19 @@ const StudentProfilePage: React.FC = () => {
 
   return (
     <div style={{ padding: "24px", maxWidth: "800px", margin: "0 auto" }}>
+      {/* Notification Alert */}
+      {showNotification && (
+        <Alert
+          message={notificationType === 'success' ? 'Thành công' : 'Lỗi'}
+          description={notificationMessage}
+          type={notificationType}
+          showIcon
+          closable
+          onClose={() => setShowNotification(false)}
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
       <Card 
         title="Thông tin cá nhân"
         extra={
@@ -227,24 +274,25 @@ const StudentProfilePage: React.FC = () => {
           <Form.Item
             label="Khoa"
             name="department_id"
-            rules={[{ required: true, message: "Vui lòng chọn khoa!" }]}
           >
-            <Select placeholder="Chọn khoa">
-              <Select.Option value={1}>Khoa học máy tính</Select.Option>
-              <Select.Option value={2}>Công nghệ thông tin</Select.Option>
-              <Select.Option value={3}>Kỹ thuật phần mềm</Select.Option>
-              <Select.Option value={4}>Điện tử viễn thông</Select.Option>
-              <Select.Option value={5}>Cơ khí</Select.Option>
-              <Select.Option value={6}>Điện</Select.Option>
+            <Select 
+              placeholder="Chọn khoa" 
+              allowClear
+              loading={departments.length === 0}
+            >
+              {departments.map(dept => (
+                <Select.Option key={dept.id} value={dept.id}>
+                  {dept.name}
+                </Select.Option>
+              ))}
             </Select>
           </Form.Item>
 
           <Form.Item
             label="Niên khóa"
             name="academic_year"
-            rules={[{ required: true, message: "Vui lòng chọn niên khóa!" }]}
           >
-            <Select placeholder="Chọn niên khóa">
+            <Select placeholder="Chọn niên khóa" allowClear>
               <Select.Option value="2019">2019</Select.Option>
               <Select.Option value="2020">2020</Select.Option>
               <Select.Option value="2021">2021</Select.Option>
@@ -259,7 +307,6 @@ const StudentProfilePage: React.FC = () => {
             label="Số điện thoại"
             name="phone"
             rules={[
-              { required: true, message: "Vui lòng nhập số điện thoại!" },
               { pattern: /^[0-9]{10}$/, message: "Số điện thoại không hợp lệ!" }
             ]}
           >
