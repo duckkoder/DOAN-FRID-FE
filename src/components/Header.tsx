@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { Avatar } from "antd";
 import { BellOutlined, UserOutlined, MenuOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-
+import { useAuth } from "@/hooks/useAuth";
+import avatarDefault from "@/assets/avtDefault.png";
 type HeaderProps = {
   username?: string;
   role?: string;
@@ -10,10 +11,12 @@ type HeaderProps = {
   showMenuButton?: boolean;
 };
 
+
+
 const Header: React.FC<HeaderProps> = ({ username, role, onMenuClick, showMenuButton = false }) => {
   const navigate = useNavigate();
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-
+  const user = useAuth().user;
   React.useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
@@ -127,10 +130,10 @@ const Header: React.FC<HeaderProps> = ({ username, role, onMenuClick, showMenuBu
           <BellOutlined className="header-bell" style={{ fontSize: 22, color: "#2563eb", cursor: "pointer" }} />
           <Avatar 
             className="header-avatar"
-            src="https://randomuser.me/api/portraits/men/32.jpg" 
+            src= {user?.avatar_url || avatarDefault}
             icon={<UserOutlined />} 
           />
-          <span className="header-username" style={{ fontWeight: 500 }}>{username || "User"}</span>
+          <span className="header-username" style={{ fontWeight: 500 }}>{user?.full_name || "User"}</span>
         </div>
       </div>
     </>

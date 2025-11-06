@@ -31,6 +31,7 @@ export type AuthContextType = {
   tokens: AuthTokens;
   login: (user: User, tokens?: AuthTokens, rememberMe?: boolean) => void;
   logout: () => void;
+  updateUser: (updates: Partial<User>) => void;
 };
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
