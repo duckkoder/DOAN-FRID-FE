@@ -5,7 +5,6 @@ import api from "../axios";
 export interface TeacherResponse {
   id: number;
   user_id: number;
-  teacher_code: string;
   department_id: number | null;
   specialization_id: number | null;
   department: string | null;
@@ -54,7 +53,6 @@ export interface CreateTeacherRequest {
   phone?: string;
   avatar_url?: string;
   // Teacher info
-  teacher_code: string;
   department_id?: number;
   specialization_id?: number;
 }
