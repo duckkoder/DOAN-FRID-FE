@@ -12,7 +12,6 @@ import {
   Col,
   Modal,
   Form,
-  message,
   Popconfirm,
   Statistic,
   Divider,
@@ -40,6 +39,7 @@ import {
 } from "@ant-design/icons";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import Breadcrumb from "@/components/Breadcrumb";
+import { useToast } from "@/context/ToastContext";
 import {
   getStudentsList,
   createStudent,
@@ -71,6 +71,9 @@ import CSVImportModal from "@/components/CSVImportModal";
 import { validatePassword } from "@/utils/passwordValidation";
 
 const AdminStudentPage: React.FC = () => {
+  // ==================== Hooks ====================
+  const toast = useToast();
+  
   // ==================== State Management ====================
   const [students, setStudents] = useState<StudentResponse[]>([]);
   const [loading, setLoading] = useState(false);
@@ -130,7 +133,7 @@ const AdminStudentPage: React.FC = () => {
     // Validate file
     const validation = validateImageFile(file);
     if (!validation.valid) {
-      message.error(validation.error);
+      toast.error(validation.error || "File không hợp lệ");
       return false;
     }
 
@@ -141,11 +144,11 @@ const AdminStudentPage: React.FC = () => {
       const response = await uploadAvatar(file);
       setAvatarUrl(response.data.url || "");
       
-      message.success("Upload ảnh đại diện thành công!");
+      toast.success("Upload ảnh đại diện thành công!");
       return true;
     } catch (error: any) {
       console.error("Error uploading avatar:", error);
-      message.error(error?.response?.data?.detail || "Không thể upload ảnh");
+      toast.error(error?.response?.data?.detail || "Không thể upload ảnh");
       return false;
     } finally {
       setAvatarUploading(false);
@@ -192,7 +195,7 @@ const AdminStudentPage: React.FC = () => {
       setStats(response.stats);
     } catch (error: any) {
       console.error("Error fetching students:", error);
-      message.error(
+      toast.error(
         error?.response?.data?.detail || "Không thể tải danh sách sinh viên"
       );
     } finally {
@@ -310,7 +313,7 @@ const AdminStudentPage: React.FC = () => {
       };
 
       await createStudent(createData);
-      message.success("Tạo tài khoản sinh viên thành công!");
+      toast.success("Tạo tài khoản sinh viên thành công!");
       handleModalCancel();
       fetchStudents();
     } catch (error: any) {
@@ -328,7 +331,7 @@ const AdminStudentPage: React.FC = () => {
         ]);
       } else {
         // Show general error message
-        message.error(
+        toast.error(
           errorDetail || "Không thể tạo tài khoản sinh viên"
         );
       }
@@ -355,12 +358,12 @@ const AdminStudentPage: React.FC = () => {
       };
 
       await updateStudent(editingStudent.id, updateData);
-      message.success("Cập nhật thông tin sinh viên thành công!");
+      toast.success("Cập nhật thông tin sinh viên thành công!");
       handleModalCancel();
       fetchStudents();
     } catch (error: any) {
       console.error("Error updating student:", error);
-      message.error(
+      toast.error(
         error?.response?.data?.detail || "Không thể cập nhật thông tin sinh viên"
       );
     } finally {
@@ -372,11 +375,11 @@ const AdminStudentPage: React.FC = () => {
     try {
       setLoading(true);
       await deleteStudent(studentId);
-      message.success("Vô hiệu hóa tài khoản sinh viên thành công!");
+      toast.success("Vô hiệu hóa tài khoản sinh viên thành công!");
       fetchStudents();
     } catch (error: any) {
       console.error("Error deleting student:", error);
-      message.error(
+      toast.error(
         error?.response?.data?.detail || "Không thể vô hiệu hóa tài khoản"
       );
     } finally {

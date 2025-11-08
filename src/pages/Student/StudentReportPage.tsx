@@ -9,7 +9,6 @@ import {
   Button,
   Modal,
   Form,
-  message,
   Space,
   Statistic,
   Popconfirm,
@@ -36,6 +35,7 @@ import {
 } from "@ant-design/icons";
 import Breadcrumb from "../../components/Breadcrumb";
 import LeaveRequestModal from "../../components/LeaveRequestModal";
+import { useToast } from "../../context/ToastContext";
 import dayjs from 'dayjs';
 // ✅ Import APIs
 import { getStudentClasses, type StudentClassItem } from "../../apis/classesAPIs/studentClass";
@@ -55,6 +55,7 @@ const { Title, Text } = Typography;
 
 // ✅ UPDATED: Use LeaveRequestDetail directly instead of custom interface
 const StudentReportPage: React.FC = () => {
+  const toast = useToast();
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isViewModalVisible, setIsViewModalVisible] = useState(false);
@@ -115,7 +116,7 @@ const StudentReportPage: React.FC = () => {
       console.error('Failed to fetch classes:', err);
       const errorMsg = (err as Error).message || 'Không thể tải danh sách lớp học';
       setError(errorMsg);
-      message.error(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoadingClasses(false);
     }
@@ -132,7 +133,7 @@ const StudentReportPage: React.FC = () => {
       setLeaveRequests(response.data.leaveRequests);
     } catch (err: unknown) {
       console.error('Failed to fetch leave requests:', err);
-      message.error((err as Error).message || 'Không thể tải danh sách đơn nghỉ học');
+      toast.error((err as Error).message || 'Không thể tải danh sách đơn nghỉ học');
     } finally {
       setLoadingRequests(false);
     }
@@ -165,43 +166,27 @@ const StudentReportPage: React.FC = () => {
         
         if (file) {
           try {
-            message.loading({ content: 'Đang tải file minh chứng...', key: 'uploadFile', duration: 0 });
-            
             const uploadResponse = await uploadDocument(file, (progressEvent) => {
               if (progressEvent.total) {
                 const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                message.loading({ 
-                  content: `Đang tải file: ${percentCompleted}%`, 
-                  key: 'uploadFile',
-                  duration: 0
-                });
+                // Upload progress: ${percentCompleted}%
               }
             });
 
             if (uploadResponse.success && uploadResponse.data.file_id) {
               evidenceFileId = uploadResponse.data.file_id;
-              message.success({ 
-                content: '✅ Đã tải file minh chứng thành công!', 
-                key: 'uploadFile',
-                duration: 2
-              });
+              toast.success('Đã tải file minh chứng thành công!');
             } else {
               throw new Error(uploadResponse.message || 'Upload file thất bại');
             }
           } catch (uploadErr: unknown) {
-            message.error({ 
-              content: `❌ Lỗi upload file: ${(uploadErr as Error).message || 'Vui lòng thử lại'}`,
-              key: 'uploadFile',
-              duration: 4
-            });
+            toast.error(`Lỗi upload file: ${(uploadErr as Error).message || 'Vui lòng thử lại'}`);
             throw new Error(`Upload file thất bại: ${(uploadErr as Error).message}`);
           }
         }
       }
 
       // Step 2: Create leave request
-      message.loading({ content: 'Đang gửi đơn xin nghỉ học...', key: 'createLeave', duration: 0 });
-
       const payload: CreateLeaveRequestPayload = {
         class_id: parseInt(values.subject),
         reason: values.reason,
@@ -216,11 +201,7 @@ const StudentReportPage: React.FC = () => {
       const response = await createLeaveRequest(payload);
 
       if (response.success) {
-        message.success({ 
-          content: '🎉 Đã gửi đơn xin nghỉ học thành công! Giáo viên sẽ xem xét trong thời gian sớm nhất.', 
-          key: 'createLeave',
-          duration: 4
-        });
+        toast.success('Đã gửi đơn xin nghỉ học thành công! Giáo viên sẽ xem xét trong thời gian sớm nhất.');
         
         // Refresh leave requests list
         await fetchLeaveRequests();
@@ -249,11 +230,7 @@ const StudentReportPage: React.FC = () => {
         }
       }
       
-      message.error({ 
-        content: errorMessage,
-        key: 'createLeave',
-        duration: 5
-      });
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -275,41 +252,25 @@ const StudentReportPage: React.FC = () => {
         
         if (file) {
           try {
-            message.loading({ content: 'Đang tải file minh chứng...', key: 'uploadFile', duration: 0 });
-            
             const uploadResponse = await uploadDocument(file, (progressEvent) => {
               if (progressEvent.total) {
                 const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                message.loading({ 
-                  content: `Đang tải file: ${percentCompleted}%`, 
-                  key: 'uploadFile',
-                  duration: 0
-                });
+                // Upload progress: ${percentCompleted}%
               }
             });
 
             if (uploadResponse.success && uploadResponse.data.file_id) {
               evidenceFileId = uploadResponse.data.file_id;
-              message.success({ 
-                content: '✅ Đã tải file minh chứng thành công!', 
-                key: 'uploadFile',
-                duration: 2
-              });
+              toast.success('Đã tải file minh chứng thành công!');
             } else {
               throw new Error(uploadResponse.message || 'Upload file thất bại');
             }
           } catch (uploadErr: unknown) {
-            message.error({ 
-              content: `❌ Lỗi upload file: ${(uploadErr as Error).message || 'Vui lòng thử lại'}`,
-              key: 'uploadFile',
-              duration: 4
-            });
+            toast.error(`Lỗi upload file: ${(uploadErr as Error).message || 'Vui lòng thử lại'}`);
             throw new Error(`Upload file thất bại: ${(uploadErr as Error).message}`);
           }
         }
       }
-
-      message.loading({ content: 'Đang cập nhật đơn...', key: 'updateLeave', duration: 0 });
 
       const payload: UpdateLeaveRequestPayload = {
         reason: values.reason,
@@ -322,11 +283,7 @@ const StudentReportPage: React.FC = () => {
       const response = await updateLeaveRequest(editingRequest.id, payload);
 
       if (response.success) {
-        message.success({ 
-          content: '✅ Đã cập nhật đơn nghỉ học thành công!',
-          key: 'updateLeave',
-          duration: 3
-        });
+        toast.success('Đã cập nhật đơn nghỉ học thành công!');
         
         await fetchLeaveRequests();
         
@@ -354,11 +311,7 @@ const StudentReportPage: React.FC = () => {
         }
       }
       
-      message.error({ 
-        content: errorMessage,
-        key: 'updateLeave',
-        duration: 5
-      });
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -367,15 +320,9 @@ const StudentReportPage: React.FC = () => {
   // ✅ IMPROVED: Handle delete leave request with better error handling
   const handleDeleteRequest = async (requestId: string) => {
     try {
-      message.loading({ content: 'Đang xóa đơn...', key: 'deleteLeave', duration: 0 });
-      
       await cancelLeaveRequest(parseInt(requestId));
       
-      message.success({ 
-        content: '✅ Đã xóa đơn nghỉ học thành công!',
-        key: 'deleteLeave',
-        duration: 3
-      });
+      toast.success('Đã xóa đơn nghỉ học thành công!');
       
       await fetchLeaveRequests();
     } catch (err: unknown) {
@@ -394,11 +341,7 @@ const StudentReportPage: React.FC = () => {
         }
       }
       
-      message.error({ 
-        content: errorMessage,
-        key: 'deleteLeave',
-        duration: 5
-      });
+      toast.error(errorMessage);
     }
   };
 
