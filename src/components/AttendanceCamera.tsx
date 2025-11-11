@@ -526,11 +526,11 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       const width = displayX2 - displayX1;
       const height = displayY2 - displayY1;
       
-      // Determine anti-spoofing status and color
-      // If anti-spoofing explicitly says not live (is_live === false) OR spoofing_type is provided and not 'live',
+      // ✅ DETERMINE ANTI-SPOOFING STATUS - HIGHEST PRIORITY
+      // If anti-spoofing explicitly says not live (is_live === false) OR spoofing_type is 'spoof',
       // treat as spoofed/fake and render in red with label "Fake".
       const isSpoofed = (typeof detection.is_live === 'boolean' && detection.is_live === false)
-        || (detection.spoofing_type && detection.spoofing_type !== 'live');
+        || (detection.spoofing_type && detection.spoofing_type === 'spoof');
       
       // Debug anti-spoofing data
       if (detection.is_live !== undefined || detection.spoofing_type !== undefined) {
@@ -539,72 +539,94 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
           spoofing_type: detection.spoofing_type,
           spoofing_confidence: detection.spoofing_confidence,
           isSpoofed: isSpoofed,
-          student_name: detection.student_name
+          student_name: detection.student_name,
+          track_id: detection.track_id
         });
       }
 
       const confidence = detection.confidence || 0;
 
+      // ✅ DETERMINE COLOR AND LABEL - ANTI-SPOOFING HAS HIGHEST PRIORITY
       let color: string;
       let lineWidth = 2;
+      let labelText: string | null = null;
+      let labelColor: string;
+      
+      // 🔴 PRIORITY 1: Anti-spoofing detection (FAKE/SPOOF faces)
       if (isSpoofed) {
         color = '#ff4d4f'; // Antd red for fake/spoof
         lineWidth = 3;
-      } else if (detection.is_validated) {
-        color = '#52c41a';
-        lineWidth = 3;
-      } else {
-        color = '#1890ff';
-        lineWidth = 2;
-      }
-      
-      // Draw bounding box
-      ctx.strokeStyle = color;
-      ctx.lineWidth = lineWidth;
-      ctx.strokeRect(displayX1, displayY1, width, height);
-      
-      // ✅ Draw label based on status field from backend
-      let labelText: string | null = null;
-      let labelColor = color;
-      
-      // Check status field first (new approach)
-      if (detection.status) {
-        switch (detection.status) {
-          case 'detecting':
-            labelText = 'Detecting...';
-            labelColor = '#faad14'; // Orange
-            break;
-          case 'unknown':
-            labelText = 'Unknown';
-            labelColor = '#ff4d4f'; // Red
-            break;
-          case 'recognized':
-            labelText = detection.student_name || detection.student_id || 'Recognized';
-            labelColor = '#52c41a'; // Green
-            break;
-          case 'validated':
-            labelText = `${detection.student_name || detection.student_id}`;
-            labelColor = '#389e0d'; // Dark green
-            break;
-        }
-      }
-      // Fallback to old logic if no status field
-      else if (detection.student_name) {
-        labelText = `${detection.student_name}`;
-      } else if (isSpoofed) {
+        labelColor = '#ff4d4f';
+        
+        // Generate label for spoof faces
         const spoofConf = typeof detection.spoofing_confidence === 'number'
           ? ` (${(detection.spoofing_confidence * 100).toFixed(1)}%)`
           : '';
-        labelText = `Fake${spoofConf}`;
-        labelColor = '#ff4d4f';
+        labelText = `🚨 FAKE${spoofConf}`;
+        
+        console.warn('[Canvas] 🚨 SPOOF FACE DETECTED:', {
+          track_id: detection.track_id,
+          bbox: detection.bbox,
+          spoofing_type: detection.spoofing_type,
+          confidence: detection.spoofing_confidence
+        });
+      }
+      // 🟢 PRIORITY 2: Normal face detection with status
+      else if (detection.status) {
+        switch (detection.status) {
+          case 'detecting':
+            labelText = 'Detecting...';
+            color = '#faad14'; // Orange
+            labelColor = '#faad14';
+            lineWidth = 2;
+            break;
+          case 'unknown':
+            labelText = 'Unknown';
+            color = '#ff4d4f'; // Red
+            labelColor = '#ff4d4f';
+            lineWidth = 2;
+            break;
+          case 'recognized':
+            labelText = detection.student_name || detection.student_id || 'Recognized';
+            color = '#52c41a'; // Green
+            labelColor = '#52c41a';
+            lineWidth = 3;
+            break;
+          case 'validated':
+            labelText = `✓ ${detection.student_name || detection.student_id}`;
+            color = '#389e0d'; // Dark green
+            labelColor = '#389e0d';
+            lineWidth = 3;
+            break;
+          default:
+            color = '#1890ff';
+            labelColor = '#1890ff';
+            lineWidth = 2;
+        }
+      }
+      // 🔵 PRIORITY 3: Fallback to validated/recognized logic
+      else if (detection.is_validated) {
+        color = '#52c41a'; // Green
+        labelColor = '#52c41a';
+        lineWidth = 3;
+        labelText = detection.student_name || detection.student_id || 'Validated';
+      } else if (detection.student_name) {
+        color = '#1890ff'; // Blue
+        labelColor = '#1890ff';
+        lineWidth = 2;
+        labelText = detection.student_name;
+      } else {
+        // No recognition yet
+        color = '#1890ff';
+        labelColor = '#1890ff';
+        lineWidth = 2;
+        labelText = null;
       }
       
-      // Override color for spoofing (highest priority)
-      if (isSpoofed) {
-        labelColor = '#ff4d4f';
-        ctx.strokeStyle = labelColor;
-        ctx.lineWidth = 3;
-      }
+      // Draw bounding box with determined color
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.strokeRect(displayX1, displayY1, width, height);
 
       if (labelText) {
         ctx.font = 'bold 14px Arial';
