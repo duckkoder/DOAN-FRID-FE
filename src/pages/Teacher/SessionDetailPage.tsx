@@ -14,7 +14,9 @@ import {
   Descriptions,
   Avatar,
   Progress,
-  Empty
+  Empty,
+  Modal,
+  Tooltip
 } from "antd";
 import {
   UserOutlined,
@@ -23,7 +25,11 @@ import {
   ArrowLeftOutlined,
   CalendarOutlined,
   EnvironmentOutlined,
-  FileExcelOutlined
+  FileExcelOutlined,
+  ClockCircleOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  ExclamationCircleOutlined
 } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import Breadcrumb from "../../components/Breadcrumb";
@@ -31,6 +37,9 @@ import dayjs from "dayjs";
 import * as XLSX from "xlsx";
 import {
   getSessionAttendance,
+  confirmAttendance,
+  rejectAttendance,
+  confirmAllPending,
   type SessionAttendanceResponse,
   type AttendanceRecord
 } from "../../apis/attendanceAPIs/attendanceAPIs";
@@ -45,6 +54,8 @@ const SessionDetailPage: React.FC = () => {
   const [sessionData, setSessionData] = useState<SessionAttendanceResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState<boolean>(false);
+  const [actionLoading, setActionLoading] = useState<{ [key: number]: boolean }>({});
+  const [confirmingAll, setConfirmingAll] = useState<boolean>(false);
 
   // Fetch session details
   useEffect(() => {
@@ -74,9 +85,106 @@ const SessionDetailPage: React.FC = () => {
     fetchSessionDetails();
   }, [sessionId]);
 
+  // Refetch session data
+  const refetchData = async () => {
+    if (!sessionId) return;
+    
+    try {
+      const response = await getSessionAttendance(parseInt(sessionId));
+      setSessionData(response);
+    } catch (err: any) {
+      console.error("Failed to refresh session details:", err);
+      message.error("Không thể làm mới dữ liệu");
+    }
+  };
+
+  // Handle confirm attendance
+  const handleConfirmAttendance = async (recordId: number, studentName: string) => {
+    setActionLoading(prev => ({ ...prev, [recordId]: true }));
+    
+    try {
+      await confirmAttendance(recordId, {
+        notes: `Xác nhận bởi giáo viên - ${dayjs().format("HH:mm DD/MM/YYYY")}`
+      });
+      
+      message.success(`Đã xác nhận ${studentName} có mặt`);
+      await refetchData();
+    } catch (err: any) {
+      console.error("Failed to confirm attendance:", err);
+      message.error(err?.response?.data?.detail || "Không thể xác nhận điểm danh");
+    } finally {
+      setActionLoading(prev => ({ ...prev, [recordId]: false }));
+    }
+  };
+
+  // Handle reject attendance
+  const handleRejectAttendance = (recordId: number, studentName: string) => {
+    Modal.confirm({
+      title: "Từ chối điểm danh",
+      icon: <ExclamationCircleOutlined />,
+      content: `Bạn có chắc muốn đánh dấu ${studentName} là vắng không?`,
+      okText: "Xác nhận",
+      cancelText: "Hủy",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        setActionLoading(prev => ({ ...prev, [recordId]: true }));
+        
+        try {
+          await rejectAttendance(recordId, {
+            notes: `Từ chối bởi giáo viên - AI nhận diện không chính xác`
+          });
+          
+          message.success(`Đã đánh dấu ${studentName} vắng`);
+          await refetchData();
+        } catch (err: any) {
+          console.error("Failed to reject attendance:", err);
+          message.error(err?.response?.data?.detail || "Không thể từ chối điểm danh");
+        } finally {
+          setActionLoading(prev => ({ ...prev, [recordId]: false }));
+        }
+      }
+    });
+  };
+
+  // Handle confirm all pending
+  const handleConfirmAllPending = () => {
+    if (!sessionId || !sessionData) return;
+    
+    const pendingCount = sessionData.statistics.pending_count || 0;
+    
+    if (pendingCount === 0) {
+      message.info("Không có sinh viên nào đang chờ xác nhận");
+      return;
+    }
+    
+    Modal.confirm({
+      title: "Xác nhận tất cả",
+      icon: <ExclamationCircleOutlined />,
+      content: `Bạn có chắc muốn xác nhận tất cả ${pendingCount} sinh viên đang chờ là có mặt không?`,
+      okText: "Xác nhận tất cả",
+      cancelText: "Hủy",
+      onOk: async () => {
+        setConfirmingAll(true);
+        
+        try {
+          await confirmAllPending(parseInt(sessionId));
+          message.success(`Đã xác nhận tất cả ${pendingCount} sinh viên`);
+          await refetchData();
+        } catch (err: any) {
+          console.error("Failed to confirm all pending:", err);
+          message.error(err?.response?.data?.detail || "Không thể xác nhận tất cả");
+        } finally {
+          setConfirmingAll(false);
+        }
+      }
+    });
+  };
+
   // Get status config
   const getStatusConfig = (status: string) => {
     switch (status) {
+      case "pending":
+        return { color: "#faad14", text: "Chờ xác nhận", icon: <ClockCircleOutlined /> };
       case "present":
         return { color: "#10b981", text: "Có mặt", icon: <CheckCircleOutlined /> };
       case "absent":
@@ -146,6 +254,46 @@ const SessionDetailPage: React.FC = () => {
       key: "notes",
       render: (notes: string | null) =>
         notes ? <Text style={{ fontSize: 12 }}>{notes}</Text> : <Text type="secondary">-</Text>
+    },
+    {
+      title: "Hành động",
+      key: "actions",
+      width: 150,
+      align: "center" as const,
+      render: (_, record: AttendanceRecord) => {
+        // Chỉ hiển thị actions cho sinh viên pending
+        if (record.status !== 'pending') {
+          return <Text type="secondary">-</Text>;
+        }
+
+        const isLoading = actionLoading[record.id] || false;
+
+        return (
+          <Space size="small">
+            <Tooltip title="Xác nhận có mặt">
+              <Button
+                type="primary"
+                size="small"
+                icon={<CheckOutlined />}
+                onClick={() => handleConfirmAttendance(record.id, record.student_name)}
+                loading={isLoading}
+                disabled={isLoading}
+                style={{ backgroundColor: '#10b981', borderColor: '#10b981' }}
+              />
+            </Tooltip>
+            <Tooltip title="Đánh dấu vắng">
+              <Button
+                danger
+                size="small"
+                icon={<CloseOutlined />}
+                onClick={() => handleRejectAttendance(record.id, record.student_name)}
+                loading={isLoading}
+                disabled={isLoading}
+              />
+            </Tooltip>
+          </Space>
+        );
+      }
     }
   ];
 
@@ -177,6 +325,7 @@ const SessionDetailPage: React.FC = () => {
         ["THỐNG KÊ"],
         [`Tổng sinh viên: ${statistics.total_students}`],
         [`Có mặt: ${statistics.present_count}`],
+        [`Chờ xác nhận: ${statistics.pending_count || 0}`],
         [`Vắng: ${statistics.absent_count}`],
         [`Có phép: ${statistics.excused_count}`],
         [`Tỷ lệ: ${statistics.attendance_rate.toFixed(2)}%`],
@@ -338,7 +487,7 @@ const SessionDetailPage: React.FC = () => {
 
       {/* Statistics */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={24} sm={12} md={6} lg={4.8}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
               title="Tổng sinh viên"
@@ -348,7 +497,7 @@ const SessionDetailPage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={24} sm={12} md={6} lg={4.8}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
               title="Có mặt"
@@ -358,7 +507,17 @@ const SessionDetailPage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={24} sm={12} md={6} lg={4.8}>
+          <Card style={{ borderRadius: 12, textAlign: "center" }}>
+            <Statistic
+              title="Chờ xác nhận"
+              value={statistics.pending_count || 0}
+              prefix={<ClockCircleOutlined />}
+              valueStyle={{ color: "#faad14" }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6} lg={4.8}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
               title="Vắng"
@@ -368,7 +527,7 @@ const SessionDetailPage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={24} sm={12} md={6} lg={4.8}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
               title="Có phép"
@@ -414,21 +573,40 @@ const SessionDetailPage: React.FC = () => {
         title="📊 Danh sách điểm danh chi tiết"
         style={{ borderRadius: 16, boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
         extra={
-          <Button
-            type="primary"
-            icon={<FileExcelOutlined />}
-            onClick={handleExportExcel}
-            loading={exporting}
-            disabled={exporting}
-            style={{
-              background: exporting 
-                ? "#94a3b8" 
-                : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-              border: "none"
-            }}
-          >
-            {exporting ? "Đang xuất..." : "Xuất Excel"}
-          </Button>
+          <Space>
+            {/* Hiển thị nút "Xác nhận tất cả" nếu có sinh viên pending */}
+            {sessionData && (sessionData.statistics.pending_count || 0) > 0 && (
+              <Button
+                type="default"
+                icon={<CheckCircleOutlined />}
+                onClick={handleConfirmAllPending}
+                loading={confirmingAll}
+                disabled={confirmingAll}
+                style={{
+                  backgroundColor: '#faad14',
+                  borderColor: '#faad14',
+                  color: '#fff'
+                }}
+              >
+                Xác nhận tất cả ({sessionData.statistics.pending_count})
+              </Button>
+            )}
+            <Button
+              type="primary"
+              icon={<FileExcelOutlined />}
+              onClick={handleExportExcel}
+              loading={exporting}
+              disabled={exporting}
+              style={{
+                background: exporting 
+                  ? "#94a3b8" 
+                  : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                border: "none"
+              }}
+            >
+              {exporting ? "Đang xuất..." : "Xuất Excel"}
+            </Button>
+          </Space>
         }
       >
         <Table

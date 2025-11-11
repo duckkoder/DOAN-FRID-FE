@@ -10,18 +10,19 @@ export interface AttendanceRecord {
   session_id: number;
   student_id: number;
   student_code: string;
-  full_name: string;
-  status: 'present' | 'late' | 'absent';
-  check_in_time: string | null;
+  student_name: string; // ✅ Đổi từ full_name → student_name
+  status: 'pending' | 'present' | 'absent' | 'excused'; // ✅ Thêm pending, excused
+  recorded_at: string | null; // ✅ Đổi từ check_in_time
   confidence_score: number | null;
-  recognition_method: string | null;
+  notes: string | null; // ✅ Thêm notes
 }
 
 export interface AttendanceStatistics {
   total_students: number;
-  present: number;
-  late: number;
-  absent: number;
+  present_count: number; // ✅ Đổi từ present
+  absent_count: number; // ✅ Đổi từ absent
+  excused_count: number; // ✅ Thêm excused_count
+  pending_count: number; // ✅ Thêm pending_count
   attendance_rate: number;
 }
 

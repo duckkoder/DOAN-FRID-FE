@@ -81,7 +81,7 @@ export interface AttendanceRecord {
   student_id: number;
   student_code: string;
   student_name: string;
-  status: 'present' | 'absent' | 'excused';  // Chỉ 3 trạng thái
+  status: 'pending' | 'present' | 'absent' | 'excused';  // ✅ Thêm pending status
   confidence_score: number | null;
   recorded_at: string | null;
   notes: string | null;
@@ -95,6 +95,7 @@ export interface SessionAttendanceResponse {
     present_count: number;
     absent_count: number;
     excused_count: number;
+    pending_count: number;  // ✅ NEW
     attendance_rate: number;
   };
 }
@@ -178,6 +179,85 @@ export const getClassSessions = async (
   const response = await api.get(
     `${API_BASE}/classes/${classId}/sessions?${params.toString()}`
   );
+  return response.data;
+};
+
+
+// ============= Pending Confirmation APIs (Hybrid Approach) =============
+
+export interface PendingStudent {
+  record_id: number;
+  student_id: number;
+  student_code: string;
+  full_name: string;
+  confidence_score: number | null;
+  recorded_at: string;
+}
+
+export interface PendingStudentsResponse {
+  pending_count: number;
+  students: PendingStudent[];
+}
+
+export interface ConfirmAttendanceRequest {
+  status?: 'present';
+  notes?: string;
+}
+
+export interface RejectAttendanceRequest {
+  reason?: string;
+}
+
+export interface ConfirmAttendanceResponse {
+  success: boolean;
+  record: AttendanceRecord;
+}
+
+export interface ConfirmAllPendingResponse {
+  success: boolean;
+  confirmed_count: number;
+  records: AttendanceRecord[];
+}
+
+/**
+ * Lấy danh sách sinh viên chờ xác nhận
+ */
+export const getPendingStudents = async (
+  sessionId: number
+): Promise<PendingStudentsResponse> => {
+  const response = await api.get(`${API_BASE}/sessions/${sessionId}/pending-students`);
+  return response.data;
+};
+
+/**
+ * Xác nhận điểm danh cho một sinh viên
+ */
+export const confirmAttendance = async (
+  recordId: number,
+  data?: ConfirmAttendanceRequest
+): Promise<ConfirmAttendanceResponse> => {
+  const response = await api.post(`${API_BASE}/records/${recordId}/confirm`, data || {});
+  return response.data;
+};
+
+/**
+ * Từ chối điểm danh cho một sinh viên
+ */
+export const rejectAttendance = async (
+  recordId: number,
+  data?: RejectAttendanceRequest
+): Promise<ConfirmAttendanceResponse> => {
+  const response = await api.post(`${API_BASE}/records/${recordId}/reject`, data || {});
+  return response.data;
+};
+
+/**
+ * Xác nhận tất cả sinh viên chờ xác nhận
+ */
+export const confirmAllPending = async (
+  sessionId: number
+): Promise<ConfirmAllPendingResponse> => {
+  const response = await api.post(`${API_BASE}/sessions/${sessionId}/confirm-all-pending`);
   return response.data;
 };
 
