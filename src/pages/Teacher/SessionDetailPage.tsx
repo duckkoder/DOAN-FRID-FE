@@ -31,7 +31,7 @@ import {
   CloseOutlined,
   ExclamationCircleOutlined
 } from "@ant-design/icons";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import Breadcrumb from "../../components/Breadcrumb";
 import dayjs from "dayjs";
 import * as XLSX from "xlsx";
@@ -48,6 +48,7 @@ const { Title, Text } = Typography;
 
 const SessionDetailPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { sessionId } = useParams<{ sessionId: string }>();
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -416,7 +417,18 @@ const SessionDetailPage: React.FC = () => {
             description={error || "Không tìm thấy dữ liệu"}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           >
-            <Button type="primary" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
+            <Button 
+              type="primary" 
+              icon={<ArrowLeftOutlined />} 
+              onClick={() => {
+                const state = location.state as { from?: string; tab?: string } | null;
+                if (state?.from && state?.tab) {
+                  navigate(`${state.from}?tab=${state.tab}`);
+                } else {
+                  navigate(-1);
+                }
+              }}
+            >
               Quay lại
             </Button>
           </Empty>
@@ -443,7 +455,17 @@ const SessionDetailPage: React.FC = () => {
           <Button
             type="text"
             icon={<ArrowLeftOutlined />}
-            onClick={() => navigate(-1)}
+            onClick={() => {
+              // ✅ Navigate back with preserved tab
+              const state = location.state as { from?: string; tab?: string } | null;
+              if (state?.from && state?.tab) {
+                // Go back to specific class detail page with tab
+                navigate(`${state.from}?tab=${state.tab}`);
+              } else {
+                // Fallback to default back navigation
+                navigate(-1);
+              }
+            }}
             size="large"
           >
             Quay lại

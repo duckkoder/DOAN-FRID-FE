@@ -8,25 +8,15 @@ import {
   Button,
   Space,
   Card,
-  List,
-  Avatar,
   Tag,
   Badge,
-  Statistic,
-  Row,
-  Col,
   Alert,
   Typography,
-  Progress,
-  Tabs,
-  Drawer,
   FloatButton,
 } from 'antd';
 import {
   CameraOutlined,
   StopOutlined,
-  UserOutlined,
-  CheckCircleOutlined,
   ExclamationCircleOutlined,
   WifiOutlined,
   DisconnectOutlined,
@@ -36,12 +26,13 @@ import {
   ClockCircleOutlined,
 } from '@ant-design/icons';
 import { startAttendanceSessionWithAI, endAttendanceSession, type AISessionResponse } from '../apis/attendanceAPIs/attendanceAPIs';
-import { AIWebSocketClient, type DetectionInfo, type ValidatedStudent } from '../services/aiWebSocket';
+import { AIWebSocketClient, type DetectionInfo } from '../services/aiWebSocket';
 import { useSmartPolling } from '../hooks/useSmartPolling';
 import PendingConfirmationPanel from './PendingConfirmationPanel';
+import StatisticsPanel from './StatisticsPanel';
+import ConfirmedStudentsPanel from './ConfirmedStudentsPanel';
 
 const { Text } = Typography;
-const { TabPane } = Tabs;
 
 interface AttendanceCameraProps {
   classId: number;
@@ -71,23 +62,26 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   
   // Detection & Recognition states
   const [detections, setDetections] = useState<DetectionInfo[]>([]);
-  const [validatedStudents, setValidatedStudents] = useState<ValidatedStudent[]>([]);
   const [totalFaces, setTotalFaces] = useState(0);
   const [fps, setFps] = useState(0);
   
   // Responsive state
   const [isMobile, setIsMobile] = useState(false);
-  const [activeTab, setActiveTab] = useState('camera');
-  const [landscapePanel, setLandscapePanel] = useState<'stats' | 'students' | null>(null);
   const isBrowser = typeof window !== 'undefined';
   const isLandscapeMode = isMobile && isBrowser && window.innerWidth > window.innerHeight;
   
   // Camera state
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user'); // 'user' = front, 'environment' = back
   
-  // ✅ Pending confirmation state (Hybrid Approach)
+  // ✅ Panel states
   const [pendingPanelVisible, setPendingPanelVisible] = useState(false);
+  const [statisticsPanelVisible, setStatisticsPanelVisible] = useState(false);
+  const [studentsPanelVisible, setStudentsPanelVisible] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  
+  // ✅ Track new confirmed students (for badge notification)
+  const [newConfirmedCount, setNewConfirmedCount] = useState(0);
+  const lastViewedConfirmedCountRef = useRef(0);
   
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -118,32 +112,45 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   }, [attendanceData?.statistics?.pending_count]);
 
   /**
+   * ✅ Track new confirmed students for badge notification
+   */
+  useEffect(() => {
+    const currentConfirmedCount = attendanceData?.statistics?.present_count ?? 0;
+    
+    // Nếu có session và có sự tăng số lượng confirmed students
+    if (sessionInfo && currentConfirmedCount > lastViewedConfirmedCountRef.current) {
+      const newCount = currentConfirmedCount - lastViewedConfirmedCountRef.current;
+      setNewConfirmedCount(prev => prev + newCount);
+    }
+    
+    // Luôn update ref để track total count hiện tại
+    lastViewedConfirmedCountRef.current = currentConfirmedCount;
+  }, [attendanceData?.statistics?.present_count, sessionInfo]);
+
+  /**
    * Reset states when modal opens fresh (without active session)
    */
   useEffect(() => {
     if (visible && !sessionInfo) {
       // ✅ Reset tất cả states khi mở modal mới
       setDetections([]);
-      setValidatedStudents([]);
       setTotalFaces(0);
       setFps(0);
       setError(null);
       setCameraActive(false);
       setWsConnected(false);
-      setLandscapePanel(null);
     }
   }, [visible, sessionInfo]);
 
-  // Reset landscape drawers when orientation changes back
-  useEffect(() => {
-    if (!isLandscapeMode) {
-      setLandscapePanel(null);
-    }
-  }, [isLandscapeMode]);
-
+  // Reset panels when modal closes
   useEffect(() => {
     if (!visible) {
-      setLandscapePanel(null);
+      setStatisticsPanelVisible(false);
+      setStudentsPanelVisible(false);
+      setPendingPanelVisible(false);
+      // Reset new confirmed count
+      setNewConfirmedCount(0);
+      lastViewedConfirmedCountRef.current = 0;
     }
   }, [visible]);
 
@@ -374,15 +381,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
 
       wsClient.onStudentValidated((student) => {
         console.log('[WebSocket] Student validated:', student.student_name);
-        
-        // Add to validated list (check duplicate)
-        setValidatedStudents(prev => {
-          const exists = prev.some(s => s.student_code === student.student_code);
-          if (!exists) {
-            return [...prev, student];
-          }
-          return prev;
-        });
+        // Validated student info will be fetched from backend via polling
       });
 
       wsClient.onSessionStatus((status, stats) => {
@@ -553,7 +552,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         const spoofConf = typeof detection.spoofing_confidence === 'number'
           ? ` (${(detection.spoofing_confidence * 100).toFixed(1)}%)`
           : '';
-        labelText = `🚨 FAKE${spoofConf}`;
+        labelText = `FAKE${spoofConf}`;
       }
       // 🟢 PRIORITY 2: Normal face detection with status
       else if (detection.status) {
@@ -691,7 +690,6 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       setWsConnected(false);
       setSessionInfo(null); // Clear session info to prevent duplicate calls
       setDetections([]); // Clear detections
-      setValidatedStudents([]); // Clear validated students
       setTotalFaces(0); // Reset counters
       setFps(0);
       setError(null);
@@ -722,7 +720,6 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
     } else {
       // ✅ Reset states khi đóng modal (không có session active)
       setDetections([]);
-      setValidatedStudents([]);
       setTotalFaces(0);
       setFps(0);
       setError(null);
@@ -812,14 +809,6 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
     };
   }, []); // ✅ Run only once on mount
 
-  /**
-   * Auto switch to camera tab on mobile when session starts (only once)
-   */
-  useEffect(() => {
-    if (isMobile && sessionInfo && activeTab !== 'camera') {
-      setActiveTab('camera');
-    }
-  }, [isMobile, sessionInfo]); // Only run when isMobile or sessionInfo changes
 
   // Render Camera View
   const renderCameraView = () => {
@@ -1080,213 +1069,6 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   );
   };
 
-  // Render Statistics View
-  const renderStatistics = () => {
-    const confirmedCount = attendanceData?.statistics?.present_count || 0;
-    const totalStudents = attendanceData?.statistics?.total_students || 0;
-    const attendanceRate = attendanceData?.statistics?.attendance_rate || 0;
-    
-    return (
-      <Card 
-        title={<Space><BarChartOutlined /> Thống kê</Space>} 
-        style={{ height: isMobile ? 'auto' : '100%' }}
-      >
-        {!sessionInfo ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <BarChartOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
-            <Text type="secondary">Bắt đầu phiên điểm danh để xem thống kê</Text>
-          </div>
-        ) : (
-          <>
-            {wsConnected && !attendanceData && (
-              <Alert
-                message="Đang tải dữ liệu"
-                description="Đang kết nối với server để lấy thống kê điểm danh..."
-                type="info"
-                showIcon
-                style={{ marginBottom: 16 }}
-              />
-            )}
-            
-            <Row gutter={[16, 16]}>
-              <Col xs={12} sm={12}>
-                <Statistic
-                  title="Đã xác nhận"
-                  value={confirmedCount}
-                  valueStyle={{ color: '#52c41a' }}
-                  prefix={<CheckCircleOutlined />}
-                />
-              </Col>
-              <Col xs={12} sm={12}>
-                <Statistic
-                  title="Chờ xác nhận"
-                  value={pendingCount}
-                  valueStyle={{ color: '#faad14' }}
-                  prefix={<ClockCircleOutlined />}
-                />
-              </Col>
-            </Row>
-            
-            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-              <Col xs={12} sm={12}>
-                <Statistic
-                  title="Tổng số"
-                  value={totalStudents}
-                  prefix={<UserOutlined />}
-                />
-              </Col>
-              <Col xs={12} sm={12}>
-                <Statistic
-                  title="Tỷ lệ"
-                  value={attendanceRate}
-                  suffix="%"
-                  valueStyle={{ 
-                    color: attendanceRate >= 80 ? '#52c41a' : attendanceRate >= 50 ? '#faad14' : '#f5222d' 
-                  }}
-                />
-              </Col>
-            </Row>
-            
-            <div style={{ marginTop: 16 }}>
-              <Text type="secondary">Tỷ lệ điểm danh:</Text>
-              <Progress
-                percent={attendanceRate}
-                status="active"
-                strokeColor={
-                  attendanceRate >= 80 
-                    ? '#52c41a' 
-                    : attendanceRate >= 50 
-                    ? '#faad14' 
-                    : '#f5222d'
-                }
-              />
-            </div>
-            
-            {currentInterval && (
-              <div style={{ marginTop: 8 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Polling: {(currentInterval / 1000).toFixed(1)}s
-                </Text>
-              </div>
-            )}
-          </>
-        )}
-      </Card>
-    );
-  };
-
-  // Render Student List View (Only PRESENT students, exclude PENDING)
-  const renderStudentList = () => {
-    // ✅ Filter: Chỉ hiển thị students có status PRESENT từ backend
-    const confirmedStudents = attendanceData?.records?.filter(r => r.status === 'present') || [];
-    const confirmedCount = confirmedStudents.length;
-    
-    return (
-      <Card
-        title={<Space><TeamOutlined /> Sinh viên đã xác nhận</Space>}
-        extra={
-          !isMobile && sessionInfo && (
-            <Badge 
-              count={confirmedCount} 
-              showZero 
-              style={{ backgroundColor: confirmedCount > 0 ? '#52c41a' : '#d9d9d9' }}
-            />
-          )
-        }
-        style={{ 
-          height: '100%', 
-          display: 'flex', 
-          flexDirection: 'column'
-        }}
-        bodyStyle={{ 
-          flex: 1, 
-          overflow: 'auto',
-          padding: isMobile ? '12px' : '16px',
-          maxHeight: isMobile ? 'none' : undefined
-        }}
-      >
-        {!sessionInfo ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <TeamOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
-            <Text type="secondary">Bắt đầu phiên điểm danh để xem danh sách</Text>
-          </div>
-        ) : (
-          <>
-            {wsConnected && confirmedCount === 0 && pendingCount === 0 && (
-              <Alert
-                message="Đang chờ nhận diện"
-                description="Camera đang hoạt động. Sinh viên sẽ xuất hiện ở đây khi được AI nhận diện và xác nhận."
-                type="info"
-                showIcon
-                style={{ marginBottom: 16 }}
-              />
-            )}
-            
-            {/* ✅ Hiển thị warning nếu có pending */}
-            {pendingCount > 0 && (
-              <Alert
-                message={`${pendingCount} sinh viên chờ xác nhận`}
-                description="Độ tin cậy nhận diện thấp. Vui lòng kiểm tra và xác nhận."
-                type="warning"
-                showIcon
-                icon={<ClockCircleOutlined />}
-                action={
-                  <Button 
-                    size="small" 
-                    type="primary" 
-                    onClick={() => setPendingPanelVisible(true)}
-                    style={{ backgroundColor: '#faad14', borderColor: '#faad14' }}
-                  >
-                    Xem ngay
-                  </Button>
-                }
-                style={{ marginBottom: 16 }}
-              />
-            )}
-            
-            <List
-              dataSource={confirmedStudents}
-              renderItem={(record) => (
-                <List.Item>
-                  <List.Item.Meta
-                    avatar={
-                      <Avatar
-                        size={isMobile ? 40 : 48}
-                        style={{ backgroundColor: '#52c41a' }}
-                        icon={<UserOutlined />}
-                      />
-                    }
-                    title={record.student_name}
-                    description={
-                      <Space direction="vertical" size={0}>
-                        <Text type="secondary">{record.student_code}</Text>
-                        {record.confidence_score && (
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            Confidence: {(record.confidence_score * 100).toFixed(1)}%
-                          </Text>
-                        )}
-                      </Space>
-                    }
-                  />
-                  <CheckCircleOutlined style={{ color: '#52c41a', fontSize: isMobile ? 18 : 20 }} />
-                </List.Item>
-              )}
-              locale={{ 
-                emptyText: wsConnected 
-                  ? 'Đang chờ nhận diện sinh viên...' 
-                  : 'Chưa có sinh viên nào được xác nhận' 
-              }}
-              style={{ 
-                maxHeight: isMobile ? 'calc(100vh - 350px)' : 350, 
-                overflow: 'auto',
-                minHeight: isMobile ? 150 : 'auto'
-              }}
-            />
-          </>
-        )}
-      </Card>
-    );
-  };
 
   return (
     <Modal
@@ -1526,263 +1308,106 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         />
       )}
 
-      {isLandscapeMode ? (
-        <>
-          <div
-            style={{
-              position: 'relative',
-              height: '100%',
-              minHeight: 'calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))',
-              display: 'flex',
-              flexDirection: 'column',
-              flex: 1,
-              backgroundColor: '#000',
-            }}
-          >
-            {renderCameraView()}
-          </div>
+      {/* ✅ Camera Full Screen - All Modes */}
+      <div
+        style={{
+          position: 'relative',
+          height: isLandscapeMode ? '100%' : isMobile ? 'calc(100vh - 160px)' : '75vh',
+          minHeight: isLandscapeMode ? 'calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))' : undefined,
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          backgroundColor: isLandscapeMode ? '#000' : undefined,
+        }}
+      >
+        {renderCameraView()}
+      </div>
 
-          <FloatButton.Group
-            shape="circle"
-            style={{
-              position: 'fixed',
-              right: 16,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              zIndex: 120,
-            }}
+      {/* ✅ FloatButton Group - All Modes */}
+      {sessionInfo && (
+        <FloatButton.Group
+          shape="circle"
+          style={{
+            position: 'fixed',
+            right: isMobile ? 16 : 24,
+            top: isMobile ? '50%' : '50%',
+            transform: 'translateY(-50%)',
+            zIndex: 1002,
+          }}
+        >
+          <FloatButton
+            icon={<BarChartOutlined />}
+            tooltip="Thống kê"
+            onClick={() => setStatisticsPanelVisible(true)}
+            type="primary"
+          />
+          {/* ✅ Confirmed Students Button with "new students" badge */}
+          <Badge 
+            count={newConfirmedCount} 
+            offset={[-5, 5]}
+            style={{ backgroundColor: '#52c41a' }}
           >
-            <FloatButton
-              icon={<BarChartOutlined />}
-              tooltip="Thống kê"
-              onClick={() => setLandscapePanel('stats')}
-            />
             <FloatButton
               icon={<TeamOutlined />}
-              tooltip="Danh sách"
-              onClick={() => setLandscapePanel('students')}
-            />
-            {/* ✅ Pending Confirmation Button (Hybrid Approach) */}
-            {pendingCount > 0 && (
-              <Badge count={pendingCount} offset={[-5, 5]}>
-                <FloatButton
-                  icon={<ClockCircleOutlined />}
-                  tooltip="Chờ xác nhận"
-                  onClick={() => setPendingPanelVisible(true)}
-                  style={{ backgroundColor: '#faad14' }}
-                />
-              </Badge>
-            )}
-          </FloatButton.Group>
-
-          <Drawer
-            placement="right"
-            open={landscapePanel === 'stats'}
-            onClose={() => setLandscapePanel(null)}
-            width="75%"
-            destroyOnClose
-            title="Thống kê"
-            styles={{ body: { padding: 16 } }}
-          >
-            {renderStatistics()}
-          </Drawer>
-
-          <Drawer
-            placement="right"
-            open={landscapePanel === 'students'}
-            onClose={() => setLandscapePanel(null)}
-            width="75%"
-            destroyOnClose
-            title="Sinh viên đã xác nhận"
-            styles={{ body: { padding: 16 } }}
-          >
-            {renderStudentList()}
-          </Drawer>
-        </>
-      ) : isMobile ? (
-        // Mobile Layout - Tabs (Portrait)
-        <>
-          <Tabs 
-            activeKey={activeTab} 
-            onChange={setActiveTab}
-            size="large"
-            style={{ 
-              marginTop: -8,
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-            tabBarStyle={{ 
-              position: 'sticky', 
-              top: 0, 
-              zIndex: 10, 
-              backgroundColor: '#fff',
-              marginBottom: 0,
-              paddingTop: isLandscapeMode ? 4 : 8,
-              flexShrink: 0
-            }}
-          >
-            <TabPane 
-              tab={<Space><CameraOutlined /> Camera</Space>} 
-              key="camera"
-            >
-              <div style={{ 
-                height: isLandscapeMode 
-                  ? 'calc(100vh - 110px)'
-                  : 'calc(100vh - 200px)',
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
-                margin: 0,
-                padding: 0
-              }}>
-                {renderCameraView()}
-              </div>
-            </TabPane>
-            <TabPane 
-              tab={
-                <Space>
-                  <BarChartOutlined /> 
-                  <span>Thống kê</span>
-                  {(attendanceData?.statistics?.present_count || 0) > 0 && (
-                    <Badge 
-                      count={attendanceData?.statistics?.present_count || 0} 
-                      style={{ backgroundColor: '#52c41a' }}
-                    />
-                  )}
-                </Space>
-              } 
-              key="stats"
-            >
-              <div style={{ 
-                padding: '8px 0',
-                height: 'calc(100vh - 280px)',
-                overflow: 'auto'
-              }}>
-                {renderStatistics()}
-              </div>
-            </TabPane>
-            <TabPane 
-              tab={
-                <Space>
-                  <TeamOutlined /> 
-                  <span>Danh sách</span>
-                  {validatedStudents.length > 0 && (
-                    <Badge 
-                      count={validatedStudents.length} 
-                      style={{ backgroundColor: '#1890ff' }}
-                    />
-                  )}
-                </Space>
-              } 
-              key="students"
-            >
-              <div style={{ 
-                padding: '8px 0',
-                height: 'calc(100vh - 280px)',
-                overflow: 'auto'
-              }}>
-                {renderStudentList()}
-              </div>
-            </TabPane>
-            {/* ✅ Pending Tab (Hybrid Approach) */}
-            {pendingCount > 0 && (
-              <TabPane 
-                tab={
-                  <Space>
-                    <ClockCircleOutlined /> 
-                    <span>Chờ xác nhận</span>
-                    <Badge 
-                      count={pendingCount} 
-                      style={{ backgroundColor: '#faad14' }}
-                    />
-                  </Space>
-                } 
-                key="pending"
-              >
-                <div style={{ 
-                  padding: '8px 0',
-                  height: 'calc(100vh - 280px)',
-                  overflow: 'auto'
-                }}>
-                  <Button
-                    type="primary"
-                    icon={<ClockCircleOutlined />}
-                    onClick={() => setPendingPanelVisible(true)}
-                    block
-                    size="large"
-                    style={{ backgroundColor: '#faad14', borderColor: '#faad14' }}
-                  >
-                    Mở danh sách chờ xác nhận ({pendingCount})
-                  </Button>
-                </div>
-              </TabPane>
-            )}
-          </Tabs>
-
-          {/* Floating Action Button for Mobile - Show in Stats/Students tabs */}
-          {sessionInfo && activeTab !== 'camera' && (
-            <div
-              style={{
-                position: 'fixed',
-                bottom: 24,
-                right: 24,
-                zIndex: 1000,
+              tooltip={newConfirmedCount > 0 ? `${newConfirmedCount} sinh viên mới` : 'Danh sách sinh viên'}
+              onClick={() => {
+                setStudentsPanelVisible(true);
+                // ✅ Reset badge khi user mở panel
+                setNewConfirmedCount(0);
               }}
-            >
-              <Button
-                danger
-                shape="circle"
-                size="large"
-                icon={<StopOutlined />}
-                onClick={handleStopSession}
-                loading={loading}
-                style={{
-                  width: 56,
-                  height: 56,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                  fontSize: 20,
-                }}
+              type="primary"
+            />
+          </Badge>
+          {pendingCount > 0 && (
+            <Badge count={pendingCount} offset={[-5, 5]}>
+              <FloatButton
+                icon={<ClockCircleOutlined />}
+                tooltip="Chờ xác nhận"
+                onClick={() => setPendingPanelVisible(true)}
+                style={{ backgroundColor: '#faad14' }}
               />
-            </div>
+            </Badge>
           )}
-        </>
-      ) : (
-        // Desktop Layout - Side by Side
-        <Row gutter={[16, 16]} style={{ maxHeight: '75vh', overflow: 'hidden' }}>
-          {/* Camera View */}
-          <Col span={16}>
-            {renderCameraView()}
-          </Col>
-
-          {/* Statistics & Student List */}
-          <Col span={8} style={{ display: 'flex', flexDirection: 'column', height: '75vh', overflow: 'hidden' }}>
-            <div style={{ marginBottom: 16, flexShrink: 0 }}>
-              {renderStatistics()}
-            </div>
-            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              {renderStudentList()}
-            </div>
-          </Col>
-        </Row>
+        </FloatButton.Group>
       )}
 
-      {/* ✅ Pending Confirmation Panel (Hybrid Approach) */}
+      {/* ✅ Statistics Panel */}
+      <StatisticsPanel
+        visible={statisticsPanelVisible}
+        onClose={() => setStatisticsPanelVisible(false)}
+        sessionActive={sessionInfo !== null}
+        confirmedCount={attendanceData?.statistics?.present_count || 0}
+        pendingCount={pendingCount}
+        totalStudents={attendanceData?.statistics?.total_students || 0}
+        attendanceRate={attendanceData?.statistics?.attendance_rate || 0}
+        wsConnected={wsConnected}
+        hasData={attendanceData !== undefined && attendanceData !== null}
+        currentInterval={currentInterval}
+      />
+
+      {/* ✅ Confirmed Students Panel */}
+      <ConfirmedStudentsPanel
+        visible={studentsPanelVisible}
+        onClose={() => setStudentsPanelVisible(false)}
+        sessionActive={sessionInfo !== null}
+        confirmedStudents={attendanceData?.records?.filter(r => r.status === 'present') || []}
+        pendingCount={pendingCount}
+        wsConnected={wsConnected}
+        onOpenPendingPanel={() => {
+          setStudentsPanelVisible(false);
+          setPendingPanelVisible(true);
+        }}
+      />
+
+      {/* Pending Confirmation Panel */}
       <PendingConfirmationPanel
         visible={pendingPanelVisible}
-        onClose={() => {
-          setPendingPanelVisible(false);
-          // ✅ UX Improvement: Tự động chuyển về tab Camera trên mobile sau khi đóng panel
-          if (isMobile && !isLandscapeMode && (activeTab === 'students' || activeTab === 'pending')) {
-            setTimeout(() => setActiveTab('camera'), 100); // Small delay for smooth transition
-          }
-        }}
+        onClose={() => setPendingPanelVisible(false)}
         sessionId={sessionInfo?.session_id || null}
         onConfirmed={() => {
           // Force refresh polling data ngay lập tức sau khi xác nhận
           console.log('[AttendanceCamera] Pending confirmed, triggering data refresh');
           // Smart polling sẽ tự động fetch lại trong vài giây
-          // Hoặc có thể gọi manual refresh nếu hook có expose
         }}
       />
     </Modal>

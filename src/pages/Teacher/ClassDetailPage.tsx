@@ -170,6 +170,7 @@ interface UpcomingSession {
 
 const ClassDetailPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const params = useParams<{ classId: string }>();
   
   const classId = useMemo(() => {
@@ -180,8 +181,20 @@ const ClassDetailPage: React.FC = () => {
     return null;
   }, [params.classId]);
 
-  // ✅ FIXED: Initialize all state variables properly
-  const [activeTab, setActiveTab] = useState('overview');
+  // ✅ FIXED: Get activeTab from URL query params or default to 'overview'
+  const searchParams = new URLSearchParams(location.search);
+  const initialTab = searchParams.get('tab') || 'overview';
+  const [activeTab, setActiveTab] = useState(initialTab);
+  
+  // ✅ Sync activeTab with URL query params when location changes
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tabFromUrl = params.get('tab') || 'overview';
+    if (tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [location.search]); // eslint-disable-line react-hooks/exhaustive-deps
+  
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isStudentDetailVisible, setIsStudentDetailVisible] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -1088,8 +1101,10 @@ const ClassDetailPage: React.FC = () => {
               size="small" 
               icon={<EyeOutlined />}
               onClick={() => {
-                // Navigate to session detail or show modal
-                navigate(`/teacher/attendance/${record.id}`);
+                // ✅ Navigate with current tab in state
+                navigate(`/teacher/attendance/${record.id}`, {
+                  state: { from: location.pathname, tab: activeTab }
+                });
               }}
             >
               Chi tiết
@@ -1522,7 +1537,13 @@ const ClassDetailPage: React.FC = () => {
       }}>
         <Tabs 
           activeKey={activeTab} 
-          onChange={setActiveTab}
+          onChange={(key) => {
+            setActiveTab(key);
+            // ✅ Update URL query params when tab changes
+            const newSearchParams = new URLSearchParams(location.search);
+            newSearchParams.set('tab', key);
+            navigate(`${location.pathname}?${newSearchParams.toString()}`, { replace: true });
+          }}
           size="large"
         >
           {/* Overview Tab */}
