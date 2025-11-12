@@ -8,38 +8,31 @@ import {
   Button,
   Space,
   Card,
-  List,
-  Avatar,
   Tag,
   Badge,
-  Statistic,
-  Row,
-  Col,
   Alert,
   Typography,
-  Progress,
-  Tabs,
-  Drawer,
   FloatButton,
 } from 'antd';
 import {
   CameraOutlined,
   StopOutlined,
-  UserOutlined,
-  CheckCircleOutlined,
   ExclamationCircleOutlined,
   WifiOutlined,
   DisconnectOutlined,
   BarChartOutlined,
   TeamOutlined,
   SwapOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons';
 import { startAttendanceSessionWithAI, endAttendanceSession, type AISessionResponse } from '../apis/attendanceAPIs/attendanceAPIs';
-import { AIWebSocketClient, type DetectionInfo, type ValidatedStudent } from '../services/aiWebSocket';
+import { AIWebSocketClient, type DetectionInfo } from '../services/aiWebSocket';
 import { useSmartPolling } from '../hooks/useSmartPolling';
+import PendingConfirmationPanel from './PendingConfirmationPanel';
+import StatisticsPanel from './StatisticsPanel';
+import ConfirmedStudentsPanel from './ConfirmedStudentsPanel';
 
 const { Text } = Typography;
-const { TabPane } = Tabs;
 
 interface AttendanceCameraProps {
   classId: number;
@@ -69,19 +62,26 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   
   // Detection & Recognition states
   const [detections, setDetections] = useState<DetectionInfo[]>([]);
-  const [validatedStudents, setValidatedStudents] = useState<ValidatedStudent[]>([]);
   const [totalFaces, setTotalFaces] = useState(0);
   const [fps, setFps] = useState(0);
   
   // Responsive state
   const [isMobile, setIsMobile] = useState(false);
-  const [activeTab, setActiveTab] = useState('camera');
-  const [landscapePanel, setLandscapePanel] = useState<'stats' | 'students' | null>(null);
   const isBrowser = typeof window !== 'undefined';
   const isLandscapeMode = isMobile && isBrowser && window.innerWidth > window.innerHeight;
   
   // Camera state
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user'); // 'user' = front, 'environment' = back
+  
+  // ✅ Panel states
+  const [pendingPanelVisible, setPendingPanelVisible] = useState(false);
+  const [statisticsPanelVisible, setStatisticsPanelVisible] = useState(false);
+  const [studentsPanelVisible, setStudentsPanelVisible] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  
+  // ✅ Track new confirmed students (for badge notification)
+  const [newConfirmedCount, setNewConfirmedCount] = useState(0);
+  const lastViewedConfirmedCountRef = useRef(0);
   
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -103,32 +103,54 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   });
 
   /**
+   * ✅ Update pending count từ attendance data
+   * ✅ FIX: Use specific value as dependency to prevent unnecessary updates
+   */
+  useEffect(() => {
+    const newPendingCount = attendanceData?.statistics?.pending_count ?? 0;
+    setPendingCount(prev => prev !== newPendingCount ? newPendingCount : prev);
+  }, [attendanceData?.statistics?.pending_count]);
+
+  /**
+   * ✅ Track new confirmed students for badge notification
+   */
+  useEffect(() => {
+    const currentConfirmedCount = attendanceData?.statistics?.present_count ?? 0;
+    
+    // Nếu có session và có sự tăng số lượng confirmed students
+    if (sessionInfo && currentConfirmedCount > lastViewedConfirmedCountRef.current) {
+      const newCount = currentConfirmedCount - lastViewedConfirmedCountRef.current;
+      setNewConfirmedCount(prev => prev + newCount);
+    }
+    
+    // Luôn update ref để track total count hiện tại
+    lastViewedConfirmedCountRef.current = currentConfirmedCount;
+  }, [attendanceData?.statistics?.present_count, sessionInfo]);
+
+  /**
    * Reset states when modal opens fresh (without active session)
    */
   useEffect(() => {
     if (visible && !sessionInfo) {
       // ✅ Reset tất cả states khi mở modal mới
       setDetections([]);
-      setValidatedStudents([]);
       setTotalFaces(0);
       setFps(0);
       setError(null);
       setCameraActive(false);
       setWsConnected(false);
-      setLandscapePanel(null);
     }
   }, [visible, sessionInfo]);
 
-  // Reset landscape drawers when orientation changes back
-  useEffect(() => {
-    if (!isLandscapeMode) {
-      setLandscapePanel(null);
-    }
-  }, [isLandscapeMode]);
-
+  // Reset panels when modal closes
   useEffect(() => {
     if (!visible) {
-      setLandscapePanel(null);
+      setStatisticsPanelVisible(false);
+      setStudentsPanelVisible(false);
+      setPendingPanelVisible(false);
+      // Reset new confirmed count
+      setNewConfirmedCount(0);
+      lastViewedConfirmedCountRef.current = 0;
     }
   }, [visible]);
 
@@ -359,15 +381,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
 
       wsClient.onStudentValidated((student) => {
         console.log('[WebSocket] Student validated:', student.student_name);
-        
-        // Add to validated list (check duplicate)
-        setValidatedStudents(prev => {
-          const exists = prev.some(s => s.student_code === student.student_code);
-          if (!exists) {
-            return [...prev, student];
-          }
-          return prev;
-        });
+        // Validated student info will be fetched from backend via polling
       });
 
       wsClient.onSessionStatus((status, stats) => {
@@ -401,7 +415,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
 
       // ✅ BACKPRESSURE: Skip nếu frame trước chưa xử lý xong
       if (isProcessingFrameRef.current) {
-        console.log('[FrameCapture] Skipping - previous frame still processing');
+        // ✅ OPTIMIZATION: Removed console.log for better performance
         return;
       }
 
@@ -443,168 +457,172 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
 
   /**
    * Draw bounding boxes on overlay canvas - WITH PROPER ASPECT RATIO SCALING
+   * ✅ OPTIMIZED: Continuous animation loop for smooth rendering
    */
   useEffect(() => {
     const video = videoRef.current;
     const canvas = overlayCanvasRef.current;
     
-    if (!video || !canvas) {
-      console.log('[Canvas] Missing refs');
-      return;
-    }
+    if (!video || !canvas) return;
 
-    // Get video element display size (getBoundingClientRect)
-    const rect = video.getBoundingClientRect();
+    let animationFrameId: number;
+    let isRunning = true;
     
-    // Set canvas size to match video display size
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      console.log('[Canvas] Failed to get 2d context');
-      return;
-    }
-    
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // If no detections, exit early
-    if (detections.length === 0) return;
-
-    // Calculate aspect ratio and scaling
-    // Video actual resolution
-    const videoWidth = video.videoWidth;
-    const videoHeight = video.videoHeight;
-    
-    if (videoWidth === 0 || videoHeight === 0) {
-      console.log('[Canvas] Video not ready yet');
-      return;
-    }
-
-    const videoAspect = videoWidth / videoHeight;
-    const displayAspect = rect.width / rect.height;
-    
-    let renderWidth, renderHeight, offsetX, offsetY;
-    
-    if (videoAspect > displayAspect) {
-      // Video is wider - fit to width (letterbox top/bottom)
-      renderWidth = rect.width;
-      renderHeight = rect.width / videoAspect;
-      offsetX = 0;
-      offsetY = (rect.height - renderHeight) / 2;
-    } else {
-      // Video is taller - fit to height (pillarbox left/right)
-      renderHeight = rect.height;
-      renderWidth = rect.height * videoAspect;
-      offsetX = (rect.width - renderWidth) / 2;
-      offsetY = 0;
-    }
-    
-    // Calculate scale factors
-    const scaleX = renderWidth / videoWidth;
-    const scaleY = renderHeight / videoHeight;
-    
-    console.log('[Canvas] Scaling info:', {
-      videoResolution: `${videoWidth}x${videoHeight}`,
-      displaySize: `${rect.width.toFixed(0)}x${rect.height.toFixed(0)}`,
-      renderSize: `${renderWidth.toFixed(0)}x${renderHeight.toFixed(0)}`,
-      offset: `${offsetX.toFixed(0)}, ${offsetY.toFixed(0)}`,
-      scale: `${scaleX.toFixed(3)}, ${scaleY.toFixed(3)}`,
-      detections: detections.length
-    });
-    
-    // Draw each detection
-    detections.forEach((detection) => {
-      const [x1, y1, x2, y2] = detection.bbox;
+    const drawDetections = () => {
+      if (!isRunning) return;
       
-      // Scale coordinates to rendered video size and add offset
-      const displayX1 = x1 * scaleX + offsetX;
-      const displayY1 = y1 * scaleY + offsetY;
-      const displayX2 = x2 * scaleX + offsetX;
-      const displayY2 = y2 * scaleY + offsetY;
-      const width = displayX2 - displayX1;
-      const height = displayY2 - displayY1;
+      // Get video element display size (getBoundingClientRect)
+      const rect = video.getBoundingClientRect();
       
-      // Determine anti-spoofing status and color
-      // If anti-spoofing explicitly says not live (is_live === false) OR spoofing_type is provided and not 'live',
-      // treat as spoofed/fake and render in red with label "Fake".
-      const isSpoofed = (typeof detection.is_live === 'boolean' && detection.is_live === false)
-        || (detection.spoofing_type && detection.spoofing_type !== 'live');
+      // Set canvas size to match video display size exactly
+      if (canvas.width !== rect.width || canvas.height !== rect.height) {
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+      }
       
-      // Debug anti-spoofing data
-      if (detection.is_live !== undefined || detection.spoofing_type !== undefined) {
-        console.log('[Canvas] Anti-spoofing detection:', {
-          is_live: detection.is_live,
-          spoofing_type: detection.spoofing_type,
-          spoofing_confidence: detection.spoofing_confidence,
-          isSpoofed: isSpoofed,
-          student_name: detection.student_name
-        });
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        animationFrameId = requestAnimationFrame(drawDetections);
+        return;
+      }
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // If no detections or video not ready, continue loop
+      if (detections.length === 0 || video.videoWidth === 0 || video.videoHeight === 0) {
+        animationFrameId = requestAnimationFrame(drawDetections);
+        return;
       }
 
-      const confidence = detection.confidence || 0;
+      // Calculate aspect ratio and scaling for object-fit: cover
+      // Video actual resolution (from camera stream)
+      const videoWidth = video.videoWidth;
+      const videoHeight = video.videoHeight;
+      
+      const videoAspect = videoWidth / videoHeight;
+      const containerAspect = canvas.width / canvas.height;
+      
+      let scaleX, scaleY, offsetX, offsetY;
+      
+      // With object-fit: cover, video fills the entire container
+      // One dimension matches exactly, the other is cropped
+      if (videoAspect > containerAspect) {
+        // Video is wider than container - fit to height, crop left/right
+        // Video height fills container height completely
+        scaleY = canvas.height / videoHeight;
+        scaleX = scaleY; // Same scale to maintain aspect ratio
+        
+        // Calculate how much is cropped from left and right
+        const renderedWidth = videoWidth * scaleX;
+        offsetX = (canvas.width - renderedWidth) / 2;
+        offsetY = 0;
+      } else {
+        // Video is taller/equal - fit to width, crop top/bottom  
+        // Video width fills container width completely
+        scaleX = canvas.width / videoWidth;
+        scaleY = scaleX; // Same scale to maintain aspect ratio
+        
+        // Calculate how much is cropped from top and bottom
+        const renderedHeight = videoHeight * scaleY;
+        offsetX = 0;
+        offsetY = (canvas.height - renderedHeight) / 2;
+      }
+    
+      // Draw each detection
+      detections.forEach((detection) => {
+        const [x1, y1, x2, y2] = detection.bbox;
+        
+        // Scale coordinates to rendered video size and add offset
+        const displayX1 = x1 * scaleX + offsetX;
+        const displayY1 = y1 * scaleY + offsetY;
+        const displayX2 = x2 * scaleX + offsetX;
+        const displayY2 = y2 * scaleY + offsetY;
+        const width = displayX2 - displayX1;
+        const height = displayY2 - displayY1;
+      
+      // ✅ DETERMINE ANTI-SPOOFING STATUS - HIGHEST PRIORITY
+      // If anti-spoofing explicitly says not live (is_live === false) OR spoofing_type is 'spoof',
+      // treat as spoofed/fake and render in red with label "Fake".
+      const isSpoofed = (typeof detection.is_live === 'boolean' && detection.is_live === false)
+        || (detection.spoofing_type && detection.spoofing_type === 'spoof');
+      
+      // ✅ OPTIMIZATION: Remove console.log in production for better performance
 
+      // ✅ DETERMINE COLOR AND LABEL - ANTI-SPOOFING HAS HIGHEST PRIORITY
       let color: string;
       let lineWidth = 2;
+      let labelText: string | null = null;
+      let labelColor: string;
+      
+      // 🔴 PRIORITY 1: Anti-spoofing detection (FAKE/SPOOF faces)
       if (isSpoofed) {
         color = '#ff4d4f'; // Antd red for fake/spoof
         lineWidth = 3;
-      } else if (detection.is_validated) {
-        color = '#52c41a';
-        lineWidth = 3;
-      } else {
-        color = '#1890ff';
-        lineWidth = 2;
-      }
-      
-      // Draw bounding box
-      ctx.strokeStyle = color;
-      ctx.lineWidth = lineWidth;
-      ctx.strokeRect(displayX1, displayY1, width, height);
-      
-      // ✅ Draw label based on status field from backend
-      let labelText: string | null = null;
-      let labelColor = color;
-      
-      // Check status field first (new approach)
-      if (detection.status) {
-        switch (detection.status) {
-          case 'detecting':
-            labelText = 'Detecting...';
-            labelColor = '#faad14'; // Orange
-            break;
-          case 'unknown':
-            labelText = 'Unknown';
-            labelColor = '#ff4d4f'; // Red
-            break;
-          case 'recognized':
-            labelText = detection.student_name || detection.student_id || 'Recognized';
-            labelColor = '#52c41a'; // Green
-            break;
-          case 'validated':
-            labelText = `${detection.student_name || detection.student_id}`;
-            labelColor = '#389e0d'; // Dark green
-            break;
-        }
-      }
-      // Fallback to old logic if no status field
-      else if (detection.student_name) {
-        labelText = `${detection.student_name}`;
-      } else if (isSpoofed) {
+        labelColor = '#ff4d4f';
+        
+        // Generate label for spoof faces
         const spoofConf = typeof detection.spoofing_confidence === 'number'
           ? ` (${(detection.spoofing_confidence * 100).toFixed(1)}%)`
           : '';
-        labelText = `Fake${spoofConf}`;
-        labelColor = '#ff4d4f';
+        labelText = `FAKE${spoofConf}`;
+      }
+      // 🟢 PRIORITY 2: Normal face detection with status
+      else if (detection.status) {
+        switch (detection.status) {
+          case 'detecting':
+            labelText = 'Detecting...';
+            color = '#faad14'; // Orange
+            labelColor = '#faad14';
+            lineWidth = 2;
+            break;
+          case 'unknown':
+            labelText = 'Unknown';
+            color = '#ff4d4f'; // Red
+            labelColor = '#ff4d4f';
+            lineWidth = 2;
+            break;
+          case 'recognized':
+            labelText = detection.student_name || detection.student_id || 'Recognized';
+            color = '#52c41a'; // Green
+            labelColor = '#52c41a';
+            lineWidth = 3;
+            break;
+          case 'validated':
+            labelText = `✓ ${detection.student_name || detection.student_id}`;
+            color = '#389e0d'; // Dark green
+            labelColor = '#389e0d';
+            lineWidth = 3;
+            break;
+          default:
+            color = '#1890ff';
+            labelColor = '#1890ff';
+            lineWidth = 2;
+        }
+      }
+      // 🔵 PRIORITY 3: Fallback to validated/recognized logic
+      else if (detection.is_validated) {
+        color = '#52c41a'; // Green
+        labelColor = '#52c41a';
+        lineWidth = 3;
+        labelText = detection.student_name || detection.student_id || 'Validated';
+      } else if (detection.student_name) {
+        color = '#1890ff'; // Blue
+        labelColor = '#1890ff';
+        lineWidth = 2;
+        labelText = detection.student_name;
+      } else {
+        // No recognition yet
+        color = '#1890ff';
+        labelColor = '#1890ff';
+        lineWidth = 2;
+        labelText = null;
       }
       
-      // Override color for spoofing (highest priority)
-      if (isSpoofed) {
-        labelColor = '#ff4d4f';
-        ctx.strokeStyle = labelColor;
-        ctx.lineWidth = 3;
-      }
+      // Draw bounding box with determined color
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.strokeRect(displayX1, displayY1, width, height);
 
       if (labelText) {
         ctx.font = 'bold 14px Arial';
@@ -621,16 +639,30 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         ctx.fillText(labelText, displayX1 + 5, displayY1 - 10);
       }
       
-      // Draw track ID if available
-      if (detection.track_id) {
-        const trackLabel = `#${detection.track_id}`;
-        ctx.fillStyle = labelColor; // Use labelColor for consistency
-        ctx.fillRect(displayX2 - 40, displayY1, 40, 20);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 12px Arial';
-        ctx.fillText(trackLabel, displayX2 - 35, displayY1 + 14);
+        // Draw track ID if available
+        if (detection.track_id) {
+          const trackLabel = `#${detection.track_id}`;
+          ctx.fillStyle = labelColor; // Use labelColor for consistency
+          ctx.fillRect(displayX2 - 40, displayY1, 40, 20);
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 12px Arial';
+          ctx.fillText(trackLabel, displayX2 - 35, displayY1 + 14);
+        }
+      });
+      
+      // Continue animation loop
+      animationFrameId = requestAnimationFrame(drawDetections);
+    };
+
+    // Start animation loop
+    drawDetections();
+
+    return () => {
+      isRunning = false;
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
       }
-    });
+    };
   }, [detections]);
 
   /**
@@ -675,7 +707,6 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       setWsConnected(false);
       setSessionInfo(null); // Clear session info to prevent duplicate calls
       setDetections([]); // Clear detections
-      setValidatedStudents([]); // Clear validated students
       setTotalFaces(0); // Reset counters
       setFps(0);
       setError(null);
@@ -706,7 +737,6 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
     } else {
       // ✅ Reset states khi đóng modal (không có session active)
       setDetections([]);
-      setValidatedStudents([]);
       setTotalFaces(0);
       setFps(0);
       setError(null);
@@ -751,8 +781,11 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
 
   /**
    * Update canvas size on window resize and detect mobile
+   * ✅ FIX: Only update state if value actually changes + debounce resize
    */
   useEffect(() => {
+    let resizeTimer: number;
+    
     const updateCanvasSize = () => {
       const video = videoRef.current;
       const canvas = overlayCanvasRef.current;
@@ -761,45 +794,38 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         const rect = video.getBoundingClientRect();
         canvas.width = rect.width;
         canvas.height = rect.height;
-        
-        console.log('[Canvas] Size updated:', { width: rect.width, height: rect.height });
       }
       
       // Detect mobile device (works in both portrait and landscape)
       const mobile = detectMobileDevice();
-      setIsMobile(mobile);
-      
-      console.log('[Mobile Detection]', {
-        isMobile: mobile,
-        width: window.innerWidth,
-        height: window.innerHeight,
-        minDimension: Math.min(window.innerWidth, window.innerHeight),
-        userAgent: navigator.userAgent,
-        hasTouch: 'ontouchstart' in window
-      });
+      setIsMobile(prev => prev !== mobile ? mobile : prev);
+    };
+    
+    // ✅ Debounced resize handler to prevent excessive updates
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(updateCanvasSize, 150);
+    };
+    
+    // Orientation change should be immediate (not debounced)
+    const handleOrientationChange = () => {
+      updateCanvasSize();
     };
     
     // Listen for window resize and orientation change
-    window.addEventListener('resize', updateCanvasSize);
-    window.addEventListener('orientationchange', updateCanvasSize);
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleOrientationChange);
     
     // Initial size update
     updateCanvasSize();
     
     return () => {
-      window.removeEventListener('resize', updateCanvasSize);
-      window.removeEventListener('orientationchange', updateCanvasSize);
+      clearTimeout(resizeTimer);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleOrientationChange);
     };
   }, []); // ✅ Run only once on mount
 
-  /**
-   * Auto switch to camera tab on mobile when session starts (only once)
-   */
-  useEffect(() => {
-    if (isMobile && sessionInfo && activeTab !== 'camera') {
-      setActiveTab('camera');
-    }
-  }, [isMobile, sessionInfo]); // Only run when isMobile or sessionInfo changes
 
   // Render Camera View
   const renderCameraView = () => {
@@ -1060,165 +1086,6 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   );
   };
 
-  // Render Statistics View
-  const renderStatistics = () => (
-    <Card 
-      title={<Space><BarChartOutlined /> Thống kê</Space>} 
-      style={{ height: isMobile ? 'auto' : '100%' }}
-    >
-      {!sessionInfo ? (
-        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-          <BarChartOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
-          <Text type="secondary">Bắt đầu phiên điểm danh để xem thống kê</Text>
-        </div>
-      ) : (
-        <>
-          {wsConnected && !attendanceData && (
-            <Alert
-              message="Đang tải dữ liệu"
-              description="Đang kết nối với server để lấy thống kê điểm danh..."
-              type="info"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-          )}
-          <Row gutter={[16, 16]}>
-            <Col xs={12} sm={12}>
-              <Statistic
-                title="Đã xác nhận"
-                value={attendanceData?.statistics?.present || validatedStudents.length}
-                valueStyle={{ color: '#3f8600' }}
-                prefix={<CheckCircleOutlined />}
-              />
-            </Col>
-            <Col xs={12} sm={12}>
-              <Statistic
-                title="Tổng số"
-                value={attendanceData?.statistics?.total_students || 0}
-                prefix={<UserOutlined />}
-              />
-            </Col>
-          </Row>
-          <div style={{ marginTop: 16 }}>
-            <Text type="secondary">Tỷ lệ điểm danh:</Text>
-            <Progress
-              percent={attendanceData?.statistics?.attendance_rate || 0}
-              status="active"
-              strokeColor={
-                (attendanceData?.statistics?.attendance_rate || 0) >= 80 
-                  ? '#52c41a' 
-                  : (attendanceData?.statistics?.attendance_rate || 0) >= 50 
-                  ? '#faad14' 
-                  : '#f5222d'
-              }
-            />
-          </div>
-          {currentInterval && (
-            <div style={{ marginTop: 8 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Polling: {(currentInterval / 1000).toFixed(1)}s
-              </Text>
-            </div>
-          )}
-          {wsConnected && validatedStudents.length > 0 && (
-            <div style={{ marginTop: 12 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                ⚡ Realtime: {validatedStudents.length} sinh viên đã được AI nhận diện
-              </Text>
-            </div>
-          )}
-        </>
-      )}
-    </Card>
-  );
-
-  // Render Student List View
-  const renderStudentList = () => (
-    <Card
-      title={<Space><TeamOutlined /> Sinh viên đã xác nhận</Space>}
-      extra={
-        !isMobile && sessionInfo && (
-          <Badge 
-            count={validatedStudents.length} 
-            showZero 
-            style={{ backgroundColor: validatedStudents.length > 0 ? '#52c41a' : '#d9d9d9' }}
-          />
-        )
-      }
-      style={{ 
-        height: '100%', 
-        display: 'flex', 
-        flexDirection: 'column'
-      }}
-      bodyStyle={{ 
-        flex: 1, 
-        overflow: 'auto',
-        padding: isMobile ? '12px' : '16px',
-        maxHeight: isMobile ? 'none' : undefined
-      }}
-    >
-      {!sessionInfo ? (
-        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-          <TeamOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
-          <Text type="secondary">Bắt đầu phiên điểm danh để xem danh sách</Text>
-        </div>
-      ) : (
-        <>
-          {wsConnected && validatedStudents.length === 0 && (
-            <Alert
-              message="Đang chờ nhận diện"
-              description="Camera đang hoạt động. Sinh viên sẽ xuất hiện ở đây khi được AI nhận diện và xác nhận."
-              type="info"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-          )}
-          <List
-            dataSource={validatedStudents}
-            renderItem={(student) => (
-              <List.Item>
-                <List.Item.Meta
-                  avatar={
-                    <Avatar
-                      size={isMobile ? 40 : 48}
-                      style={{ backgroundColor: '#52c41a' }}
-                      icon={<UserOutlined />}
-                    />
-                  }
-                  //! student_name same student_code 
-                  title={student.student_name}
-                  description={
-                    <Space direction="vertical" size={0}>
-                      <Text type="secondary">{student.student_code}</Text>
-                      {/* <Text type="secondary" style={{ fontSize: 12 }}>
-                        Confidence: {(student.avg_confidence * 100).toFixed(1)}%
-                      </Text>
-                      {!isMobile && (
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          Frames: {student.frame_count}/{student.recognition_count}
-                        </Text>
-                      )} */}
-                    </Space>
-                  }
-                />
-                <CheckCircleOutlined style={{ color: '#52c41a', fontSize: isMobile ? 18 : 20 }} />
-              </List.Item>
-            )}
-            locale={{ 
-              emptyText: wsConnected 
-                ? 'Đang chờ nhận diện sinh viên...' 
-                : 'Chưa có sinh viên nào được xác nhận' 
-            }}
-            style={{ 
-              maxHeight: isMobile ? 'calc(100vh - 350px)' : 350, 
-              overflow: 'auto',
-              minHeight: isMobile ? 150 : 'auto'
-            }}
-          />
-        </>
-      )}
-    </Card>
-  );
 
   return (
     <Modal
@@ -1458,202 +1325,108 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         />
       )}
 
-      {isLandscapeMode ? (
-        <>
-          <div
-            style={{
-              position: 'relative',
-              height: '100%',
-              minHeight: 'calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))',
-              display: 'flex',
-              flexDirection: 'column',
-              flex: 1,
-              backgroundColor: '#000',
-            }}
-          >
-            {renderCameraView()}
-          </div>
+      {/* ✅ Camera Full Screen - All Modes */}
+      <div
+        style={{
+          position: 'relative',
+          height: isLandscapeMode ? '100%' : isMobile ? 'calc(100vh - 160px)' : '75vh',
+          minHeight: isLandscapeMode ? 'calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))' : undefined,
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          backgroundColor: isLandscapeMode ? '#000' : undefined,
+        }}
+      >
+        {renderCameraView()}
+      </div>
 
-          <FloatButton.Group
-            shape="circle"
-            style={{
-              position: 'fixed',
-              right: 16,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              zIndex: 120,
-            }}
+      {/* ✅ FloatButton Group - All Modes */}
+      {sessionInfo && (
+        <FloatButton.Group
+          shape="circle"
+          style={{
+            position: 'fixed',
+            right: isMobile ? 16 : 24,
+            top: isMobile ? '50%' : '50%',
+            transform: 'translateY(-50%)',
+            zIndex: 1002,
+          }}
+        >
+          <FloatButton
+            icon={<BarChartOutlined />}
+            tooltip="Thống kê"
+            onClick={() => setStatisticsPanelVisible(true)}
+            type="primary"
+          />
+          {/* ✅ Confirmed Students Button with "new students" badge */}
+          <Badge 
+            count={newConfirmedCount} 
+            offset={[-5, 5]}
+            style={{ backgroundColor: '#52c41a' }}
           >
-            <FloatButton
-              icon={<BarChartOutlined />}
-              tooltip="Thống kê"
-              onClick={() => setLandscapePanel('stats')}
-            />
             <FloatButton
               icon={<TeamOutlined />}
-              tooltip="Danh sách"
-              onClick={() => setLandscapePanel('students')}
-            />
-          </FloatButton.Group>
-
-          <Drawer
-            placement="right"
-            open={landscapePanel === 'stats'}
-            onClose={() => setLandscapePanel(null)}
-            width="75%"
-            destroyOnClose
-            title="Thống kê"
-            styles={{ body: { padding: 16 } }}
-          >
-            {renderStatistics()}
-          </Drawer>
-
-          <Drawer
-            placement="right"
-            open={landscapePanel === 'students'}
-            onClose={() => setLandscapePanel(null)}
-            width="75%"
-            destroyOnClose
-            title="Sinh viên đã xác nhận"
-            styles={{ body: { padding: 16 } }}
-          >
-            {renderStudentList()}
-          </Drawer>
-        </>
-      ) : isMobile ? (
-        // Mobile Layout - Tabs (Portrait)
-        <>
-          <Tabs 
-            activeKey={activeTab} 
-            onChange={setActiveTab}
-            size="large"
-            style={{ 
-              marginTop: -8,
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-            tabBarStyle={{ 
-              position: 'sticky', 
-              top: 0, 
-              zIndex: 10, 
-              backgroundColor: '#fff',
-              marginBottom: 0,
-              paddingTop: isLandscapeMode ? 4 : 8,
-              flexShrink: 0
-            }}
-          >
-            <TabPane 
-              tab={<Space><CameraOutlined /> Camera</Space>} 
-              key="camera"
-            >
-              <div style={{ 
-                height: isLandscapeMode 
-                  ? 'calc(100vh - 110px)'
-                  : 'calc(100vh - 200px)',
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
-                margin: 0,
-                padding: 0
-              }}>
-                {renderCameraView()}
-              </div>
-            </TabPane>
-            <TabPane 
-              tab={
-                <Space>
-                  <BarChartOutlined /> 
-                  <span>Thống kê</span>
-                  {(attendanceData?.statistics?.present || 0) > 0 && (
-                    <Badge 
-                      count={attendanceData?.statistics?.present || 0} 
-                      style={{ backgroundColor: '#52c41a' }}
-                    />
-                  )}
-                </Space>
-              } 
-              key="stats"
-            >
-              <div style={{ 
-                padding: '8px 0',
-                height: 'calc(100vh - 280px)',
-                overflow: 'auto'
-              }}>
-                {renderStatistics()}
-              </div>
-            </TabPane>
-            <TabPane 
-              tab={
-                <Space>
-                  <TeamOutlined /> 
-                  <span>Danh sách</span>
-                  {validatedStudents.length > 0 && (
-                    <Badge 
-                      count={validatedStudents.length} 
-                      style={{ backgroundColor: '#1890ff' }}
-                    />
-                  )}
-                </Space>
-              } 
-              key="students"
-            >
-              <div style={{ 
-                padding: '8px 0',
-                height: 'calc(100vh - 280px)',
-                overflow: 'auto'
-              }}>
-                {renderStudentList()}
-              </div>
-            </TabPane>
-          </Tabs>
-
-          {/* Floating Action Button for Mobile - Show in Stats/Students tabs */}
-          {sessionInfo && activeTab !== 'camera' && (
-            <div
-              style={{
-                position: 'fixed',
-                bottom: 24,
-                right: 24,
-                zIndex: 1000,
+              tooltip={newConfirmedCount > 0 ? `${newConfirmedCount} sinh viên mới` : 'Danh sách sinh viên'}
+              onClick={() => {
+                setStudentsPanelVisible(true);
+                // ✅ Reset badge khi user mở panel
+                setNewConfirmedCount(0);
               }}
-            >
-              <Button
-                danger
-                shape="circle"
-                size="large"
-                icon={<StopOutlined />}
-                onClick={handleStopSession}
-                loading={loading}
-                style={{
-                  width: 56,
-                  height: 56,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                  fontSize: 20,
-                }}
+              type="primary"
+            />
+          </Badge>
+          {pendingCount > 0 && (
+            <Badge count={pendingCount} offset={[-5, 5]}>
+              <FloatButton
+                icon={<ClockCircleOutlined />}
+                tooltip="Chờ xác nhận"
+                onClick={() => setPendingPanelVisible(true)}
+                style={{ backgroundColor: '#faad14' }}
               />
-            </div>
+            </Badge>
           )}
-        </>
-      ) : (
-        // Desktop Layout - Side by Side
-        <Row gutter={[16, 16]} style={{ maxHeight: '75vh', overflow: 'hidden' }}>
-          {/* Camera View */}
-          <Col span={16}>
-            {renderCameraView()}
-          </Col>
-
-          {/* Statistics & Student List */}
-          <Col span={8} style={{ display: 'flex', flexDirection: 'column', height: '75vh', overflow: 'hidden' }}>
-            <div style={{ marginBottom: 16, flexShrink: 0 }}>
-              {renderStatistics()}
-            </div>
-            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              {renderStudentList()}
-            </div>
-          </Col>
-        </Row>
+        </FloatButton.Group>
       )}
+
+      {/* ✅ Statistics Panel */}
+      <StatisticsPanel
+        visible={statisticsPanelVisible}
+        onClose={() => setStatisticsPanelVisible(false)}
+        sessionActive={sessionInfo !== null}
+        confirmedCount={attendanceData?.statistics?.present_count || 0}
+        pendingCount={pendingCount}
+        totalStudents={attendanceData?.statistics?.total_students || 0}
+        attendanceRate={attendanceData?.statistics?.attendance_rate || 0}
+        wsConnected={wsConnected}
+        hasData={attendanceData !== undefined && attendanceData !== null}
+        currentInterval={currentInterval}
+      />
+
+      {/* ✅ Confirmed Students Panel */}
+      <ConfirmedStudentsPanel
+        visible={studentsPanelVisible}
+        onClose={() => setStudentsPanelVisible(false)}
+        sessionActive={sessionInfo !== null}
+        confirmedStudents={attendanceData?.records?.filter(r => r.status === 'present') || []}
+        pendingCount={pendingCount}
+        wsConnected={wsConnected}
+        onOpenPendingPanel={() => {
+          setStudentsPanelVisible(false);
+          setPendingPanelVisible(true);
+        }}
+      />
+
+      {/* Pending Confirmation Panel */}
+      <PendingConfirmationPanel
+        visible={pendingPanelVisible}
+        onClose={() => setPendingPanelVisible(false)}
+        sessionId={sessionInfo?.session_id || null}
+        onConfirmed={() => {
+          // Force refresh polling data ngay lập tức sau khi xác nhận
+          console.log('[AttendanceCamera] Pending confirmed, triggering data refresh');
+          // Smart polling sẽ tự động fetch lại trong vài giây
+        }}
+      />
     </Modal>
   );
 };
