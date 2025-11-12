@@ -457,7 +457,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
 
   /**
    * Draw bounding boxes on overlay canvas - WITH PROPER ASPECT RATIO SCALING
-   * ✅ OPTIMIZED: Use requestAnimationFrame to prevent blocking
+   * ✅ OPTIMIZED: Continuous animation loop for smooth rendering
    */
   useEffect(() => {
     const video = videoRef.current;
@@ -466,67 +466,80 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
     if (!video || !canvas) return;
 
     let animationFrameId: number;
+    let isRunning = true;
     
     const drawDetections = () => {
+      if (!isRunning) return;
+      
       // Get video element display size (getBoundingClientRect)
       const rect = video.getBoundingClientRect();
       
-      // Set canvas size to match video display size (only if changed)
+      // Set canvas size to match video display size exactly
       if (canvas.width !== rect.width || canvas.height !== rect.height) {
         canvas.width = rect.width;
         canvas.height = rect.height;
       }
       
       const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      if (!ctx) {
+        animationFrameId = requestAnimationFrame(drawDetections);
+        return;
+      }
       
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // If no detections, exit early
-      if (detections.length === 0) return;
+      // If no detections or video not ready, continue loop
+      if (detections.length === 0 || video.videoWidth === 0 || video.videoHeight === 0) {
+        animationFrameId = requestAnimationFrame(drawDetections);
+        return;
+      }
 
-    // Calculate aspect ratio and scaling
-    // Video actual resolution
+      // Calculate aspect ratio and scaling for object-fit: cover
+      // Video actual resolution (from camera stream)
       const videoWidth = video.videoWidth;
       const videoHeight = video.videoHeight;
       
-      if (videoWidth === 0 || videoHeight === 0) return;
-
       const videoAspect = videoWidth / videoHeight;
-      const displayAspect = rect.width / rect.height;
+      const containerAspect = canvas.width / canvas.height;
       
-      let renderWidth, renderHeight, offsetX, offsetY;
+      let scaleX, scaleY, offsetX, offsetY;
       
-      if (videoAspect > displayAspect) {
-        // Video is wider - fit to width (letterbox top/bottom)
-        renderWidth = rect.width;
-        renderHeight = rect.width / videoAspect;
-        offsetX = 0;
-        offsetY = (rect.height - renderHeight) / 2;
-      } else {
-        // Video is taller - fit to height (pillarbox left/right)
-        renderHeight = rect.height;
-        renderWidth = rect.height * videoAspect;
-        offsetX = (rect.width - renderWidth) / 2;
+      // With object-fit: cover, video fills the entire container
+      // One dimension matches exactly, the other is cropped
+      if (videoAspect > containerAspect) {
+        // Video is wider than container - fit to height, crop left/right
+        // Video height fills container height completely
+        scaleY = canvas.height / videoHeight;
+        scaleX = scaleY; // Same scale to maintain aspect ratio
+        
+        // Calculate how much is cropped from left and right
+        const renderedWidth = videoWidth * scaleX;
+        offsetX = (canvas.width - renderedWidth) / 2;
         offsetY = 0;
+      } else {
+        // Video is taller/equal - fit to width, crop top/bottom  
+        // Video width fills container width completely
+        scaleX = canvas.width / videoWidth;
+        scaleY = scaleX; // Same scale to maintain aspect ratio
+        
+        // Calculate how much is cropped from top and bottom
+        const renderedHeight = videoHeight * scaleY;
+        offsetX = 0;
+        offsetY = (canvas.height - renderedHeight) / 2;
       }
-      
-      // Calculate scale factors
-      const scaleX = renderWidth / videoWidth;
-      const scaleY = renderHeight / videoHeight;
     
-    // Draw each detection
-    detections.forEach((detection) => {
-      const [x1, y1, x2, y2] = detection.bbox;
-      
-      // Scale coordinates to rendered video size and add offset
-      const displayX1 = x1 * scaleX + offsetX;
-      const displayY1 = y1 * scaleY + offsetY;
-      const displayX2 = x2 * scaleX + offsetX;
-      const displayY2 = y2 * scaleY + offsetY;
-      const width = displayX2 - displayX1;
-      const height = displayY2 - displayY1;
+      // Draw each detection
+      detections.forEach((detection) => {
+        const [x1, y1, x2, y2] = detection.bbox;
+        
+        // Scale coordinates to rendered video size and add offset
+        const displayX1 = x1 * scaleX + offsetX;
+        const displayY1 = y1 * scaleY + offsetY;
+        const displayX2 = x2 * scaleX + offsetX;
+        const displayY2 = y2 * scaleY + offsetY;
+        const width = displayX2 - displayX1;
+        const height = displayY2 - displayY1;
       
       // ✅ DETERMINE ANTI-SPOOFING STATUS - HIGHEST PRIORITY
       // If anti-spoofing explicitly says not live (is_live === false) OR spoofing_type is 'spoof',
@@ -636,12 +649,16 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
           ctx.fillText(trackLabel, displayX2 - 35, displayY1 + 14);
         }
       });
+      
+      // Continue animation loop
+      animationFrameId = requestAnimationFrame(drawDetections);
     };
 
-    // ✅ OPTIMIZATION: Use requestAnimationFrame for smooth rendering
-    animationFrameId = requestAnimationFrame(drawDetections);
+    // Start animation loop
+    drawDetections();
 
     return () => {
+      isRunning = false;
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
       }
