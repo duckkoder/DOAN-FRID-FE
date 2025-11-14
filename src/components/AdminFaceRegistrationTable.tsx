@@ -270,7 +270,7 @@ const AdminFaceRegistrationTable: React.FC = () => {
       width: 90,
       render: (count: number) => (
         <Tag color="blue" icon={<CameraOutlined />}>
-          {count}/14
+          {count}/12
         </Tag>
       ),
     },

@@ -416,19 +416,6 @@ const FaceRegisterPage: React.FC = () => {
               {isConnected && processedFrame ? (
                 <>
                   <img src={processedFrame.image} alt='Processed frame' style={{ width: '100%', height: 450, borderRadius: 12, border: '3px solid #e5e7eb', background: '#222', objectFit: 'contain' }} />
-                  <div style={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0, 0, 0, 0.75)', color: 'white', padding: '12px 24px', borderRadius: 12, fontSize: 16, fontWeight: 600, maxWidth: '90%', textAlign: 'center' }}>
-                    {processedFrame.instruction}
-                  </div>
-                  <div style={{ position: 'absolute', top: 70, left: '50%', transform: 'translateX(-50%)' }}>
-                    <Tag color={processedFrame.status === 'correct_pose' ? 'success' : 'warning'} style={{ fontSize: 14, padding: '4px 12px' }}>
-                      {/* {processedFrame.status === 'correct_pose' ? '✅ Tư thế đúng' : '⏳ Điều chỉnh tư thế'} */}
-                    </Tag>
-                  </div>
-                  {!processedFrame.faceDetected && (
-                    <div style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', background: 'rgba(239, 68, 68, 0.9)', color: 'white', padding: '8px 16px', borderRadius: 8, fontSize: 14, fontWeight: 600 }}>
-                      ⚠️ Không phát hiện khuôn mặt
-                    </div>
-                  )}
                 </>
               ) : connectionStatus === 'connecting' ? (
                 <div style={{ width: '100%', height: 450, background: '#f8fafc', border: '2px dashed #d1d5db', borderRadius: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
