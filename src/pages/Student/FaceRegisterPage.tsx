@@ -36,7 +36,7 @@ const FaceRegisterPage: React.FC = () => {
     confirmImages,
   } = useFaceRegistration({
     studentId,
-    serverUrl: import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8000',
+    serverUrl: import.meta.env.VITE_WS_FaceRegister_URL || 'ws://localhost:8000',
     fps: 10,
   });
 
@@ -120,7 +120,7 @@ const FaceRegisterPage: React.FC = () => {
     },
     {
       title: 'Thu thập dữ liệu',
-      description: 'Thu thập ảnh khuôn mặt (14 bước)',
+      description: 'Thu thập ảnh khuôn mặt (12 bước)',
       icon: <CameraOutlined />,
     },
     {
@@ -484,7 +484,7 @@ const FaceRegisterPage: React.FC = () => {
             <Card style={{ borderRadius: 16, boxShadow: '0 4px 12px rgba(0,0,0,0.08)', border: 'none' }}>
               <Title level={4} style={{ marginBottom: 16, color: '#374151' }}>📋 Hướng dẫn</Title>
               <Space direction='vertical' size='middle' style={{ width: '100%' }}>
-                <Alert message='Lưu ý quan trọng' description='Hệ thống sẽ tự động thu thập 14 bước ảnh từ các góc độ khác nhau. Hãy làm theo hướng dẫn hiển thị trên màn hình.' type='info' showIcon />
+                <Alert message='Lưu ý quan trọng' description='Hệ thống sẽ tự động thu thập 12 bước ảnh từ các góc độ khác nhau. Hãy làm theo hướng dẫn hiển thị trên màn hình.' type='info' showIcon />
                 <div>
                   <Text strong>Các bước thực hiện:</Text>
                   <ul style={{ marginTop: 8, paddingLeft: 20 }}>
