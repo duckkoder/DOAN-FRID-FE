@@ -85,6 +85,7 @@ export interface AttendanceRecord {
   confidence_score: number | null;
   recorded_at: string | null;
   notes: string | null;
+  image_path: string | null;  // ✅ URL ảnh khuôn mặt (evidence)
 }
 
 export interface SessionAttendanceResponse {
