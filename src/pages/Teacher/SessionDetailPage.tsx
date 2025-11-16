@@ -16,7 +16,8 @@ import {
   Progress,
   Empty,
   Modal,
-  Tooltip
+  Tooltip,
+  Image
 } from "antd";
 import {
   UserOutlined,
@@ -29,7 +30,8 @@ import {
   ClockCircleOutlined,
   CheckOutlined,
   CloseOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  EyeOutlined
 } from "@ant-design/icons";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import Breadcrumb from "../../components/Breadcrumb";
@@ -247,6 +249,32 @@ const SessionDetailPage: React.FC = () => {
           <Text>{dayjs(time).format("HH:mm:ss - DD/MM/YYYY")}</Text>
         ) : (
           <Text type="secondary">Chưa điểm danh</Text>
+        )
+    },
+    {
+      title: "Ảnh khuôn mặt",
+      dataIndex: "image_path",
+      key: "image_path",
+      width: 100,
+      align: "center" as const,
+      render: (imagePath: string | null) =>
+        imagePath ? (
+          <Image
+            width={50}
+            height={50}
+            src={imagePath}
+            alt="Face evidence"
+            style={{ objectFit: "cover", borderRadius: 4 }}
+            preview={{
+              mask: (
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <EyeOutlined /> Xem
+                </div>
+              )
+            }}
+          />
+        ) : (
+          <Text type="secondary">-</Text>
         )
     },
     {

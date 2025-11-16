@@ -178,6 +178,9 @@ const StudentClassDetailPage: React.FC = () => {
       case 'present': return { color: '#10b981', text: 'Có mặt' };
       case 'late': return { color: '#f59e42', text: 'Muộn' };
       case 'absent': return { color: '#ef4444', text: 'Vắng' };
+      case null:
+      case undefined:
+        return { color: '#ef4444', text: 'Vắng' }; // Sinh viên vào lớp sau nên session trước không có
       default: return { color: '#64748b', text: 'Không xác định' };
     }
   };
