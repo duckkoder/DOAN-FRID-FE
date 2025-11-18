@@ -52,7 +52,8 @@ interface UseFaceRegistrationReturn {
   confirmImages: (accept: boolean) => void; // New: confirm collected images
 }
 
-const DEFAULT_SERVER_URL = "ws://localhost:8000";
+// Get WebSocket URL from environment variable
+const DEFAULT_SERVER_URL = import.meta.env.VITE_WS_BASE_URL || "ws://localhost:8000";
 const DEFAULT_FPS = 10;
 const MAX_RECONNECT_ATTEMPTS = 3;
 const RECONNECT_DELAY = 2000; // 2 seconds
@@ -321,7 +322,9 @@ export function useFaceRegistration({
       wsRef.current = null;
     }
 
-    const wsUrl = `${serverUrl}/api/v1/ws/face-registration/${studentId}`;
+    // Always get fresh URL from environment variable to support mobile testing
+    const wsBaseUrl = import.meta.env.VITE_WS_BASE_URL || serverUrl;
+    const wsUrl = `${wsBaseUrl}/api/v1/ws/face-registration/${studentId}`;
     console.log("Connecting to:", wsUrl);
 
     setConnectionStatus("connecting");
