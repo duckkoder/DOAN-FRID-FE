@@ -443,7 +443,7 @@ const AdminFaceRegistrationTable: React.FC = () => {
             {/* Registration Info */}
             <Row gutter={[16, 16]}>
               <Col span={8}>
-                <Text strong>Số ảnh đã thu thập:</Text> {viewingRegistration.total_images_captured}/14
+                <Text strong>Số ảnh đã thu thập:</Text> {viewingRegistration.total_images_captured}/12
               </Col>
               <Col span={8}>
                 <Text strong>Tiến độ:</Text> {viewingRegistration.registration_progress}%
