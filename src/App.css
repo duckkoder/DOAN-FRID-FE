@@ -49,3 +49,10 @@
 .success-row:hover {
   background-color: #e7ffe7 !important;
 }
+
+/* Responsive: hide text on mobile */
+@media (max-width: 576px) {
+  .hide-mobile {
+    display: none;
+  }
+}

@@ -115,29 +115,27 @@ const AuthPage: React.FC = () => {
   return (
     <div style={{ minHeight: "100vh", background: "#f6f9fc", display: "flex", flexDirection: "column" }}>
       {/* Header */}
-      <div style={{ padding: "16px 32px", borderBottom: "1px solid #eaeaea", background: "#fff" }}>
-        <Title level={3} style={{ margin: 0, color: "#2563eb" }}>Attendify</Title>
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid #eaeaea", background: "#fff" }}>
+        <Title level={3} style={{ margin: 0, color: "#2563eb", fontSize: "clamp(18px, 5vw, 24px)" }}>Attendify</Title>
       </div>
 
       {/* Main content */}
-      <Row justify="center" align="middle" style={{ flex: 1, margin: 0 }}>
-        <Col xs={24} md={20} lg={16} xl={12} style={{ padding: 0 }}>
+      <Row justify="center" align="middle" style={{ flex: 1, margin: 0, padding: "16px" }}>
+        <Col xs={24} sm={22} md={20} lg={16} xl={12}>
           <Card
             style={{
               borderRadius: 16,
               boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
               padding: 0,
               border: "none",
-              margin: "40px 0",
-              width: "120%",
               overflow: "hidden",
               background: "linear-gradient(135deg,#f6f9fc 60%,#fff 100%)"
             }}
-            bodyStyle={{ padding: 0 }}
+            styles={{ body: { padding: 0 } }}
           >
             <Row style={{ width: "100%" }}>
-              {/* Left Panel */}
-              <Col xs={24} md={12} style={{
+              {/* Left Panel - Hidden on mobile */}
+              <Col xs={0} md={12} style={{
                 background: "transparent",
                 display: "flex",
                 flexDirection: "column",
@@ -161,7 +159,7 @@ const AuthPage: React.FC = () => {
                 alignItems: "center",
                 justifyContent: "center",
                 background: "#fff",
-                padding: "32px 24px"
+                padding: "24px 16px"
               }}>
                 <div style={{
                   width: "100%",
@@ -169,8 +167,15 @@ const AuthPage: React.FC = () => {
                   background: "#fff",
                   borderRadius: 12,
                   boxShadow: "0 2px 8px #f0f1f2",
-                  padding: "32px 24px"
+                  padding: "24px 16px"
                 }}>
+                  {/* Mobile welcome text */}
+                  <div className="mobile-welcome" style={{ textAlign: "center", marginBottom: 16 }}>
+                    <Title level={4} style={{ margin: 0, color: "#2563eb", display: "none" }}>
+                      Chào mừng trở lại!
+                    </Title>
+                  </div>
+                  
                   <Title level={3} style={{ textAlign: "center", marginBottom: 24, color: "#2563eb" }}>
                     Đăng nhập
                   </Title>
@@ -243,7 +248,7 @@ const AuthPage: React.FC = () => {
                       </Button>
                     </Form.Item>
 
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 0 }}>
+                    <div style={{ textAlign: "center" }}>
                       <Link href="#" style={{ fontSize: 12 }}>
                         Quên mật khẩu? Liên hệ quản trị viên.
                       </Link>

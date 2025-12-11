@@ -82,6 +82,7 @@ const AdminStudentPage: React.FC = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
   const [isCSVImportModalOpen, setIsCSVImportModalOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 576);
   const [editingStudent, setEditingStudent] = useState<StudentResponse | null>(
     null
   );
@@ -92,6 +93,13 @@ const AdminStudentPage: React.FC = () => {
     null
   );
   const [form] = Form.useForm();
+
+  // ==================== Responsive Detection ====================
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 576);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Filters & Pagination
   const [searchText, setSearchText] = useState("");
@@ -667,25 +675,33 @@ const AdminStudentPage: React.FC = () => {
               <Option value={false}>Chưa xác thực</Option>
             </Select>
           </Col>
-          <Col xs={24} sm={16} md={6} lg={7} style={{ textAlign: "right" }}>
-            <Space wrap>
-              <Button icon={<ReloadOutlined />} onClick={handleReset}>
-                Đặt lại
-              </Button>
-              <Button
-                icon={<UploadOutlined />}
-                onClick={() => setIsCSVImportModalOpen(true)}
-              >
-                Nhập CSV
-              </Button>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={showCreateModal}
-              >
-                Thêm sinh viên
-              </Button>
-            </Space>
+          <Col xs={24} sm={16} md={6} lg={7}>
+            <Row gutter={[8, 8]} justify={{ xs: 'start', sm: 'end', md: 'end' }}>
+              <Col flex={isMobile ? "1" : "none"}>
+                <Button icon={<ReloadOutlined />} onClick={handleReset} style={{ width: isMobile ? '100%' : 'auto' }}>
+                  {!isMobile && "Đặt lại"}
+                </Button>
+              </Col>
+              <Col flex={isMobile ? "1" : "none"}>
+                <Button
+                  icon={<UploadOutlined />}
+                  onClick={() => setIsCSVImportModalOpen(true)}
+                  style={{ width: isMobile ? '100%' : 'auto' }}
+                >
+                  {!isMobile && "Nhập CSV"}
+                </Button>
+              </Col>
+              <Col flex={isMobile ? "1" : "none"}>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={showCreateModal}
+                  style={{ width: isMobile ? '100%' : 'auto' }}
+                >
+                  {!isMobile && "Thêm"}
+                </Button>
+              </Col>
+            </Row>
           </Col>
         </Row>
 
@@ -701,10 +717,15 @@ const AdminStudentPage: React.FC = () => {
             current: pagination.current,
             pageSize: pagination.pageSize,
             total: pagination.total,
-            showSizeChanger: true,
-            showTotal: (total) => `Tổng ${total} sinh viên`,
+            showSizeChanger: !isMobile,
+            showTotal: (total, range) => (
+              <span style={{ fontSize: 12 }}>
+                {range[0]}-{range[1]} / {total}
+              </span>
+            ),
             pageSizeOptions: ["10", "20", "50", "100"],
-            responsive: true,
+            size: "small",
+            simple: isMobile,
           }}
           onChange={handleTableChange}
           onRow={(record) => ({

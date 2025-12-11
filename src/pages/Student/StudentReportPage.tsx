@@ -415,11 +415,13 @@ const StudentReportPage: React.FC = () => {
     {
       title: 'Môn học',
       key: 'subject',
+      width: 140,
+      fixed: 'left' as const,
       render: (record: LeaveRequestDetail) => (
         <div>
-          <Text strong>{record.className}</Text>
+          <Text strong style={{ fontSize: 13 }}>{record.className}</Text>
           <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" style={{ fontSize: 11 }}>
             {record.timeSlot}
           </Text>
         </div>
@@ -428,16 +430,14 @@ const StudentReportPage: React.FC = () => {
     {
       title: 'Ngày nghỉ',
       key: 'date',
+      width: 120,
       render: (record: LeaveRequestDetail) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <CalendarOutlined style={{ color: '#64748b' }} />
-          <div>
-            <Text>{dayjs(record.leaveDate).format('DD/MM/YYYY')}</Text>
-            <br />
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {convertDayToVietnamese(record.dayOfWeek)}
-            </Text>
-          </div>
+        <div>
+          <Text style={{ fontSize: 13 }}>{dayjs(record.leaveDate).format('DD/MM/YYYY')}</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            {convertDayToVietnamese(record.dayOfWeek)}
+          </Text>
         </div>
       )
     },
@@ -445,14 +445,10 @@ const StudentReportPage: React.FC = () => {
       title: 'Lý do',
       dataIndex: 'reason',
       key: 'reason',
+      width: 160,
+      ellipsis: true,
       render: (reason: string) => (
-        <Text style={{ 
-          display: 'block',
-          maxWidth: 300,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap'
-        }}>
+        <Text style={{ fontSize: 13 }}>
           {reason}
         </Text>
       )
@@ -461,6 +457,7 @@ const StudentReportPage: React.FC = () => {
       title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
+      width: 100,
       render: (status: LeaveRequestStatus) => {
         const config = getStatusConfig(status);
         return <Tag color={config.color}>{config.text}</Tag>;
@@ -469,13 +466,18 @@ const StudentReportPage: React.FC = () => {
     {
       title: 'Ngày gửi',
       key: 'submittedDate',
-      render: (record: LeaveRequestDetail) => dayjs(record.createdAt).format('DD/MM/YYYY')
+      width: 100,
+      render: (record: LeaveRequestDetail) => (
+        <Text style={{ fontSize: 12 }}>{dayjs(record.createdAt).format('DD/MM/YYYY')}</Text>
+      )
     },
     {
       title: 'Thao tác',
       key: 'actions',
+      width: 130,
+      fixed: 'right' as const,
       render: (record: LeaveRequestDetail) => (
-        <Space size="small">
+        <Space size={4} wrap>
           {record.status === 'pending' ? (
             // Hiển thị full actions cho đơn đang xử lý
             <>
@@ -484,17 +486,15 @@ const StudentReportPage: React.FC = () => {
                 size="small"
                 icon={<EyeOutlined />}
                 onClick={() => handleViewRequest(record)}
-              >
-                Xem
-              </Button>
+                style={{ padding: '0 4px' }}
+              />
               <Button 
                 type="link" 
                 size="small"
                 icon={<EditOutlined />}
                 onClick={() => handleEditClick(record)}
-              >
-                Sửa
-              </Button>
+                style={{ padding: '0 4px' }}
+              />
               <Popconfirm
                 title="Xác nhận xóa"
                 description="Bạn có chắc chắn muốn xóa đơn này không?"
@@ -508,9 +508,8 @@ const StudentReportPage: React.FC = () => {
                   size="small"
                   danger
                   icon={<DeleteOutlined />}
-                >
-                  Xóa
-                </Button>
+                  style={{ padding: '0 4px' }}
+                />
               </Popconfirm>
             </>
           ) : (
@@ -521,7 +520,7 @@ const StudentReportPage: React.FC = () => {
               icon={<EyeOutlined />}
               onClick={() => handleViewRequest(record)}
             >
-              Xem chi tiết
+              Chi tiết
             </Button>
           )}
         </Space>
@@ -539,7 +538,7 @@ const StudentReportPage: React.FC = () => {
     <div style={{ 
       minHeight: "100vh", 
       background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)", 
-      padding: "32px 48px" 
+      padding: "0 24px 24px" 
     }}>
       {/* Breadcrumb */}
       <Breadcrumb items={breadcrumbItems} />
@@ -557,93 +556,77 @@ const StudentReportPage: React.FC = () => {
       )}
 
       {/* Header */}
-      <div style={{ 
-        display: "flex", 
-        justifyContent: "space-between", 
-        alignItems: "center", 
-        marginBottom: 32 
-      }}>
-        <div>
-          <Title level={1} style={{ 
-            marginBottom: 8, 
-            color: "#2563eb",
-            fontSize: 36,
-            fontWeight: 700
-          }}>
+      <Row gutter={[16, 12]} align="middle" style={{ marginBottom: 16, marginTop: 16 }}>
+        <Col xs={24} md={12}>
+          <Title level={2} style={{ marginBottom: 0 }}>
             📝 Đơn nghỉ học
           </Title>
-          <Text style={{ 
-            fontSize: 18, 
-            color: "#64748b"
-          }}>
-            Tạo đơn xin nghỉ học và theo dõi trạng thái xử lý
-          </Text>
-        </div>
-        <Space>
-          <Button 
-            icon={<ReloadOutlined />}
-            size="large"
-            onClick={() => {
-              fetchClasses();
-              fetchLeaveRequests();
-            }}
-            loading={loadingClasses || loadingRequests}
-            style={{ borderRadius: 8, height: 48 }}
-          >
-            Làm mới
-          </Button>
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />}
-            size="large"
-            onClick={() => setIsCreateModalVisible(true)}
-            disabled={classes.length === 0}
-            style={{ 
-              borderRadius: 8, 
-              height: 48,
-              fontSize: 16
-            }}
-          >
-            Tạo đơn nghỉ học
-          </Button>
-        </Space>
-      </div>
+        </Col>
+        <Col xs={24} md={12}>
+          <Row gutter={[8, 8]}>
+            <Col xs={12} md={24} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button 
+                icon={<ReloadOutlined />}
+                onClick={() => {
+                  fetchClasses();
+                  fetchLeaveRequests();
+                }}
+                loading={loadingClasses || loadingRequests}
+                style={{ width: '100%' }}
+              >
+                Làm mới
+              </Button>
+            </Col>
+            <Col xs={12} md={24} style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button 
+                type="primary" 
+                icon={<PlusOutlined />}
+                onClick={() => setIsCreateModalVisible(true)}
+                disabled={classes.length === 0}
+                style={{ width: '100%' }}
+              >
+                Tạo đơn nghỉ học
+              </Button>
+            </Col>
+          </Row>
+        </Col>
+      </Row>
 
       {/* Statistics */}
-      <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
-        <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center' }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={12} sm={12} md={6}>
+          <Card style={{ borderRadius: 12, textAlign: 'center' }}>
             <Statistic
               title="Tổng đơn"
               value={totalRequests}
-              valueStyle={{ color: '#2563eb', fontSize: 24 }}
+              valueStyle={{ color: '#2563eb' }}
             />
           </Card>
         </Col>
-        <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center' }}>
+        <Col xs={12} sm={12} md={6}>
+          <Card style={{ borderRadius: 12, textAlign: 'center' }}>
             <Statistic
               title="Đang xử lý"
               value={pendingCount}
-              valueStyle={{ color: '#f59e42', fontSize: 24 }}
+              valueStyle={{ color: '#f59e42' }}
             />
           </Card>
         </Col>
-        <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center' }}>
+        <Col xs={12} sm={12} md={6}>
+          <Card style={{ borderRadius: 12, textAlign: 'center' }}>
             <Statistic
               title="Đã duyệt"
               value={approvedCount}
-              valueStyle={{ color: '#10b981', fontSize: 24 }}
+              valueStyle={{ color: '#10b981' }}
             />
           </Card>
         </Col>
-        <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center' }}>
+        <Col xs={12} sm={12} md={6}>
+          <Card style={{ borderRadius: 12, textAlign: 'center' }}>
             <Statistic
               title="Từ chối"
               value={rejectedCount}
-              valueStyle={{ color: '#ef4444', fontSize: 24 }}
+              valueStyle={{ color: '#ef4444' }}
             />
           </Card>
         </Col>
@@ -651,25 +634,26 @@ const StudentReportPage: React.FC = () => {
 
       {/* Leave Requests Table */}
       <Card style={{
-        borderRadius: 16,
-        boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-        border: "none"
+        borderRadius: 12
       }}>
-        <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
+        <Divider style={{ margin: '0 0 16px 0' }} orientation="left">
           📋 Danh sách đơn nghỉ học
-        </Title>
+        </Divider>
         <Table
           dataSource={leaveRequests}
           columns={columns}
           rowKey="id"
           loading={loadingRequests}
           pagination={{
+            current: 1,
             pageSize: 10,
             showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => 
-              `${range[0]}-${range[1]} của ${total} đơn`
+            showTotal: (total) => `Tổng ${total} đơn`,
+            pageSizeOptions: ["10", "20", "50"],
+            responsive: true
           }}
+          scroll={{ x: 750 }}
+          size="middle"
         />
       </Card>
 
@@ -702,8 +686,8 @@ const StudentReportPage: React.FC = () => {
       <Modal
         title={
           <Space>
-            <FileTextOutlined style={{ color: '#2563eb', fontSize: 20 }} />
-            <span>Chi tiết đơn xin nghỉ học</span>
+            <FileTextOutlined style={{ color: '#2563eb', fontSize: 18 }} />
+            <span>Chi tiết đơn xin nghỉ</span>
           </Space>
         }
         open={isViewModalVisible}
@@ -716,47 +700,47 @@ const StudentReportPage: React.FC = () => {
             Đóng
           </Button>
         ]}
-        width={800}
-        style={{ top: 20 }}
+        width={700}
+        styles={{ body: { maxHeight: '70vh', overflowY: 'auto' } }}
       >
         {selectedRequest && (
           <div style={{ padding: '8px 0' }}>
             {/* Student Info */}
             <Card 
               size="small" 
-              style={{ marginBottom: 16, background: '#f8fafc' }}
+              style={{ marginBottom: 12, background: '#f8fafc' }}
               title={
                 <Space>
                   <UserOutlined style={{ color: '#2563eb' }} />
-                  <Text strong>Thông tin học sinh</Text>
+                  <Text strong style={{ fontSize: 13 }}>Thông tin học sinh</Text>
                 </Space>
               }
             >
-              <Row gutter={[16, 16]}>
-                <Col span={12}>
-                  <Text type="secondary">Họ và tên:</Text>
+              <Row gutter={[12, 12]}>
+                <Col xs={24} sm={12}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Họ và tên:</Text>
                   <br />
-                  <Text strong style={{ fontSize: 15 }}>{selectedRequest.studentName}</Text>
+                  <Text strong style={{ fontSize: 14 }}>{selectedRequest.studentName}</Text>
                 </Col>
-                <Col span={12}>
-                  <Text type="secondary">Mã sinh viên:</Text>
+                <Col xs={24} sm={12}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Mã sinh viên:</Text>
                   <br />
-                  <Text strong style={{ fontSize: 15 }}>{selectedRequest.studentCode || 'N/A'}</Text>
+                  <Text strong style={{ fontSize: 14 }}>{selectedRequest.studentCode || 'N/A'}</Text>
                 </Col>
-                <Col span={12}>
-                  <Text type="secondary">Môn học:</Text>
+                <Col xs={24} sm={12}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Môn học:</Text>
                   <br />
                   <Space>
                     <BookOutlined style={{ color: '#3b82f6' }} />
-                    <Text strong style={{ fontSize: 15 }}>{selectedRequest.className}</Text>
+                    <Text strong style={{ fontSize: 14 }}>{selectedRequest.className}</Text>
                   </Space>
                 </Col>
-                <Col span={12}>
-                  <Text type="secondary">Tiết học:</Text>
+                <Col xs={24} sm={12}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Tiết học:</Text>
                   <br />
                   <Space>
                     <ClockCircleOutlined style={{ color: '#f59e42' }} />
-                    <Text strong style={{ fontSize: 15 }}>Tiết {selectedRequest.timeSlot || 'N/A'}</Text>
+                    <Text strong style={{ fontSize: 14 }}>Tiết {selectedRequest.timeSlot || 'N/A'}</Text>
                   </Space>
                 </Col>
               </Row>
@@ -765,63 +749,63 @@ const StudentReportPage: React.FC = () => {
             {/* Leave Details */}
             <Card 
               size="small" 
-              style={{ marginBottom: 16, background: '#fef3c7' }}
+              style={{ marginBottom: 12, background: '#fef3c7' }}
               title={
                 <Space>
                   <CalendarOutlined style={{ color: '#f59e42' }} />
-                  <Text strong>Thông tin nghỉ học</Text>
+                  <Text strong style={{ fontSize: 13 }}>Thông tin nghỉ học</Text>
                 </Space>
               }
             >
-              <Row gutter={[16, 16]}>
-                <Col span={12}>
-                  <Text type="secondary">Ngày nghỉ:</Text>
+              <Row gutter={[12, 12]}>
+                <Col xs={12} sm={12}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Ngày nghỉ:</Text>
                   <br />
-                  <Text strong style={{ fontSize: 15 }}>
+                  <Text strong style={{ fontSize: 14 }}>
                     {dayjs(selectedRequest.leaveDate).format('DD/MM/YYYY')}
                   </Text>
                 </Col>
-                <Col span={12}>
-                  <Text type="secondary">Thứ:</Text>
+                <Col xs={12} sm={12}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Thứ:</Text>
                   <br />
-                  <Text strong style={{ fontSize: 15 }}>
+                  <Text strong style={{ fontSize: 14 }}>
                     {convertDayToVietnamese(selectedRequest.dayOfWeek)}
                   </Text>
                 </Col>
-                <Col span={12}>
-                  <Text type="secondary">Tiết học:</Text>
+                <Col xs={12} sm={12}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Tiết học:</Text>
                   <br />
                   <Space>
                     <ClockCircleOutlined style={{ color: '#f59e42' }} />
-                    <Text strong style={{ fontSize: 15 }}>Tiết {selectedRequest.timeSlot || 'N/A'}</Text>
+                    <Text strong style={{ fontSize: 14 }}>Tiết {selectedRequest.timeSlot || 'N/A'}</Text>
                   </Space>
                 </Col>
-                <Col span={12}>
-                  <Text type="secondary">Ngày gửi đơn:</Text>
+                <Col xs={12} sm={12}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Ngày gửi đơn:</Text>
                   <br />
-                  <Text strong style={{ fontSize: 15 }}>
+                  <Text strong style={{ fontSize: 14 }}>
                     {dayjs(selectedRequest.createdAt).format('DD/MM/YYYY HH:mm')}
                   </Text>
                 </Col>
                 {selectedRequest.reviewedAt && (
-                  <Col span={12}>
-                    <Text type="secondary">Ngày xử lý:</Text>
+                  <Col xs={12} sm={12}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>Ngày xử lý:</Text>
                     <br />
-                    <Text strong style={{ fontSize: 15 }}>
+                    <Text strong style={{ fontSize: 14 }}>
                       {dayjs(selectedRequest.reviewedAt).format('DD/MM/YYYY HH:mm')}
                     </Text>
                   </Col>
                 )}
                 <Col span={24}>
-                  <Text type="secondary">Lý do nghỉ học:</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Lý do nghỉ học:</Text>
                   <br />
                   <Text style={{ 
-                    fontSize: 14,
+                    fontSize: 13,
                     display: 'block',
-                    padding: '12px',
+                    padding: '10px',
                     background: '#fff',
                     borderRadius: 8,
-                    marginTop: 8,
+                    marginTop: 6,
                     border: '1px solid #e5e7eb'
                   }}>
                     {selectedRequest.reason}
@@ -834,19 +818,19 @@ const StudentReportPage: React.FC = () => {
             {selectedRequest.evidenceFileUrl && (
               <Card 
                 size="small" 
-                style={{ marginBottom: 16 }}
+                style={{ marginBottom: 12 }}
                 title={
                   <Space>
                     <FileImageOutlined style={{ color: '#10b981' }} />
-                    <Text strong>File minh chứng</Text>
+                    <Text strong style={{ fontSize: 13 }}>File minh chứng</Text>
                   </Space>
                 }
               >
-                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                <div style={{ textAlign: 'center', padding: '12px 0' }}>
                   {selectedRequest.evidenceFileUrl.toLowerCase().includes('.pdf') ? (
                     <div>
                       {getFileIcon(selectedRequest.evidenceFileUrl)}
-                      <div style={{ marginTop: 16 }}>
+                      <div style={{ marginTop: 12 }}>
                         <Button 
                           type="primary"
                           icon={<EyeOutlined />}
@@ -861,7 +845,7 @@ const StudentReportPage: React.FC = () => {
                       src={selectedRequest.evidenceFileUrl}
                       alt="Evidence file"
                       style={{ 
-                        maxHeight: 300, 
+                        maxHeight: 250, 
                         borderRadius: 8,
                         border: '2px solid #e5e7eb'
                       }}
@@ -876,18 +860,18 @@ const StudentReportPage: React.FC = () => {
             {selectedRequest.reviewNotes && (
               <Card 
                 size="small" 
-                style={{ marginBottom: 16 }}
+                style={{ marginBottom: 12 }}
                 title={
                   <Space>
                     <FileTextOutlined style={{ color: '#6366f1' }} />
-                    <Text strong>Ghi chú từ giáo viên</Text>
+                    <Text strong style={{ fontSize: 13 }}>Ghi chú từ giáo viên</Text>
                   </Space>
                 }
               >
                 <Text style={{ 
-                  fontSize: 14,
+                  fontSize: 13,
                   display: 'block',
-                  padding: '12px',
+                  padding: '10px',
                   background: '#f8fafc',
                   borderRadius: 8,
                   border: '1px solid #e5e7eb'
@@ -895,8 +879,8 @@ const StudentReportPage: React.FC = () => {
                   {selectedRequest.reviewNotes}
                 </Text>
                 {selectedRequest.reviewerName && (
-                  <div style={{ marginTop: 12 }}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
+                  <div style={{ marginTop: 10 }}>
+                    <Text type="secondary" style={{ fontSize: 11 }}>
                       Người duyệt: <Text strong>{selectedRequest.reviewerName}</Text>
                     </Text>
                   </div>
@@ -904,38 +888,38 @@ const StudentReportPage: React.FC = () => {
               </Card>
             )}
 
-            <Divider />
+            <Divider style={{ margin: '12px 0' }} />
 
             {/* ✅ Status Display */}
             <div style={{ 
               textAlign: 'center', 
-              padding: '24px',
+              padding: '16px',
               background: selectedRequest.status === 'approved' ? '#f0fdf4' : 
                          selectedRequest.status === 'rejected' ? '#fef2f2' : 
                          selectedRequest.status === 'pending' ? '#fef3c7' : '#f8fafc',
               borderRadius: 8,
               border: `2px solid ${getStatusConfig(selectedRequest.status).color}`
             }}>
-              <Space direction="vertical" size={12}>
-                <div style={{ fontSize: 48, color: getStatusConfig(selectedRequest.status).color }}>
+              <Space direction="vertical" size={8}>
+                <div style={{ fontSize: 36, color: getStatusConfig(selectedRequest.status).color }}>
                   {selectedRequest.status === 'pending' && <ClockCircleOutlined />}
                   {selectedRequest.status === 'approved' && <CheckCircleOutlined />}
                   {selectedRequest.status === 'rejected' && <CloseCircleOutlined />}
                   {selectedRequest.status === 'cancelled' && <CloseCircleOutlined />}
                 </div>
-                <Text strong style={{ fontSize: 18, color: getStatusConfig(selectedRequest.status).color }}>
+                <Text strong style={{ fontSize: 16, color: getStatusConfig(selectedRequest.status).color }}>
                   {getStatusConfig(selectedRequest.status).text}
                 </Text>
                 
                 {/* ✅ Status-specific messages */}
                 {selectedRequest.status === 'pending' && (
-                  <Text type="secondary">
-                    Đơn của bạn đang chờ giáo viên xem xét và phê duyệt
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Đơn đang chờ giáo viên xem xét và phê duyệt
                   </Text>
                 )}
                 {selectedRequest.reviewedAt && (
-                  <Text type="secondary">
-                    Đơn này đã được xử lý vào {dayjs(selectedRequest.reviewedAt).format('DD/MM/YYYY HH:mm')}
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Đã xử lý vào {dayjs(selectedRequest.reviewedAt).format('DD/MM/YYYY HH:mm')}
                   </Text>
                 )}
               </Space>
