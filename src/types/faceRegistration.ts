@@ -47,11 +47,30 @@ export interface PoseAngles {
 }
 
 /**
- * Response với processed frame và trạng thái
+ * Face bounding box (normalized 0-1 coordinates)
+ */
+export interface BoundingBox {
+  x: number;      // Top-left X (normalized)
+  y: number;      // Top-left Y (normalized)
+  width: number;  // Width (normalized)
+  height: number; // Height (normalized)
+}
+
+/**
+ * Single face landmark (normalized 0-1 coordinates)
+ */
+export interface FaceLandmark {
+  x: number; // X coordinate (normalized)
+  y: number; // Y coordinate (normalized)
+  z: number; // Z coordinate / depth (normalized)
+}
+
+/**
+ * Response với face metadata (NO processed image)
+ * Client sẽ vẽ bounding box và overlay lên video stream gốc
  */
 export interface WSProcessedFrameResponse {
   type: "processed_frame";
-  image: string; // Base64 encoded processed image
   instruction: string; // Hướng dẫn hiện tại cho user
   current_step: number; // Bước hiện tại (0-13, 0-indexed)
   total_steps: number; // Tổng số bước (14)
@@ -60,6 +79,8 @@ export interface WSProcessedFrameResponse {
   condition_met: boolean; // true nếu user giữ đúng tư thế
   face_detected: boolean; // true nếu phát hiện khuôn mặt
   pose_angles: PoseAngles | null; // Góc độ khuôn mặt hiện tại
+  bounding_box: BoundingBox | null; // Face bounding box (normalized)
+  landmarks: FaceLandmark[] | null; // 468 face mesh landmarks (normalized)
 }
 
 /**
@@ -211,10 +232,9 @@ export type FaceRegistrationErrorCodeType = typeof FaceRegistrationErrorCode[key
 // ============= Hook State Types =============
 
 /**
- * Processed frame data cho UI
+ * Processed frame data cho UI (metadata only, NO image)
  */
 export interface ProcessedFrame {
-  image: string;
   instruction: string;
   currentStep: number;
   totalSteps: number;
@@ -223,6 +243,8 @@ export interface ProcessedFrame {
   conditionMet: boolean;
   faceDetected: boolean;
   poseAngles: PoseAngles | null;
+  boundingBox: BoundingBox | null;
+  landmarks: FaceLandmark[] | null;
 }
 
 /**

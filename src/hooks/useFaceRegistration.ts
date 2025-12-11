@@ -96,7 +96,6 @@ export function useFaceRegistration({
         case "processed_frame": {
           const frameData = data as WSProcessedFrameResponse;
           setProcessedFrame({
-            image: frameData.image,
             instruction: frameData.instruction,
             currentStep: frameData.current_step,
             totalSteps: frameData.total_steps,
@@ -105,6 +104,8 @@ export function useFaceRegistration({
             conditionMet: frameData.condition_met,
             faceDetected: frameData.face_detected,
             poseAngles: frameData.pose_angles,
+            boundingBox: frameData.bounding_box,
+            landmarks: frameData.landmarks,
           });
           break;
         }
@@ -120,11 +121,18 @@ export function useFaceRegistration({
           const collectionData = data as WSCollectionCompletedResponse;
           console.log("📸 Collection completed! Waiting for student review...", collectionData);
           
-          // Stop streaming temporarily
+          // Stop streaming and webcam
           if (intervalRef.current) {
             clearInterval(intervalRef.current);
             intervalRef.current = null;
             setIsStreaming(false);
+          }
+          
+          // Stop webcam to release camera
+          if (videoRef.current && videoRef.current.srcObject) {
+            const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+            tracks.forEach((track) => track.stop());
+            videoRef.current.srcObject = null;
           }
           
           // Set review mode
@@ -150,7 +158,7 @@ export function useFaceRegistration({
             // Student accepted - now uploading and waiting for admin
             antMessage.success({
               content: confirmData.message || "Đang upload ảnh và chờ admin duyệt...",
-              duration: 5,
+              duration: 3,
             });
             
             // Set completed state
@@ -170,13 +178,18 @@ export function useFaceRegistration({
               tracks.forEach((track) => track.stop());
               videoRef.current.srcObject = null;
             }
+            
+            // Reload page after 2 seconds
+            setTimeout(() => {
+              window.location.reload();
+            }, 2000);
           } else {
             // Student rejected - can re-collect
             antMessage.info(confirmData.message || "Đã hủy. Bạn có thể thu thập lại.");
             setPreviewImages([]);
             
-            // Restart webcam for re-collection
-            // (User will need to click "Làm lại" button)
+            // Restart streaming for re-collection
+            setIsStreaming(true);
           }
           break;
         }
@@ -454,10 +467,18 @@ export function useFaceRegistration({
 
     if (!ctx) return;
 
-    // Draw video frame to canvas
-    canvas.width = 640;
-    canvas.height = 480;
-    ctx.drawImage(video, 0, 0, 640, 480);
+    // Match canvas size to actual video dimensions (portrait or landscape)
+    const videoWidth = video.videoWidth || 640;
+    const videoHeight = video.videoHeight || 480;
+    canvas.width = videoWidth;
+    canvas.height = videoHeight;
+    
+    // Flip horizontally so backend receives mirrored image
+    ctx.save();
+    ctx.scale(-1, 1);
+    ctx.translate(-videoWidth, 0);
+    ctx.drawImage(video, 0, 0, videoWidth, videoHeight);
+    ctx.restore();
 
     // Convert to base64
     const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
@@ -532,7 +553,7 @@ export function useFaceRegistration({
   /**
    * Confirm collected images (accept or reject)
    */
-  const confirmImages = useCallback((accept: boolean) => {
+  const confirmImages = useCallback(async (accept: boolean) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       const message = {
         type: "student_confirm",
@@ -542,14 +563,20 @@ export function useFaceRegistration({
       console.log(`📤 Sent student confirmation: ${accept ? "ACCEPT" : "REJECT"}`);
       
       if (!accept) {
-        // If rejected, clear preview images and allow re-collection
+        // If rejected, clear preview images and restart webcam for re-collection
         setPreviewImages([]);
         setIsReviewing(false);
+        
+        // Restart webcam
+        const webcamStarted = await startWebcam();
+        if (webcamStarted) {
+          startStreaming();
+        }
       }
     } else {
       antMessage.error("Không thể gửi xác nhận. Vui lòng thử lại.");
     }
-  }, []);
+  }, [startWebcam, startStreaming]);
 
   /**
    * Cleanup on unmount
