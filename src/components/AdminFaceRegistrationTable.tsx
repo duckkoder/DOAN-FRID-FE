@@ -49,6 +49,7 @@ const AdminFaceRegistrationTable: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string | undefined>('pending_admin_review');
   const [searchText, setSearchText] = useState('');
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 576);
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
@@ -65,6 +66,13 @@ const AdminFaceRegistrationTable: React.FC = () => {
   const [actionType, setActionType] = useState<'approve' | 'reject'>('approve');
   const [processingEmbeddings, setProcessingEmbeddings] = useState(false);  // NEW: For embedding processing
   const [form] = Form.useForm();
+
+  // ==================== Responsive Detection ====================
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 576);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // ==================== Load Data ====================
   useEffect(() => {
@@ -327,15 +335,19 @@ const AdminFaceRegistrationTable: React.FC = () => {
     <>
       <Card
         title={
-          <Space>
-            <CameraOutlined style={{ fontSize: 20 }} />
-            <span>Quản lý đăng ký sinh trắc học</span>
-          </Space>
-        }
-        extra={
-          <Tag color="gold" icon={<ClockCircleOutlined />} style={{ fontSize: 14, padding: '4px 12px' }}>
-            {registrations.filter((r) => r.status === 'pending_admin_review').length} đang chờ duyệt
-          </Tag>
+          <Row align="middle" gutter={[8, 8]} style={{ flexWrap: 'wrap' }}>
+            <Col>
+              <Space>
+                <CameraOutlined style={{ fontSize: 20 }} />
+                <span style={{ fontSize: 16 }}>Quản lý đăng ký sinh trắc học</span>
+              </Space>
+            </Col>
+            <Col>
+              <Tag color="gold" icon={<ClockCircleOutlined />} style={{ fontSize: 12, padding: '2px 8px' }}>
+                {registrations.filter((r) => r.status === 'pending_admin_review').length} chờ duyệt
+              </Tag>
+            </Col>
+          </Row>
         }
       >
         {/* Filters */}
@@ -366,7 +378,7 @@ const AdminFaceRegistrationTable: React.FC = () => {
           </Col>
           <Col xs={12} sm={4} md={3}>
             <Button icon={<ReloadOutlined />} onClick={handleReset}>
-              Đặt lại
+              {!isMobile && "Đặt lại"}
             </Button>
           </Col>
         </Row>
@@ -381,9 +393,15 @@ const AdminFaceRegistrationTable: React.FC = () => {
             current: pagination.current,
             pageSize: pagination.pageSize,
             total: pagination.total,
-            showSizeChanger: true,
-            showTotal: (total) => `Tổng ${total} yêu cầu`,
+            showSizeChanger: !isMobile,
+            showTotal: (total, range) => (
+              <span style={{ fontSize: 12 }}>
+                {range[0]}-{range[1]} / {total}
+              </span>
+            ),
             pageSizeOptions: ['10', '20', '50'],
+            size: 'small',
+            simple: isMobile,
           }}
           onChange={handleTableChange}
           scroll={{ x: 1000 }}
@@ -508,10 +526,6 @@ const AdminFaceRegistrationTable: React.FC = () => {
                   message="Sinh viên đã xác nhận"
                   description={
                     <div>
-                      <Text>
-                        Thời gian: {new Date(viewingRegistration.student_reviewed_at).toLocaleString('vi-VN')}
-                      </Text>
-                      <br />
                       <Text strong>
                         Quyết định:{' '}
                         {viewingRegistration.student_accepted ? (

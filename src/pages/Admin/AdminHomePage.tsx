@@ -160,22 +160,6 @@ const AdminHomePage: React.FC = () => {
         </Row>
       )}
 
-      {/* Recent Activity */}
-      <Card style={{ 
-        marginTop: 32,
-        borderRadius: 16,
-        boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-        border: "none"
-      }}>
-        <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
-          🕒 Recent Activity
-        </Title>
-        <div style={{ color: "#64748b" }}>
-          <Text>• New teacher account created - 2 hours ago</Text><br />
-          <Text>• ModalAI system updated - 4 hours ago</Text><br />
-          <Text>• 15 new students registered - 1 day ago</Text><br />
-        </div>
-      </Card>
     </div>
   );
 };
