@@ -33,7 +33,7 @@ const AuthPage: React.FC = () => {
       });
 
       if (res && res.user) {
-        console.log("Login successful:", res);
+        
         // Lưu thông tin user và tokens
         auth?.login(
           res.user,

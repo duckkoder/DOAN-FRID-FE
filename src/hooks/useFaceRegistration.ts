@@ -112,14 +112,14 @@ export function useFaceRegistration({
 
         case "step_completed": {
           const stepData = data as WSStepCompletedResponse;
-          console.log(`✅ Step ${stepData.step_number} completed:`, stepData.step_name);
+          
           antMessage.success(`Bước ${stepData.step_number}/14 hoàn thành: ${stepData.step_name}`);
           break;
         }
 
         case "collection_completed": {
           const collectionData = data as WSCollectionCompletedResponse;
-          console.log("📸 Collection completed! Waiting for student review...", collectionData);
+          
           
           // Stop streaming and webcam
           if (intervalRef.current) {
@@ -149,7 +149,7 @@ export function useFaceRegistration({
 
         case "student_confirmed": {
           const confirmData = data as WSStudentConfirmedResponse;
-          console.log("✅ Student confirmed:", confirmData);
+          
           
           setIsReviewing(false);
           setRegistrationStatus(confirmData.status || null);
@@ -196,7 +196,7 @@ export function useFaceRegistration({
 
         case "registration_completed": {
           const completeData = data as WSRegistrationCompletedResponse;
-          console.log("🎉 Registration completed!", completeData);
+          
           
           setIsCompleted(true);
           setCompletionData({
@@ -236,12 +236,12 @@ export function useFaceRegistration({
         }
 
         case "status": {
-          console.log("📌 Status:", data.message);
+          
           break;
         }
 
         case "restarted": {
-          console.log("🔄 Session restarted");
+          
           antMessage.info("Đã khởi động lại quá trình đăng ký");
           setProcessedFrame(null);
           setIsCompleted(false);
@@ -250,7 +250,7 @@ export function useFaceRegistration({
         }
 
         default:
-          console.log("Unknown message type:", data);
+          
       }
     } catch (err) {
       console.error("Failed to parse WebSocket message:", err);
@@ -312,7 +312,7 @@ export function useFaceRegistration({
     reconnectAttemptsRef.current += 1;
     const delay = RECONNECT_DELAY * reconnectAttemptsRef.current;
 
-    console.log(`Attempting reconnect ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms...`);
+    
     
     reconnectTimeoutRef.current = setTimeout(() => {
       connect();
@@ -338,7 +338,7 @@ export function useFaceRegistration({
     // Always get fresh URL from environment variable to support mobile testing
     const wsBaseUrl = import.meta.env.VITE_WS_BASE_URL || serverUrl;
     const wsUrl = `${wsBaseUrl}/api/v1/ws/face-registration/${studentId}`;
-    console.log("Connecting to:", wsUrl);
+    
 
     setConnectionStatus("connecting");
     setError(null);
@@ -346,7 +346,7 @@ export function useFaceRegistration({
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      console.log("✅ WebSocket connected");
+      
       setIsConnected(true);
       setConnectionStatus("connected");
       setError(null);
@@ -363,7 +363,7 @@ export function useFaceRegistration({
     };
 
     ws.onclose = (event) => {
-      console.log("🔌 WebSocket disconnected", event);
+      
       setIsConnected(false);
       setConnectionStatus("disconnected");
 
@@ -416,7 +416,7 @@ export function useFaceRegistration({
         await videoRef.current.play();
       }
 
-      console.log("📹 Webcam started");
+      
       antMessage.success("Camera đã sẵn sàng!");
       return true;
     } catch (err: any) {
@@ -446,7 +446,7 @@ export function useFaceRegistration({
       stream.getTracks().forEach((track) => track.stop());
       videoRef.current.srcObject = null;
     }
-    console.log("📹 Webcam stopped");
+    
   }, []);
 
   /**
@@ -508,7 +508,7 @@ export function useFaceRegistration({
     const interval = 1000 / fps; // Convert FPS to milliseconds
     intervalRef.current = setInterval(sendFrame, interval);
     setIsStreaming(true);
-    console.log(`📤 Started streaming at ${fps} FPS`);
+    
   }, [fps, sendFrame]);
 
   /**
@@ -520,7 +520,7 @@ export function useFaceRegistration({
       intervalRef.current = null;
     }
     setIsStreaming(false);
-    console.log("📤 Stopped streaming");
+    
   }, []);
 
   /**
@@ -533,7 +533,7 @@ export function useFaceRegistration({
       setCompletionData(null);
       setProcessedFrame(null);
       setError(null);
-      console.log("🔄 Restart request sent");
+      
     }
   }, []);
 
@@ -547,7 +547,7 @@ export function useFaceRegistration({
     stopStreaming();
     stopWebcam();
     disconnect();
-    console.log("❌ Cancelled");
+    
   }, [disconnect, stopStreaming, stopWebcam]);
 
   /**
@@ -560,7 +560,7 @@ export function useFaceRegistration({
         accept,
       };
       wsRef.current.send(JSON.stringify(message));
-      console.log(`📤 Sent student confirmation: ${accept ? "ACCEPT" : "REJECT"}`);
+      
       
       if (!accept) {
         // If rejected, clear preview images and restart webcam for re-collection
@@ -583,7 +583,7 @@ export function useFaceRegistration({
    */
   useEffect(() => {
     return () => {
-      console.log("🧹 Cleaning up useFaceRegistration");
+      
       stopStreaming();
       stopWebcam();
       disconnect();

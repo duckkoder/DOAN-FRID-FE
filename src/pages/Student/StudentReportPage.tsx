@@ -110,7 +110,7 @@ const StudentReportPage: React.FC = () => {
     setError(null);
     try {
       const response = await getStudentClasses('active');
-      console.log('Fetched classes:', response.data.classes);
+      
       setClasses(response.data.classes);
     } catch (err: unknown) {
       console.error('Failed to fetch classes:', err);
@@ -127,7 +127,7 @@ const StudentReportPage: React.FC = () => {
     setLoadingRequests(true);
     try {
       const response = await getLeaveRequests();
-      console.log('Fetched leave requests:', response.data.leaveRequests);
+      
       
       // ✅ Store original API data directly
       setLeaveRequests(response.data.leaveRequests);
@@ -154,7 +154,7 @@ const StudentReportPage: React.FC = () => {
 
   // ✅ IMPROVED: Handle create leave request with better error handling
   const handleCreateRequest = async (values: any) => {
-    console.log("Create leave request:", values);
+    
     
     setSubmitting(true);
     try {
@@ -196,7 +196,7 @@ const StudentReportPage: React.FC = () => {
         evidence_file_id: evidenceFileId
       };
 
-      console.log('Creating leave request:', payload);
+      
 
       const response = await createLeaveRequest(payload);
 
@@ -238,7 +238,7 @@ const StudentReportPage: React.FC = () => {
 
   // ✅ IMPROVED: Handle edit leave request with better error handling
   const handleEditRequest = async (values: any) => {
-    console.log("Edit leave request:", values);
+    
     
     if (!editingRequest) return;
 

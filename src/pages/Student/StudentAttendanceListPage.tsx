@@ -67,7 +67,7 @@ const StudentAttendanceListPage: React.FC = () => {
   useEffect(() => {
     return () => {
       if (wsRef.current) {
-        console.log('Closing WebSocket connection');
+        
         wsRef.current.close();
       }
     };
@@ -78,7 +78,7 @@ const StudentAttendanceListPage: React.FC = () => {
     setLoading(true);
     try {
       const response = await getCurrentSessionAttendance(classId);
-      console.log("Current attendance session:", response);
+      
       
       if (response.has_active_session && response.session) {
         setAttendanceSession(response.session);
@@ -106,14 +106,14 @@ const StudentAttendanceListPage: React.FC = () => {
       const ws = connectAttendanceWebSocket(sessionId);
       
       ws.onopen = () => {
-        console.log('✅ WebSocket connected to session:', sessionId);
+        
         setWsConnected(true);
       };
       
       ws.onmessage = (event) => {
         try {
           const data: WSAttendanceUpdate = JSON.parse(event.data);
-          console.log('📨 WebSocket message:', data);
+          
           
           // Handle attendance_update messages
           if (data.type === 'attendance_update') {
@@ -183,7 +183,7 @@ const StudentAttendanceListPage: React.FC = () => {
       };
       
       ws.onclose = () => {
-        console.log('WebSocket disconnected');
+        
         setWsConnected(false);
       };
       

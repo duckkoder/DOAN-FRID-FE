@@ -362,7 +362,7 @@ export const getClassStudentsDetails = async (
 ): Promise<GetClassStudentsDetailResponse> => {
   try {
     const response = await api.get(`/teacher/classes/${classId}/students/details`);
-    console.log(`Fetched students details for class ${classId}:`, response.data);
+    
     return response.data;
   } catch (error: any) {
     console.error(`Failed to fetch students details for class ${classId}:`, error);

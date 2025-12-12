@@ -182,12 +182,12 @@ const TeacherReportPage: React.FC = () => {
   };
 
   const handleExportExcel = () => {
-    console.log("Export to Excel");
+    
     // Implement Excel export logic
   };
 
   const handleExportPDF = () => {
-    console.log("Export to PDF");
+    
     // Implement PDF export logic
   };
 

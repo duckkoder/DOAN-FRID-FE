@@ -120,7 +120,7 @@ const StudentAttendancePage: React.FC = () => {
 
 
   const getStatusConfig = (status: string | null | undefined) => {
-    console.log("Getting status config for status:", status);
+    
     switch(status) {
       case 'present':
         return { color: '#10b981', text: 'Có mặt', icon: <CheckCircleOutlined /> };
@@ -152,7 +152,7 @@ const StudentAttendancePage: React.FC = () => {
   };
 
   const handleSubmitAppeal = (values: any) => {
-    console.log("Appeal submitted:", values);
+    
     // Here you would integrate with an API to submit the appeal
     message.success("Đã gửi khiếu nại thành công! Giáo viên sẽ xem xét trong thời gian sớm nhất.");
     setIsAppealModalVisible(false);

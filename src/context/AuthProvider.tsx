@@ -1,8 +1,8 @@
-// src/context/AuthProvider.tsx (hoặc nơi bạn đang quản lý auth state)
+// src/context/AuthProvider.tsx
 import React, { useEffect, useState } from "react";
 import { getCookie, setCookie, deleteCookie } from "../utils/cookies";
 import { encryptString, decryptString } from "../utils/crypto";
-import { setVolatileAccessToken, clearInMemoryAuth } from "../apis/axios";
+import { setAuthTokens, clearInMemoryAuth } from "../apis/axios";
 import type { User, AuthTokens as AuthTokensType } from "./AuthContext";
 import { AuthContext } from "./AuthContext";
 
@@ -32,8 +32,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const parsed = JSON.parse(decrypted) as PersistedAuth;
             setUser(parsed.user ?? null);
             setTokens(parsed.tokens ?? { accessToken: null, refreshToken: null });
-            // if persisted included accessToken, populate in-memory cache
-            setVolatileAccessToken(parsed.tokens?.accessToken ?? null);
+            // Sync tokens với axios memory
+            setAuthTokens(
+              parsed.tokens?.accessToken ?? null,
+              parsed.tokens?.refreshToken ?? null
+            );
           } catch {
             // decryption or parse failed - ignore
           }
@@ -41,24 +44,72 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch {
         // ignore
       }
-      // mark hydrated regardless so router can evaluate auth state
       setHydrated(true);
     })();
   }, []);
 
+  // Lắng nghe token refresh từ axios
+  useEffect(() => {
+    const handleTokenRefresh = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        accessToken: string;
+        refreshToken?: string | null;
+      }>;
+      const { accessToken, refreshToken } = customEvent.detail;
+      
+      // Update tokens state
+      setTokens((prev) => ({
+        accessToken,
+        refreshToken: refreshToken ?? prev.refreshToken,
+      }));
+      
+      // Persist to cookie (chỉ lưu refreshToken, không lưu accessToken)
+      const toPersist: PersistedAuth = {
+        user,
+        tokens: {
+          accessToken: null,
+          refreshToken: refreshToken ?? tokens.refreshToken,
+        },
+      };
+      void persist(toPersist, 7).catch(() => {}); // Match backend refresh token expiry
+    };
+
+    const handleLogout = (event: Event) => {
+      const customEvent = event as CustomEvent<{ reason: string }>;
+      
+      // Clear state
+      setUser(null);
+      setTokens({ accessToken: null, refreshToken: null });
+      deleteCookie(AUTH_COOKIE);
+      clearInMemoryAuth();
+      
+      // Redirect to login if not on auth page
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/auth")) {
+        const next = encodeURIComponent(window.location.pathname + window.location.search);
+        window.location.href = `/auth?next=${next}`;
+      }
+    };
+
+    window.addEventListener('auth:token-refreshed', handleTokenRefresh);
+    window.addEventListener('auth:logout', handleLogout);
+
+    return () => {
+      window.removeEventListener('auth:token-refreshed', handleTokenRefresh);
+      window.removeEventListener('auth:logout', handleLogout);
+    };
+  }, [user, tokens.refreshToken]);
+
   const persist = async (next: PersistedAuth, days = 7) => {
-    // choose secure flag: only set Secure on https or in production builds
     const secureFlag =
       (typeof window !== "undefined" && window.location.protocol === "https:") ||
       !!(import.meta.env && import.meta.env.PROD);
-    // encrypt persisted state before storing in cookie
+    
     try {
       const enc = await encryptString(JSON.stringify(next), COOKIE_SECRET);
-      // lưu 'days' ngày, SameSite=Lax
-      setCookie(AUTH_COOKIE, enc, days, secureFlag, "Lax");
+      setCookie(AUTH_COOKIE, enc, days, secureFlag, "Lax", "/");
     } catch {
       // fallback: store plain JSON (not ideal)
-      setCookie(AUTH_COOKIE, JSON.stringify(next), days, secureFlag, "Lax");
+      setCookie(AUTH_COOKIE, JSON.stringify(next), days, secureFlag, "Lax", "/");
     }
   };
 
@@ -66,27 +117,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const actualUser = typeof nextUser === "string" ? null : nextUser;
     setUser(actualUser);
     setTokens(nextTokens ?? { accessToken: null, refreshToken: null });
-    // sync in-memory token
-    setVolatileAccessToken(nextTokens?.accessToken ?? null);
-    // choose what to persist according to rememberMe
-    // if rememberMe: persist refreshToken for 15 days, do not persist accessToken (keep in memory)
-    // if not rememberMe: persist both tokens but with short expiry (12 hours)
-    const toPersist: PersistedAuth = rememberMe
-      ? {
-          user: actualUser,
-          tokens: { accessToken: null, refreshToken: nextTokens?.refreshToken ?? null },
-        }
-      : {
-          user: actualUser,
-          tokens: {
-            accessToken: nextTokens?.accessToken ?? null,
-            refreshToken: nextTokens?.refreshToken ?? null,
-          },
-        };
-    const days = rememberMe ? 15 : 0.5; // 0.5 day = 12 hours
-    // call async persist but don't await in UI
+    
+    // Sync tokens với axios memory
+    setAuthTokens(
+      nextTokens?.accessToken ?? null,
+      nextTokens?.refreshToken ?? null
+    );
+    
+    // Lưu vào cookie: CHỈ lưu user + refreshToken, KHÔNG lưu accessToken
+    // accessToken chỉ ở memory trong axios
+    const toPersist: PersistedAuth = {
+      user: actualUser,
+      tokens: {
+        accessToken: null, // ✅ Không persist access token
+        refreshToken: nextTokens?.refreshToken ?? null,
+      },
+    };
+    
+    // Match backend: refresh token = 7 days
+    const days = rememberMe ? 7 : 3; // rememberMe: 7 days, else: 3 days
     void persist(toPersist, days).catch(() => {});
-    // Note: access token lifetime in memory should be handled by API client / refresh logic (not implemented here)
   };
 
   const logout = () => {
@@ -100,12 +150,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
     const updatedUser = { ...user, ...updates };
     setUser(updatedUser);
-    // Persist updated user to cookie
+    
+    // Persist updated user to cookie (không lưu accessToken)
     const toPersist: PersistedAuth = {
       user: updatedUser,
-      tokens: { accessToken: null, refreshToken: tokens?.refreshToken ?? null },
+      tokens: {
+        accessToken: null,
+        refreshToken: tokens?.refreshToken ?? null,
+      },
     };
-    void persist(toPersist, 15).catch(() => {});
+    void persist(toPersist, 7).catch(() => {}); // Match backend refresh token expiry
   };
 
   return (

@@ -91,19 +91,19 @@ export class AIWebSocketClient {
         // Add token as query parameter
         const url = `${wsUrl}?token=${token}`;
         
-        console.log('[AIWebSocket] Connecting to:', wsUrl);
+        
         
         this.ws = new WebSocket(url);
         
         this.ws.onopen = () => {
-          console.log('[AIWebSocket] Connected successfully');
+          
           this.reconnectAttempts = 0;
           this.onConnectedCallback?.();
           resolve();
         };
         
         this.ws.onclose = (event) => {
-          console.log('[AIWebSocket] Connection closed:', event.code, event.reason);
+          
           
           this.onDisconnectedCallback?.(event.code, event.reason);
           
@@ -118,7 +118,7 @@ export class AIWebSocketClient {
           // Auto-reconnect (if not manual close)
           if (!this.isManualClose && this.reconnectAttempts < this.maxReconnectAttempts) {
             const delay = 1000 * Math.pow(2, this.reconnectAttempts);
-            console.log(`[AIWebSocket] Reconnecting in ${delay}ms...`);
+            
             
             this.reconnectTimeout = setTimeout(() => {
               this.reconnectAttempts++;
@@ -153,16 +153,16 @@ export class AIWebSocketClient {
    * Handle incoming WebSocket messages
    */
   private handleMessage(data: WSMessage) {
-    console.log('[AIWebSocket] Message received:', data.type);
+    
     
     switch (data.type) {
       case 'connection_established':
-        console.log('[AIWebSocket] Connection established:', data.message);
+        
         break;
         
       case 'frame_processed':
-        console.log('[AIWebSocket] Frame processed data:', data); // Debug
-        console.log('[AIWebSocket] Detections:', data.detections); // Debug detections detail
+         // Debug
+         // Debug detections detail
         if (data.detections && data.total_faces !== undefined) {
           this.onFrameProcessedCallback?.(data.detections, data.total_faces);
         } else {
@@ -172,7 +172,7 @@ export class AIWebSocketClient {
         
       case 'student_validated':
         if (data.student) {
-          console.log('[AIWebSocket] Student validated:', data.student.student_name);
+          
           this.onStudentValidatedCallback?.(data.student);
         }
         break;
@@ -220,7 +220,7 @@ export class AIWebSocketClient {
    * Close WebSocket connection
    */
   disconnect() {
-    console.log('[AIWebSocket] Disconnecting...');
+    
     this.isManualClose = true;
     
     if (this.reconnectTimeout) {

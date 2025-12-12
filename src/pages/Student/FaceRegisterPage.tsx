@@ -59,7 +59,7 @@ const FaceRegisterPage: React.FC = () => {
       try {
         const statusData = await getMyRegistrationStatus();
         setInitialStatus(statusData);
-        console.log('Initial registration status:', statusData);
+        
         
         // If status is pending_student_review, load pending review images
         if (statusData.status === 'pending_student_review') {
@@ -67,7 +67,7 @@ const FaceRegisterPage: React.FC = () => {
           try {
             const reviewData = await loadPendingReviewImages();
             setPendingReviewData(reviewData);
-            console.log('Loaded pending review data:', reviewData);
+            
           } catch (error: any) {
             console.error('Failed to load pending review images:', error);
             console.error('Error response:', error?.response?.data);
@@ -150,7 +150,7 @@ const FaceRegisterPage: React.FC = () => {
         if (videoRef.current && videoRef.current.videoWidth && videoRef.current.videoHeight) {
           const aspectRatio = videoRef.current.videoWidth / videoRef.current.videoHeight;
           setVideoAspectRatio(aspectRatio);
-          console.log('Detected video aspect ratio:', aspectRatio);
+          
         }
         startStreaming();
       }, 500);

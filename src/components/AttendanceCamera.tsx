@@ -240,7 +240,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       setLoading(true);
       setError(null);
 
-      console.log('[StartSession] Creating session...');
+      
 
       // 1. Create session với Backend → nhận WebSocket info
       // ✅ Fix: Generate session_name with Vietnam timezone (UTC+7)
@@ -260,7 +260,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         session_index: sessionIndex,
       });
 
-      console.log('[StartSession] Session created:', response);
+      
       setSessionInfo(response);
 
       // 2. Start camera
@@ -285,7 +285,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
    */
   const startCamera = async (mode: 'user' | 'environment' = facingMode) => {
     try {
-      console.log('[Camera] Starting camera with facingMode:', mode);
+      
       
       // Stop existing stream if any
       if (streamRef.current) {
@@ -309,7 +309,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       }
 
       setCameraActive(true);
-      console.log('[Camera] Camera started with facingMode:', mode);
+      
 
     } catch (err) {
       console.error('[Camera] Error:', err);
@@ -327,7 +327,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       const newMode = facingMode === 'user' ? 'environment' : 'user';
       setFacingMode(newMode);
       await startCamera(newMode);
-      console.log('[Camera] Switched to', newMode === 'user' ? 'front' : 'back', 'camera');
+      
     } catch (err) {
       console.error('[Camera] Toggle error:', err);
       setError('Không thể chuyển đổi camera');
@@ -339,20 +339,20 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
    */
   const connectWebSocket = async (sessionInfo: AISessionResponse) => {
     try {
-      console.log('[WebSocket] Connecting to AI-Service...');
+      
 
       const wsClient = new AIWebSocketClient();
       wsClientRef.current = wsClient;
 
       // Setup event handlers
       wsClient.onConnected(() => {
-        console.log('[WebSocket] Connected!');
+        
         setWsConnected(true);
         setError(null);
       });
 
       wsClient.onDisconnected((code, reason) => {
-        console.log('[WebSocket] Disconnected:', code, reason);
+        
         setWsConnected(false);
         
         if (code === 1008) {
@@ -380,12 +380,12 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       });
 
       wsClient.onStudentValidated((student) => {
-        console.log('[WebSocket] Student validated:', student.student_name);
+        
         // Validated student info will be fetched from backend via polling
       });
 
       wsClient.onSessionStatus((status, stats) => {
-        console.log('[WebSocket] Session status:', status, stats);
+        
       });
 
       wsClient.onError((errorMsg) => {
@@ -406,7 +406,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
    * Start capturing and sending frames
    */
   const startFrameCapture = () => {
-    console.log('[FrameCapture] Starting frame capture at 10 FPS...');
+    
 
     frameIntervalRef.current = window.setInterval(async () => {
       if (!videoRef.current || !canvasRef.current || !wsClientRef.current?.isConnected()) {
@@ -671,7 +671,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   const handleStopSession = async () => {
     // Prevent duplicate calls
     if (loading || !sessionInfo) {
-      console.log('[StopSession] Already stopping or no session');
+      
       return;
     }
 
@@ -1423,7 +1423,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         sessionId={sessionInfo?.session_id || null}
         onConfirmed={() => {
           // Force refresh polling data ngay lập tức sau khi xác nhận
-          console.log('[AttendanceCamera] Pending confirmed, triggering data refresh');
+          
           // Smart polling sẽ tự động fetch lại trong vài giây
         }}
       />

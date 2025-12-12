@@ -108,9 +108,9 @@ const TeacherLeaveRequestPage: React.FC = () => {
 
       const response = await getTeacherLeaveRequestsWithStats(classId, statusFilter);
       
-      console.log('statusFilter:', statusFilter);
-      console.log('classId:', subjectFilter);
-      console.log('Fetched leave requests:', response.data);
+      
+      
+      
       
       setLeaveRequests(response.data.leaveRequests);
       setSummary(response.data.summary);

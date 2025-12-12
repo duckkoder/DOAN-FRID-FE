@@ -79,7 +79,7 @@ export const useSmartPolling = ({
       
       if (currentRecordCount > lastRecordCountRef.current) {
         // Có update mới → reset interval về initial
-        console.log('[SmartPolling] New records detected, resetting interval');
+        
         intervalRef.current = initialInterval;
         consecutiveNoChangeRef.current = 0;
       } else {
@@ -91,7 +91,7 @@ export const useSmartPolling = ({
         );
         
         if (newInterval !== intervalRef.current) {
-          console.log(`[SmartPolling] No changes, increasing interval to ${newInterval}ms`);
+          
           intervalRef.current = newInterval;
         }
       }
@@ -100,7 +100,7 @@ export const useSmartPolling = ({
 
       // Stop polling nếu session finished
       if (newData.session.status === 'finished') {
-        console.log('[SmartPolling] Session finished, stopping poll');
+        
         return;
       }
 

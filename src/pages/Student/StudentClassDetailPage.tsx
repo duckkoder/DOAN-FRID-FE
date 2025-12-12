@@ -108,7 +108,7 @@ const StudentClassDetailPage: React.FC = () => {
 
     try {
       const response = await getStudentClassDetails(id);
-      console.log("Fetched class details:", response.data);
+      
       setClassData(response.data);
     } catch (err: any) {
       console.error('Failed to fetch class details:', err);
@@ -126,7 +126,7 @@ const StudentClassDetailPage: React.FC = () => {
     setAttendanceError(null);
     try {
       const response = await getStudentClassAttendanceSessions(id);
-      console.log("Fetched class attendance sessions:", response);
+      
       setClassAttendanceSummary(response);
     } catch (err: any) {
       console.error('Failed to fetch class attendance:', err);
@@ -143,7 +143,7 @@ const StudentClassDetailPage: React.FC = () => {
     setLeaveRequestsLoading(true);
     try {
       const response = await getLeaveRequests(id);
-      console.log("Fetched leave requests:", response.data);
+      
       setLeaveRequests(response.data.leaveRequests);
     } catch (err: any) {
       console.error('Failed to fetch leave requests:', err);
@@ -338,7 +338,7 @@ const StudentClassDetailPage: React.FC = () => {
         evidence_file_id: evidenceFileId
       };
 
-      console.log('Creating leave request:', leaveRequestPayload);
+      
 
       const response = await createLeaveRequest(leaveRequestPayload);
 

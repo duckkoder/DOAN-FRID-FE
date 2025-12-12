@@ -234,7 +234,7 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
       };
       onSubmit(formData);
     }).catch((errorInfo) => {
-      console.log('Form validation failed:', errorInfo);
+      
       message.error('Vui lòng điền đầy đủ thông tin bắt buộc!');
     });
   };

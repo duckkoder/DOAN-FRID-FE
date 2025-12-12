@@ -92,7 +92,7 @@ const ClassCreatePage: React.FC = () => {
   const [dayPeriods, setDayPeriods] = useState<Record<number, number[]>>({});
   
   const userStr = useAuth().user;
-  console.log('Authenticated user:', userStr);
+  
   
   useEffect(() => {
     const getUserInfo = () => {
@@ -304,8 +304,8 @@ const ClassCreatePage: React.FC = () => {
         formData.room
       );
 
-      console.log('Frontend schedules:', formData.schedules);
-      console.log('Backend schedule:', backendSchedule);
+      
+      
 
       // Prepare request data
       const requestData: CreateClassRequest = {
@@ -316,12 +316,12 @@ const ClassCreatePage: React.FC = () => {
         schedule: backendSchedule
       };
 
-      console.log('Creating class with data:', requestData);
+      
 
       // Call API
       const response = await createClass(requestData);
 
-      console.log('Class created successfully:', response);
+      
 
       message.success({
         content: 'Tạo lớp học thành công!',

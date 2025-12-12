@@ -55,7 +55,7 @@ const TeacherHomePage: React.FC = () => {
         setLoading(true);
         
         const classesResponse = await getClassesList();
-        console.log('✅ Classes response:', classesResponse);
+        
         
         if (classesResponse.success && classesResponse.data) {
           const classesData = classesResponse.data.classes;

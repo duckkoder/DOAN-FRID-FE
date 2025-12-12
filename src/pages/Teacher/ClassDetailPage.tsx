@@ -463,12 +463,12 @@ const ClassDetailPage: React.FC = () => {
         schedule: backendSchedule
       };
 
-      console.log('Updating class with data:', updateData);
+      
 
       // Call API
       const response = await updateClass(Number(classId), updateData);
 
-      console.log('Class updated successfully:', response);
+      
 
       message.success('Cập nhật lớp học thành công!');
 
@@ -673,7 +673,7 @@ const ClassDetailPage: React.FC = () => {
       try {
         const { getClassSessions: getClassSessionsAPI } = await import('../../apis/attendanceAPIs/attendanceAPIs');
         const response = await getClassSessionsAPI(classId, undefined, 0, 100);
-        console.log('attendance sessions:', response.sessions);
+        
         setAttendanceSessions(response.sessions);
       } catch (error: any) {
         console.error('Failed to reload attendance sessions:', error);
@@ -768,7 +768,7 @@ const ClassDetailPage: React.FC = () => {
       try {
         const { getClassSessions: getClassSessionsAPI } = await import('../../apis/attendanceAPIs/attendanceAPIs');
         const response = await getClassSessionsAPI(classId, undefined, 0, 100);
-        console.log('Fetched attendance sessions:', response.sessions);
+        
         setAttendanceSessions(response.sessions);
       } catch (error: any) {
         console.error('Failed to load attendance sessions:', error);
@@ -786,7 +786,7 @@ const ClassDetailPage: React.FC = () => {
     setLoadingStudents(true);
     try {
       const response = await getClassStudentsDetails(classId);
-      console.log('✅ Fetched students:', response.data);
+      
       setStudentsData(response.data.students);
       setClassSummary(response.data.summary); // ✅ Save summary data
     } catch (error: any) {

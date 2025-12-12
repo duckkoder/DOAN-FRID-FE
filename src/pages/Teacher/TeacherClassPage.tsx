@@ -93,7 +93,7 @@ const TeacherClassPage: React.FC = () => {
     setLoading(true);
     try {
       const response = await getClassesList(filterStatus || undefined);
-      console.log('Fetched classes:', response);
+      
       if (response.success && response.data.classes) {
         const transformedClasses = transformApiDataToSessions(response.data.classes);
         setClasses(transformedClasses);
