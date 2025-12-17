@@ -3,7 +3,7 @@ export function setCookie(
   name: string,
   value: string,
   days = 7,
-  secure = true,
+  secure = false, // ✅ Đổi mặc định thành false để work với localhost
   sameSite: "Lax" | "Strict" | "None" = "Lax",
   path = "/",
 ) {

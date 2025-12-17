@@ -1,17 +1,32 @@
 // src/apis/axios.ts
 import axios, { AxiosHeaders, type AxiosInstance, type InternalAxiosRequestConfig } from "axios";
+import { getCookie, setCookie, deleteCookie } from "../utils/cookies";
+import { decryptString, encryptString } from "../utils/crypto";
 
 // ========================================
 // CONSTANTS
 // ========================================
+const AUTH_COOKIE = "authState";
 const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+const COOKIE_SECRET = (import.meta.env?.VITE_AUTH_COOKIE_SECRET as string) || "dev-local-secret-please-change";
 const REQUEST_TIMEOUT_MS = 15_000;
 const REFRESH_TIMEOUT_MS = 10_000;
-const CLOCK_SKEW_MS = 600 * 1000; // 600 seconds = 10 minutes (refresh when 10min left, backend token = 120min)
+const CLOCK_SKEW_MS = 300 * 1000; // ✅ 300 seconds (refresh when 300s left)
+const COOKIE_EXPIRY_DAYS = 7; // Match refresh token expiry
 
 // ========================================
 // TYPES
 // ========================================
+interface Tokens {
+  accessToken?: string | null;
+  refreshToken?: string | null;
+}
+
+interface PersistedAuthShape {
+  user?: unknown;
+  tokens?: Tokens;
+}
+
 interface RefreshResult {
   access: string;
   refresh?: string | null;
@@ -21,7 +36,7 @@ interface RefreshResult {
 // IN-MEMORY STATE
 // ========================================
 let volatileAccessToken: string | null = null;
-let refreshTokenCache: string | null = null;
+let persistedAuthCache: PersistedAuthShape | null = null;
 let inflightRefresh: Promise<RefreshResult> | null = null;
 
 // ========================================
@@ -96,33 +111,59 @@ function formatTimeRemaining(ms: number): string {
 }
 
 // ========================================
-// EVENT SYSTEM FOR AUTH SYNC
+// COOKIE PERSISTENCE
 // ========================================
 
 /**
- * Emit token refresh event để AuthProvider có thể sync
+ * Read and decrypt auth state from cookie
  */
-function emitTokenRefresh(accessToken: string, refreshToken?: string | null): void {
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(
-      new CustomEvent('auth:token-refreshed', {
-        detail: { accessToken, refreshToken },
-      })
-    );
+async function readPersistedAuth(): Promise<PersistedAuthShape | null> {
+  if (persistedAuthCache) return persistedAuthCache;
+  
+  const raw = getCookie(AUTH_COOKIE);
+  if (!raw) return (persistedAuthCache = null);
+
+  try {
+    // Try encrypted format first
+    const dec = await decryptString(raw, COOKIE_SECRET);
+    return (persistedAuthCache = JSON.parse(dec) as PersistedAuthShape);
+  } catch {
+    try {
+      // Fallback to plain JSON
+      return (persistedAuthCache = JSON.parse(raw) as PersistedAuthShape);
+    } catch {
+      return (persistedAuthCache = null);
+    }
   }
 }
 
 /**
- * Emit logout event để AuthProvider có thể sync
+ * Encrypt and write auth state to cookie
  */
-function emitLogout(reason: string): void {
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(
-      new CustomEvent('auth:logout', {
-        detail: { reason },
-      })
-    );
+async function writePersistedAuth(next: PersistedAuthShape, days: number): Promise<void> {
+  persistedAuthCache = next;
+  const secureFlag = isHttpsOrProd();
+  
+  try {
+    const enc = await encryptString(JSON.stringify(next), COOKIE_SECRET);
+    setCookie(AUTH_COOKIE, enc, days, secureFlag, "Lax", "/");
+  } catch {
+    // Fallback to plain JSON if encryption fails
+    setCookie(AUTH_COOKIE, JSON.stringify(next), days, secureFlag, "Lax", "/");
   }
+}
+
+/**
+ * Clear all auth state (memory + cookie)
+ */
+function clearAuthState(): void {
+  try {
+    deleteCookie(AUTH_COOKIE);
+  } catch {
+    /* ignore */
+  }
+  volatileAccessToken = null;
+  persistedAuthCache = null;
 }
 
 // ========================================
@@ -130,15 +171,23 @@ function emitLogout(reason: string): void {
 // ========================================
 
 /**
- * Handle logout: clear memory and emit event for AuthProvider
+ * Handle logout: clear auth state and redirect to login
  * @param reason - Reason for logout (for logging)
  */
 function handleLogout(reason: string = "Session expired"): void {
-  volatileAccessToken = null;
-  refreshTokenCache = null;
+  // Don't redirect if already on auth page
+  if (isOnAuthPage()) {
+    clearAuthState();
+    return;
+  }
   
-  // Emit event để AuthProvider xử lý logout và redirect
-  emitLogout(reason);
+  clearAuthState();
+  
+  // Redirect to login with return URL
+  if (typeof window !== "undefined") {
+    const next = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.href = `/auth?next=${next}`;
+  }
 }
 
 // ========================================
@@ -154,7 +203,8 @@ async function doRefreshSingleFlight(): Promise<RefreshResult> {
   if (inflightRefresh) return inflightRefresh;
 
   inflightRefresh = (async () => {
-    const refreshToken = refreshTokenCache;
+    const parsed = await readPersistedAuth();
+    const refreshToken = parsed?.tokens?.refreshToken;
     
     if (!refreshToken) {
       handleLogout("No refresh token found");
@@ -181,14 +231,17 @@ async function doRefreshSingleFlight(): Promise<RefreshResult> {
         throw new Error("Refresh did not return access token");
       }
 
-      // Update memory
-      volatileAccessToken = newAccess;
-      if (newRefresh) {
-        refreshTokenCache = newRefresh;
-      }
+      // Update persisted auth
+      const toPersist: PersistedAuthShape = {
+        user: parsed?.user ?? null,
+        tokens: {
+          accessToken: newAccess,
+          refreshToken: newRefresh ?? refreshToken,
+        },
+      };
 
-      // Emit event để AuthProvider update state
-      emitTokenRefresh(newAccess, newRefresh ?? null);
+      await writePersistedAuth(toPersist, COOKIE_EXPIRY_DAYS);
+      volatileAccessToken = newAccess;
 
       return { access: newAccess, refresh: newRefresh ?? null };
       
@@ -213,15 +266,26 @@ async function doRefreshSingleFlight(): Promise<RefreshResult> {
 
 /**
  * Ensure we have a fresh access token
+ * - If no token: try to read from cookie
  * - If token expired or about to expire: refresh it
  * - Otherwise: return existing token
  */
 async function ensureFreshAccessToken(): Promise<string | null> {
-  const token = volatileAccessToken;
+  let token = volatileAccessToken;
+  
+  // Load from cookie if not in memory
+  if (!token) {
+    const parsed = await readPersistedAuth();
+    token = parsed?.tokens?.accessToken ?? null;
+    if (token) {
+      volatileAccessToken = token;
+    }
+  }
   
   // Check token expiration
   const expMs = safeJwtExpMs(token);
   const now = Date.now();
+  // const timeLeft = expMs ? expMs - now : null;
 
   // Refresh if token is missing or about to expire
   if (!token || (expMs !== null && expMs - CLOCK_SKEW_MS <= now)) {
@@ -269,7 +333,7 @@ api.interceptors.request.use(
         config.headers.set("Authorization", `Bearer ${token}`);
       }
     } catch (err) {
-      // Token refresh failed, will be handled by response interceptor
+      // Silent fail
     }
     
     return config;
@@ -326,19 +390,38 @@ api.interceptors.response.use(
 export default api;
 
 /**
- * Set tokens in memory (called by AuthProvider after login)
+ * Set access token in memory (for external use)
  */
-export function setAuthTokens(accessToken: string | null, refreshToken: string | null): void {
-  volatileAccessToken = accessToken;
-  refreshTokenCache = refreshToken;
+export function setVolatileAccessToken(token: string | null): void {
+  volatileAccessToken = token;
 }
 
 /**
- * Clear all in-memory auth state (called by AuthProvider on logout)
+ * Set both access and refresh tokens (called by AuthProvider after login)
+ * This syncs the tokens to both memory and cookie
+ */
+export async function setAuthTokens(accessToken: string | null, refreshToken: string | null, user?: unknown): Promise<void> {
+  volatileAccessToken = accessToken;
+  
+  // Persist to cookie (only refresh token needed, access token stays in memory)
+  const toPersist: PersistedAuthShape = {
+    user: user ?? persistedAuthCache?.user ?? null,
+    tokens: {
+      accessToken, // Store in cookie for page refresh
+      refreshToken,
+    },
+  };
+  
+  await writePersistedAuth(toPersist, COOKIE_EXPIRY_DAYS);
+}
+
+/**
+ * Clear all in-memory auth state (for external use)
  */
 export function clearInMemoryAuth(): void {
   volatileAccessToken = null;
-  refreshTokenCache = null;
+  persistedAuthCache = null;
+  clearAuthState();
 }
 
 /**
