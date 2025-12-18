@@ -25,7 +25,7 @@ import {
   SwapOutlined,
   ClockCircleOutlined,
 } from '@ant-design/icons';
-import { startAttendanceSessionWithAI, endAttendanceSession, type AISessionResponse } from '../apis/attendanceAPIs/attendanceAPIs';
+import { startAttendanceSessionWithAI, endAttendanceSession, resumeAttendanceSession, type AISessionResponse } from '../apis/attendanceAPIs/attendanceAPIs';
 import { AIWebSocketClient, type DetectionInfo } from '../services/aiWebSocket';
 import { useSmartPolling } from '../hooks/useSmartPolling';
 import PendingConfirmationPanel from './PendingConfirmationPanel';
@@ -42,6 +42,8 @@ interface AttendanceCameraProps {
   dayOfWeek?: number;
   periodRange?: string;
   sessionIndex?: number;
+  /** Session ID để resume (nếu có session ongoing) */
+  resumeSessionId?: number;
 }
 
 const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
@@ -52,6 +54,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   dayOfWeek,
   periodRange,
   sessionIndex,
+  resumeSessionId,
 }) => {
   // States
   const [loading, setLoading] = useState(false);
@@ -141,6 +144,47 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       setWsConnected(false);
     }
   }, [visible, sessionInfo]);
+
+  /**
+   * ✅ Auto resume session when modal opens with resumeSessionId
+   */
+  useEffect(() => {
+    const handleResumeSession = async () => {
+      if (!visible || !resumeSessionId || sessionInfo) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log('[ResumeSession] Resuming session:', resumeSessionId);
+        
+        // 1. Call resume API to get new WebSocket token
+        const response = await resumeAttendanceSession(resumeSessionId);
+        
+        console.log('[ResumeSession] Got response:', response);
+        setSessionInfo(response);
+
+        // 2. Start camera
+        await startCamera();
+
+        // 3. Connect WebSocket to AI-Service
+        await connectWebSocket(response);
+
+        // 4. Start sending frames
+        startFrameCapture();
+        
+        console.log('[ResumeSession] Session resumed successfully');
+
+      } catch (err: any) {
+        console.error('[ResumeSession] Error:', err);
+        setError(err.response?.data?.detail || 'Không thể tiếp tục phiên điểm danh. Phiên có thể đã kết thúc.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    handleResumeSession();
+  }, [visible, resumeSessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset panels when modal closes
   useEffect(() => {
@@ -1317,9 +1361,24 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       {error && (
         <Alert
           message="Lỗi"
-          description={error}
+          description={
+            <div>
+              <p>{error}</p>
+              {resumeSessionId && (
+                <Button 
+                  type="primary" 
+                  danger 
+                  size="small" 
+                  style={{ marginTop: 8 }}
+                  onClick={onClose}
+                >
+                  Đóng và quay lại
+                </Button>
+              )}
+            </div>
+          }
           type="error"
-          closable
+          closable={!resumeSessionId}
           onClose={() => setError(null)}
           style={{ marginBottom: 16 }}
         />

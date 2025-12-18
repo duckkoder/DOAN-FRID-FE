@@ -42,6 +42,7 @@ import {
   ReloadOutlined, // ✅ Add this if missing
   DownOutlined,
   UpOutlined,
+  StopOutlined,
 } from "@ant-design/icons";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Breadcrumb from "../../components/Breadcrumb";
@@ -65,9 +66,10 @@ import {
   type StudentDetailInClass // ✅ Import type
 } from "../../apis/classesAPIs/teacherClass";
 import AttendanceCamera from "../../components/AttendanceCamera";
-import type { 
-  EndSessionResponse,
-  SessionWithStats,
+import { 
+  endAttendanceSession,
+  type EndSessionResponse,
+  type SessionWithStats,
   getClassSessions as getClassSessionsAPI
 } from "../../apis/attendanceAPIs/attendanceAPIs";
 
@@ -210,7 +212,11 @@ const ClassDetailPage: React.FC = () => {
   const [upcomingSessions, setUpcomingSessions] = useState<UpcomingSession[]>([]);
   const [isAttendanceCameraVisible, setIsAttendanceCameraVisible] = useState(false);
   const [attendanceSessions, setAttendanceSessions] = useState<SessionWithStats[]>([]);
-  const [loadingSessions, setLoadingSessions] = useState(false); // ✅ Add this missing state
+  const [loadingSessions, setLoadingSessions] = useState(false); 
+  const [resumeSessionId, setResumeSessionId] = useState<number | undefined>(undefined); 
+  const [endSessionModalVisible, setEndSessionModalVisible] = useState(false); 
+  const [endSessionId, setEndSessionId] = useState<number | null>(null); 
+  const [endSessionLoading, setEndSessionLoading] = useState(false); 
   
   // ✅ FIXED: Initialize classData state
   const [classData, setClassData] = useState<ClassData | null>(null);
@@ -662,11 +668,52 @@ const ClassDetailPage: React.FC = () => {
     setIsAttendanceCameraVisible(true);
   };
 
+  // ✅ Handle resume ongoing session
+  const handleResumeSession = (sessionId: number) => {
+    setResumeSessionId(sessionId);
+    setIsAttendanceCameraVisible(true);
+  };
+
+  // ✅ Handle end ongoing session directly (without resume)
+  const handleEndOngoingSession = (sessionId: number) => {
+    console.log('[handleEndOngoingSession] Opening modal for sessionId:', sessionId);
+    setEndSessionId(sessionId);
+    setEndSessionModalVisible(true);
+  };
+
+  // ✅ Confirm end session
+  const confirmEndSession = async () => {
+    if (!endSessionId) return;
+    
+    console.log('[confirmEndSession] Ending session:', endSessionId);
+    setEndSessionLoading(true);
+    
+    try {
+      await endAttendanceSession(endSessionId, { mark_absent: true });
+      message.success('Đã kết thúc phiên điểm danh!');
+      
+      // Reload sessions
+      if (classId) {
+        const response = await getClassSessionsAPI(classId, undefined, 0, 100);
+        setAttendanceSessions(response.sessions);
+      }
+      
+      setEndSessionModalVisible(false);
+      setEndSessionId(null);
+    } catch (error: any) {
+      console.error('Failed to end session:', error);
+      message.error(error.response?.data?.detail || 'Không thể kết thúc phiên điểm danh');
+    } finally {
+      setEndSessionLoading(false);
+    }
+  };
+
   // ✅ Handle session end
   const handleSessionEnd = async () => {
     message.success('Kết thúc phiên điểm danh!');
     
     setIsAttendanceCameraVisible(false);
+    setResumeSessionId(undefined); // ✅ Clear resume session ID
     
     // ✅ Reload attendance sessions để cập nhật lịch sử
     if (classId) {
@@ -1092,15 +1139,36 @@ const ClassDetailPage: React.FC = () => {
       render: (record: SessionWithStats) => (
         <Space>
           {record.status === 'ongoing' && (
-            <Button type="primary" size="small">
-              Điểm danh
-            </Button>
+            <>
+              <Button 
+                type="primary" 
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleResumeSession(record.id);
+                }}
+              >
+                Điểm danh
+              </Button>
+              <Button 
+                danger
+                size="small"
+                icon={<StopOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleEndOngoingSession(record.id);
+                }}
+              >
+                Kết thúc
+              </Button>
+            </>
           )}
           {record.status === 'finished' && (
             <Button 
               size="small" 
               icon={<EyeOutlined />}
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 // ✅ Navigate with current tab in state
                 navigate(`/teacher/attendance/${record.id}`, {
                   state: { from: location.pathname, tab: activeTab }
@@ -2148,13 +2216,56 @@ const ClassDetailPage: React.FC = () => {
         <AttendanceCamera
           classId={classData.id}
           visible={isAttendanceCameraVisible}
-          onClose={() => setIsAttendanceCameraVisible(false)}
+          onClose={() => {
+            setIsAttendanceCameraVisible(false);
+            setResumeSessionId(undefined); 
+          }}
           onSessionEnd={handleSessionEnd}
           dayOfWeek={selectedAttendanceSession?.day}
           periodRange={selectedAttendanceSession?.periods}
           sessionIndex={selectedAttendanceSession?.sessionIndex}
+          resumeSessionId={resumeSessionId}
         />
       )}
+
+      <Modal
+        title={
+          <Space>
+            <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
+            <span>Kết thúc phiên điểm danh</span>
+          </Space>
+        }
+        open={endSessionModalVisible}
+        onCancel={() => {
+          setEndSessionModalVisible(false);
+          setEndSessionId(null);
+        }}
+        footer={[
+          <Button 
+            key="cancel" 
+            onClick={() => {
+              setEndSessionModalVisible(false);
+              setEndSessionId(null);
+            }}
+            disabled={endSessionLoading}
+          >
+            Hủy
+          </Button>,
+          <Button
+            key="confirm"
+            type="primary"
+            danger
+            loading={endSessionLoading}
+            onClick={confirmEndSession}
+          >
+            Kết thúc
+          </Button>
+        ]}
+        centered
+      >
+        <p>Bạn có chắc chắn muốn kết thúc phiên điểm danh này?</p>
+        <p style={{ color: '#666' }}>Sinh viên chưa điểm danh sẽ được đánh dấu là vắng.</p>
+      </Modal>
     </div>
   );
 };

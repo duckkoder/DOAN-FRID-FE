@@ -154,6 +154,17 @@ export const endAttendanceSession = async (
 };
 
 /**
+ * Resume phiên điểm danh đang ongoing sau khi refresh page
+ * Returns WebSocket URL và JWT token mới
+ */
+export const resumeAttendanceSession = async (
+  sessionId: number
+): Promise<AISessionResponse> => {
+  const response = await api.post(`${API_BASE}/sessions/${sessionId}/resume`);
+  return response.data;
+};
+
+/**
  * Lấy danh sách điểm danh của phiên
  */
 export const getSessionAttendance = async (
