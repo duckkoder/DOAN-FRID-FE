@@ -943,7 +943,8 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         style={{ 
           position: 'relative', 
           width: '100%', 
-          flex: 1,
+          flex: isMobile ? 1 : undefined,
+          aspectRatio: isMobile ? undefined : '4/3',
           minHeight: 0,
           backgroundColor: '#000',
           borderRadius: isLandscape && isMobile ? '0' : '8px',
@@ -1136,8 +1137,8 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       title={isLandscapeMode ? null : 'Điểm danh bằng AI'}
       open={visible}
       onCancel={handleModalClose}
-      width={isMobile ? '100%' : 1200}
-      style={isMobile ? { top: 0, padding: 0, maxWidth: '100vw' } : undefined}
+      width={isMobile ? '100%' : 900}
+      style={isMobile ? { top: 0, padding: 0, maxWidth: '100vw' } : { top: 20 }}
       styles={isMobile ? { 
         body: { padding: isLandscapeMode ? 0 : 16 },
         content: isLandscapeMode ? { backgroundColor: '#000' } : undefined
@@ -1388,7 +1389,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       <div
         style={{
           position: 'relative',
-          height: isLandscapeMode ? '100%' : isMobile ? 'calc(100vh - 160px)' : '75vh',
+          height: isLandscapeMode ? '100%' : isMobile ? 'calc(100vh - 160px)' : undefined,
           minHeight: isLandscapeMode ? 'calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))' : undefined,
           display: 'flex',
           flexDirection: 'column',

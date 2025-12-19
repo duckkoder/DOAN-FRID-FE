@@ -555,13 +555,12 @@ const ClassDetailPage: React.FC = () => {
     );
   };
 
-    // ✅ Calculate upcoming sessions (TESTING MODE: allow future weeks)
+    // ✅ Calculate current sessions (only sessions that are happening NOW)
   const calculateUpcomingSessions = (): UpcomingSession[] => {
     if (!classData || !classData.schedule) return [];
 
     const now = dayjs();
     const currentDayOfWeek = now.day(); // 0 = Sunday, 1 = Monday, ...
-    const currentTime = now.format('HH:mm');
 
     const dayMapping: Record<string, number> = {
       sunday: 0,
@@ -585,46 +584,43 @@ const ClassDetailPage: React.FC = () => {
 
     const sessions: UpcomingSession[] = [];
 
-    // ⚠️ TESTING MODE: Generate sessions for current week + next 2 weeks (3 weeks total)
-    // TODO: For PRODUCTION, change weeksToShow to 1 to only show current week
-    const weeksToShow = 3; // Set to 1 for production
+    // ✅ PRODUCTION MODE: Only show sessions that are currently happening
+    // Only show today's sessions that are within the time window
+    Object.entries(classData.schedule).forEach(([dayName, periodRanges]) => {
+      const dayNum = dayMapping[dayName.toLowerCase()];
+      if (dayNum === undefined || !periodRanges || periodRanges.length === 0) return;
 
-    for (let weekOffset = 0; weekOffset < weeksToShow; weekOffset++) {
-      Object.entries(classData.schedule).forEach(([dayName, periodRanges]) => {
-        const dayNum = dayMapping[dayName.toLowerCase()];
-        if (dayNum === undefined || !periodRanges || periodRanges.length === 0) return;
+      // Only process if today matches this schedule day
+      if (dayNum !== currentDayOfWeek) return;
 
-        periodRanges.forEach((range, index) => {
-          const [start, end] = range.split('-').map(Number);
-          const startTime = TIME_SLOTS[start]?.start || '00:00';
-          const endTime = TIME_SLOTS[end]?.end || '00:00';
+      periodRanges.forEach((range, index) => {
+        const [start, end] = range.split('-').map(Number);
+        const startTime = TIME_SLOTS[start]?.start || '00:00';
+        const endTime = TIME_SLOTS[end]?.end || '00:00';
 
-          // Calculate days until session for this specific week offset
-          let daysUntilSession = dayNum - currentDayOfWeek + (weekOffset * 7);
-          
-          // For week 0 (current week): skip past days
-          if (weekOffset === 0 && daysUntilSession < 0) {
-            return; // Skip past days in current week
-          }
-          
-          // If today in current week, check if session time has passed
-          if (weekOffset === 0 && daysUntilSession === 0 && currentTime >= endTime) {
-            return; // Session already ended today
-          }
+        // Check if current time is within the session time window
+        // Allow starting 15 minutes before and during the session
+        const sessionStart = dayjs().format('YYYY-MM-DD') + ' ' + startTime;
+        const sessionEnd = dayjs().format('YYYY-MM-DD') + ' ' + endTime;
+        const allowedStart = dayjs(sessionStart).subtract(15, 'minute');
+        const sessionEndTime = dayjs(sessionEnd);
+        
+        const isWithinTimeWindow = now.isAfter(allowedStart) && now.isBefore(sessionEndTime);
+        
+        if (!isWithinTimeWindow) {
+          return; // Skip sessions outside time window
+        }
 
-          const sessionDate = now.add(daysUntilSession, 'day');
-
-          sessions.push({
-            day: dayNum,
-            dayLabel: dayLabelMapping[dayNum] || dayName,
-            sessionIndex: index,
-            periods: start === end ? `Tiết ${start}` : `Tiết ${start}-${end}`,
-            timeRange: `${startTime} - ${endTime}`,
-            date: sessionDate.format('DD/MM/YYYY')
-          });
+        sessions.push({
+          day: dayNum,
+          dayLabel: dayLabelMapping[dayNum] || dayName,
+          sessionIndex: index,
+          periods: start === end ? `Tiết ${start}` : `Tiết ${start}-${end}`,
+          timeRange: `${startTime} - ${endTime}`,
+          date: now.format('DD/MM/YYYY')
         });
       });
-    }
+    });
 
     // Remove duplicates (just in case) based on date + day + sessionIndex
     const uniqueSessions = sessions.reduce((acc, current) => {
@@ -2053,14 +2049,6 @@ const ClassDetailPage: React.FC = () => {
           </Button>
         ]}
       >
-        <Alert
-          message="Chế độ Testing"
-          description="Hiện đang cho phép tạo phiên điểm danh cho các tuần tới để test. Trong production, chỉ cho phép tạo phiên cho tuần hiện tại."
-          type="info"
-          showIcon
-          closable
-          style={{ marginBottom: 16 }}
-        />
         
         <div style={{ marginTop: 16 }}>
           <Title level={5} style={{ marginBottom: 16, fontSize: 16 }}>
@@ -2074,28 +2062,6 @@ const ClassDetailPage: React.FC = () => {
                   const isSelected = selectedAttendanceSession?.day === session.day && 
                                    selectedAttendanceSession?.sessionIndex === session.sessionIndex &&
                                    selectedAttendanceSession?.date === session.date;
-                  const isToday = dayjs().day() === session.day && dayjs().format('DD/MM/YYYY') === session.date;
-                  
-                  // Calculate if session is in current week, next week, or later
-                  const sessionDate = dayjs(session.date, 'DD/MM/YYYY');
-                  const today = dayjs();
-                  const startOfWeek = today.startOf('week');
-                  const endOfWeek = today.endOf('week');
-                  const startOfNextWeek = endOfWeek.add(1, 'day');
-                  const endOfNextWeek = startOfNextWeek.add(6, 'day');
-                  
-                  let weekLabel = '';
-                  let weekColor = '';
-                  if (sessionDate.isBetween(startOfWeek, endOfWeek, 'day', '[]')) {
-                    weekLabel = 'Tuần này';
-                    weekColor = '#1890ff';
-                  } else if (sessionDate.isBetween(startOfNextWeek, endOfNextWeek, 'day', '[]')) {
-                    weekLabel = 'Tuần sau';
-                    weekColor = '#722ed1';
-                  } else if (sessionDate.isAfter(endOfNextWeek)) {
-                    weekLabel = 'Tuần tới';
-                    weekColor = '#13c2c2';
-                  }
 
                   return (
                     <Card
@@ -2105,13 +2071,11 @@ const ClassDetailPage: React.FC = () => {
                       onClick={() => setSelectedAttendanceSession(session)}
                       style={{
                         cursor: 'pointer',
-                        borderLeft: isSelected ? '4px solid #10b981' : '4px solid #e5e7eb',
+                        borderLeft: isSelected ? '4px solid #10b981' : '4px solid #52c41a',
                         background: isSelected 
                           ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' 
-                          : isToday 
-                          ? '#fffbeb' 
-                          : '#ffffff',
-                        border: isSelected ? '2px solid #10b981' : '1px solid #e5e7eb',
+                          : '#f6ffed',
+                        border: isSelected ? '2px solid #10b981' : '1px solid #b7eb8f',
                         transition: 'all 0.3s'
                       }}
                     >
@@ -2126,31 +2090,22 @@ const ClassDetailPage: React.FC = () => {
                               width: 20,
                               height: 20,
                               borderRadius: '50%',
-                              border: '2px solid #d1d5db',
+                              border: '2px solid #52c41a',
                               background: '#ffffff'
                             }} />
                           )}
                         </Col>
                         <Col xs={9} sm={6}>
                           <Space direction="vertical" size={0}>
-                            <Text strong style={{ color: isToday ? '#f59e0b' : '#1f2937', fontSize: 14 }}>
+                            <Text strong style={{ color: '#52c41a', fontSize: 14 }}>
                               {session.dayLabel}
                             </Text>
                             <Text type="secondary" style={{ fontSize: 11 }}>
                               {session.date}
                             </Text>
-                            <Space size={4} style={{ marginTop: 4 }}>
-                              {isToday && (
-                                <Tag color="warning" style={{ fontSize: 11, margin: 0 }}>
-                                  Hôm nay
-                                </Tag>
-                              )}
-                              {weekLabel && (
-                                <Tag color={weekColor} style={{ fontSize: 11, margin: 0 }}>
-                                  {weekLabel}
-                                </Tag>
-                              )}
-                            </Space>
+                            <Tag color="success" style={{ fontSize: 11, marginTop: 4 }}>
+                              Đang diễn ra
+                            </Tag>
                           </Space>
                         </Col>
                         <Col xs={12} sm={8}>
@@ -2178,11 +2133,14 @@ const ClassDetailPage: React.FC = () => {
               </Space>
             </div>
           ) : (
-            <Card style={{ textAlign: 'center', background: '#f8fafc' }}>
+            <Card style={{ textAlign: 'center', background: '#fff7e6', borderColor: '#ffd591' }}>
               <Space direction="vertical" size={12}>
-                <CalendarOutlined style={{ fontSize: 48, color: '#94a3b8' }} />
-                <Text type="secondary">
-                  Không có buổi học nào sắp diễn ra trong tuần này
+                <ClockCircleOutlined style={{ fontSize: 48, color: '#fa8c16' }} />
+                <Text style={{ color: '#ad6800', fontWeight: 500 }}>
+                  Hiện không có buổi học nào đang diễn ra
+                </Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Chỉ có thể tạo phiên điểm danh trong thời gian buổi học đang diễn ra
                 </Text>
               </Space>
             </Card>
