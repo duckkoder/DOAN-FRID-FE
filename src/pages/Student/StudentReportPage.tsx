@@ -467,9 +467,14 @@ const StudentReportPage: React.FC = () => {
       title: 'Ngày gửi',
       key: 'submittedDate',
       width: 100,
-      render: (record: LeaveRequestDetail) => (
-        <Text style={{ fontSize: 12 }}>{dayjs(record.createdAt).format('DD/MM/YYYY')}</Text>
-      )
+      render: (record: LeaveRequestDetail) => {
+        const parsedDate = dayjs(record.createdAt);
+        return (
+          <Text style={{ fontSize: 12 }}>
+            {parsedDate.isValid() ? parsedDate.format('DD/MM/YYYY') : 'N/A'}
+          </Text>
+        );
+      }
     },
     {
       title: 'Thao tác',
