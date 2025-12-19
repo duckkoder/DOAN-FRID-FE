@@ -25,7 +25,7 @@ import {
   SwapOutlined,
   ClockCircleOutlined,
 } from '@ant-design/icons';
-import { startAttendanceSessionWithAI, endAttendanceSession, type AISessionResponse } from '../apis/attendanceAPIs/attendanceAPIs';
+import { startAttendanceSessionWithAI, endAttendanceSession, resumeAttendanceSession, type AISessionResponse } from '../apis/attendanceAPIs/attendanceAPIs';
 import { AIWebSocketClient, type DetectionInfo } from '../services/aiWebSocket';
 import { useSmartPolling } from '../hooks/useSmartPolling';
 import PendingConfirmationPanel from './PendingConfirmationPanel';
@@ -42,6 +42,8 @@ interface AttendanceCameraProps {
   dayOfWeek?: number;
   periodRange?: string;
   sessionIndex?: number;
+  /** Session ID để resume (nếu có session ongoing) */
+  resumeSessionId?: number;
 }
 
 const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
@@ -52,6 +54,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   dayOfWeek,
   periodRange,
   sessionIndex,
+  resumeSessionId,
 }) => {
   // States
   const [loading, setLoading] = useState(false);
@@ -141,6 +144,47 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       setWsConnected(false);
     }
   }, [visible, sessionInfo]);
+
+  /**
+   * ✅ Auto resume session when modal opens with resumeSessionId
+   */
+  useEffect(() => {
+    const handleResumeSession = async () => {
+      if (!visible || !resumeSessionId || sessionInfo) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log('[ResumeSession] Resuming session:', resumeSessionId);
+        
+        // 1. Call resume API to get new WebSocket token
+        const response = await resumeAttendanceSession(resumeSessionId);
+        
+        console.log('[ResumeSession] Got response:', response);
+        setSessionInfo(response);
+
+        // 2. Start camera
+        await startCamera();
+
+        // 3. Connect WebSocket to AI-Service
+        await connectWebSocket(response);
+
+        // 4. Start sending frames
+        startFrameCapture();
+        
+        console.log('[ResumeSession] Session resumed successfully');
+
+      } catch (err: any) {
+        console.error('[ResumeSession] Error:', err);
+        setError(err.response?.data?.detail || 'Không thể tiếp tục phiên điểm danh. Phiên có thể đã kết thúc.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    handleResumeSession();
+  }, [visible, resumeSessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset panels when modal closes
   useEffect(() => {
@@ -899,7 +943,8 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         style={{ 
           position: 'relative', 
           width: '100%', 
-          flex: 1,
+          flex: isMobile ? 1 : undefined,
+          aspectRatio: isMobile ? undefined : '4/3',
           minHeight: 0,
           backgroundColor: '#000',
           borderRadius: isLandscape && isMobile ? '0' : '8px',
@@ -1092,8 +1137,8 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       title={isLandscapeMode ? null : 'Điểm danh bằng AI'}
       open={visible}
       onCancel={handleModalClose}
-      width={isMobile ? '100%' : 1200}
-      style={isMobile ? { top: 0, padding: 0, maxWidth: '100vw' } : undefined}
+      width={isMobile ? '100%' : 900}
+      style={isMobile ? { top: 0, padding: 0, maxWidth: '100vw' } : { top: 20 }}
       styles={isMobile ? { 
         body: { padding: isLandscapeMode ? 0 : 16 },
         content: isLandscapeMode ? { backgroundColor: '#000' } : undefined
@@ -1317,9 +1362,24 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       {error && (
         <Alert
           message="Lỗi"
-          description={error}
+          description={
+            <div>
+              <p>{error}</p>
+              {resumeSessionId && (
+                <Button 
+                  type="primary" 
+                  danger 
+                  size="small" 
+                  style={{ marginTop: 8 }}
+                  onClick={onClose}
+                >
+                  Đóng và quay lại
+                </Button>
+              )}
+            </div>
+          }
           type="error"
-          closable
+          closable={!resumeSessionId}
           onClose={() => setError(null)}
           style={{ marginBottom: 16 }}
         />
@@ -1329,7 +1389,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       <div
         style={{
           position: 'relative',
-          height: isLandscapeMode ? '100%' : isMobile ? 'calc(100vh - 160px)' : '75vh',
+          height: isLandscapeMode ? '100%' : isMobile ? 'calc(100vh - 160px)' : undefined,
           minHeight: isLandscapeMode ? 'calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))' : undefined,
           display: 'flex',
           flexDirection: 'column',

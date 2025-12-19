@@ -123,7 +123,7 @@ const Header: React.FC<HeaderProps> = ({ username, role, onMenuClick, showMenuBu
             onMouseEnter={(e) => e.currentTarget.style.opacity = "0.8"}
             onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
           >
-            RFIDentity
+            RFID
           </span>
         </div>
         <div className="header-actions" style={{ display: "flex", alignItems: "center", gap: 18 }}>

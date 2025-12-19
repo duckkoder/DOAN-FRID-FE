@@ -18,7 +18,8 @@ import {
   Alert,
   Spin,
   Image,
-  Divider
+  Divider,
+  Collapse
 } from "antd";
 import { 
   EyeOutlined,
@@ -32,7 +33,8 @@ import {
   CloseCircleOutlined,
   UserOutlined,
   ClockCircleOutlined,
-  BookOutlined
+  BookOutlined,
+  DownOutlined
 } from "@ant-design/icons";
 import Breadcrumb from "../../components/Breadcrumb";
 import dayjs from 'dayjs';
@@ -395,15 +397,19 @@ const TeacherLeaveRequestPage: React.FC = () => {
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 120,
-      render: (date: string) => (
-        <Text style={{ fontSize: 12 }}>
-          {dayjs(date).format('DD/MM/YYYY')}
-          <br />
-          <Text type="secondary" style={{ fontSize: 11 }}>
-            {dayjs(date).format('HH:mm')}
+      render: (date: string) => {
+        const parsedDate = dayjs(date);
+        const isValidDate = parsedDate.isValid();
+        return (
+          <Text style={{ fontSize: 12 }}>
+            {isValidDate ? parsedDate.format('DD/MM/YYYY') : 'N/A'}
+            <br />
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              {isValidDate ? parsedDate.format('HH:mm') : ''}
+            </Text>
           </Text>
-        </Text>
-      )
+        );
+      }
     },
     {
       title: 'Thao tác',
@@ -568,35 +574,60 @@ const TeacherLeaveRequestPage: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Per-Class Summary */}
+      {/* Per-Class Summary - Collapsible */}
       {classSummary.length > 0 && (
-        <Card 
-          title="📊 Thống kê theo lớp"
-          style={{
-            borderRadius: 12,
-            marginBottom: 16
-          }}
-          loading={loading}
-          size="small"
-        >
-          <Row gutter={[12, 12]}>
-            {classSummary.map(cls => (
-              <Col xs={24} sm={12} md={8} lg={6} key={cls.classId}>
-                <Card size="small" style={{ textAlign: 'center' }}>
-                  <Text strong style={{ fontSize: 13 }}>{cls.className}</Text>
-                  <div style={{ marginTop: 8 }}>
-                    <Space size={4} wrap>
-                      <Tag color="blue" style={{ margin: 2 }}>Tổng: {cls.totalRequests}</Tag>
-                      <Tag color="orange" style={{ margin: 2 }}>Chờ: {cls.pendingCount}</Tag>
-                      <Tag color="green" style={{ margin: 2 }}>Duyệt: {cls.approvedCount}</Tag>
-                      <Tag color="red" style={{ margin: 2 }}>Từ chối: {cls.rejectedCount}</Tag>
-                    </Space>
-                  </div>
-                </Card>
-              </Col>
-            ))}
-          </Row>
-        </Card>
+        <Collapse
+          style={{ marginBottom: 16, borderRadius: 12 }}
+          items={[
+            {
+              key: '1',
+              label: (
+                <Space>
+                  <span>📊 Thống kê theo lớp</span>
+                  <Tag color="blue">{classSummary.filter(c => c.totalRequests > 0).length} lớp có đơn</Tag>
+                </Space>
+              ),
+              children: (
+                <Row gutter={[12, 12]}>
+                  {classSummary
+                    .filter(cls => cls.totalRequests > 0) // Chỉ hiển thị lớp có đơn
+                    .sort((a, b) => b.pendingCount - a.pendingCount) // Ưu tiên lớp có đơn chờ duyệt
+                    .slice(0, 12) // Giới hạn 12 lớp đầu tiên
+                    .map(cls => (
+                      <Col xs={24} sm={12} md={8} lg={6} key={cls.classId}>
+                        <Card size="small" style={{ textAlign: 'center' }}>
+                          <Text strong style={{ fontSize: 13 }}>{cls.className}</Text>
+                          <div style={{ marginTop: 8 }}>
+                            <Space size={4} wrap>
+                              <Tag color="blue" style={{ margin: 2 }}>Tổng: {cls.totalRequests}</Tag>
+                              <Tag color="orange" style={{ margin: 2 }}>Chờ: {cls.pendingCount}</Tag>
+                              <Tag color="green" style={{ margin: 2 }}>Duyệt: {cls.approvedCount}</Tag>
+                              <Tag color="red" style={{ margin: 2 }}>Từ chối: {cls.rejectedCount}</Tag>
+                            </Space>
+                          </div>
+                        </Card>
+                      </Col>
+                    ))}
+                  {classSummary.filter(cls => cls.totalRequests > 0).length > 12 && (
+                    <Col span={24}>
+                      <Text type="secondary" style={{ textAlign: 'center', display: 'block' }}>
+                        ... và {classSummary.filter(cls => cls.totalRequests > 0).length - 12} lớp khác. Sử dụng bộ lọc "Môn học" để xem chi tiết.
+                      </Text>
+                    </Col>
+                  )}
+                  {classSummary.filter(cls => cls.totalRequests > 0).length === 0 && (
+                    <Col span={24}>
+                      <Text type="secondary" style={{ textAlign: 'center', display: 'block' }}>
+                        Chưa có đơn xin nghỉ nào từ các lớp.
+                      </Text>
+                    </Col>
+                  )}
+                </Row>
+              )
+            }
+          ]}
+          expandIcon={({ isActive }) => <DownOutlined rotate={isActive ? 180 : 0} />}
+        />
       )}
 
       {/* Batch Actions */}
