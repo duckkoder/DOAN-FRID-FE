@@ -4,7 +4,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import IsNotAllowPAge from "../pages/AuthPage/IsNotAllowPAge";
 
 const roleRoutes: Record<string, string[]> = {
-  admin: ["/admin", "/admin/teachers", "/admin/students", "/admin/modalai"],
+  admin: ["/admin", "/admin/teachers", "/admin/students"],
   teacher: ["/teacher", "/teacher/classes", "/teacher/class/:classId",
      "/teacher/attendance", "/teacher/reports", "/teacher/leave-requests",
      "/teacher/class/create"],
