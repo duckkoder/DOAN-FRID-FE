@@ -44,7 +44,6 @@ const iconMap: Record<string, React.ReactNode> = {
   leave: <FileTextOutlined />,
   attendance: <CalendarOutlined />,
   registerFace: <CameraOutlined />,
-  modalai: <RobotOutlined />,
   profile: <SettingOutlined />,
   logout: <LogoutOutlined />,
 };
