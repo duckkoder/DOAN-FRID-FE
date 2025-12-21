@@ -4,6 +4,7 @@ import { BellOutlined, UserOutlined, MenuOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import avatarDefault from "@/assets/avtDefault.png";
+import logoImg from "@/assets/logo_pbl.png";
 type HeaderProps = {
   username?: string;
   role?: string;
@@ -109,13 +110,12 @@ const Header: React.FC<HeaderProps> = ({ username, role, onMenuClick, showMenuBu
               }} 
             />
           )}
-          <span 
+          <div
             onClick={handleLogoClick}
-            className="header-logo"
             style={{ 
-              fontSize: 28, 
-              fontWeight: "bold", 
-              color: "#2563eb",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
               cursor: "pointer",
               userSelect: "none",
               transition: "opacity 0.2s ease"
@@ -123,8 +123,26 @@ const Header: React.FC<HeaderProps> = ({ username, role, onMenuClick, showMenuBu
             onMouseEnter={(e) => e.currentTarget.style.opacity = "0.8"}
             onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
           >
-            RFID
-          </span>
+            <img 
+              src={logoImg} 
+              alt="FRID Logo" 
+              style={{ 
+                height: 48,
+                width: "auto",
+                objectFit: "contain"
+              }} 
+            />
+            <span 
+              className="header-logo"
+              style={{ 
+                fontSize: 28, 
+                fontWeight: "bold", 
+                color: "#2563eb"
+              }}
+            >
+              FRID
+            </span>
+          </div>
         </div>
         <div className="header-actions" style={{ display: "flex", alignItems: "center", gap: 18 }}>
           <BellOutlined className="header-bell" style={{ fontSize: 22, color: "#2563eb", cursor: "pointer" }} />

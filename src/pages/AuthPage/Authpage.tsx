@@ -6,6 +6,7 @@ import { login as apiLogin } from "../../apis/authAPIs/auth";
 import { AuthContext } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import type { AxiosError } from "axios";
+import logoImg from "@/assets/logo_pbl.png";
 
 const { Title, Text, Link } = Typography;
 
@@ -115,8 +116,9 @@ const AuthPage: React.FC = () => {
   return (
     <div style={{ minHeight: "100vh", background: "#f6f9fc", display: "flex", flexDirection: "column" }}>
       {/* Header */}
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid #eaeaea", background: "#fff" }}>
-        <Title level={3} style={{ margin: 0, color: "#2563eb", fontSize: "clamp(18px, 5vw, 24px)" }}>Attendify</Title>
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid #eaeaea", background: "#fff", display: "flex", alignItems: "center", gap: 10 }}>
+        <img src={logoImg} alt="FRID Logo" style={{ height: 48, width: "auto", objectFit: "contain" }} />
+        <Title level={3} style={{ margin: 0, color: "#2563eb", fontSize: "clamp(18px, 5vw, 24px)" }}>FRID</Title>
       </div>
 
       {/* Main content */}
@@ -149,7 +151,7 @@ const AuthPage: React.FC = () => {
                   Đăng nhập để quản lý điểm danh, lớp học và báo cáo thông minh.
                 </Title>
                 <Text type="secondary" style={{ fontSize: 16 }}>
-                  Hệ thống Attendify giúp quản trị viên, giáo viên và học sinh kết nối, quản lý và theo dõi tình hình học tập hiệu quả.
+                  Hệ thống FRID giúp quản trị viên, giáo viên và học sinh kết nối, quản lý và theo dõi tình hình học tập hiệu quả.
                 </Text>
               </Col>
 

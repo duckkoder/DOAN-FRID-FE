@@ -205,23 +205,25 @@ const StudentHomePage: React.FC = () => {
               📊 Phân Bố Điểm Danh
             </Title>
             {attendanceData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
+              <ResponsiveContainer width="100%" height={280}>
+                <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                   <Pie
                     data={attendanceData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={40}
-                    outerRadius={80}
+                    innerRadius={35}
+                    outerRadius={70}
                     paddingAngle={5}
                     dataKey="value"
-                    label={(entry: any) => `${entry.name}: ${entry.percentage.toFixed(1)}%`}
+                    label={({ name, percentage }) => `${name}: ${percentage.toFixed(1)}%`}
+                    labelLine={true}
                   >
                     {attendanceData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
                   <Tooltip formatter={(value: number, name: string, props: any) => [`${value} (${props.payload.percentage.toFixed(1)}%)`, name]} />
+                  <Legend />
                 </PieChart>
               </ResponsiveContainer>
             ) : (

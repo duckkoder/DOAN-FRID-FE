@@ -9,6 +9,7 @@ import {
   RobotOutlined,
   ClockCircleOutlined 
 } from "@ant-design/icons";
+import logoImg from "@/assets/logo_pbl.png";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -80,7 +81,7 @@ const HomePage: React.FC = () => {
           minWidth: 0,
           marginRight: "16px"
         }}>
-          <RobotOutlined style={{ fontSize: 28, color: "#2563eb", flexShrink: 0 }} />
+          <img src={logoImg} alt="FRID Logo" style={{ height: 48, width: "auto", objectFit: "contain", flexShrink: 0 }} />
           <span 
             className="homepage-header-logo"
             style={{ 
@@ -92,7 +93,7 @@ const HomePage: React.FC = () => {
               textOverflow: "ellipsis"
             }}
           >
-            DUT Attendance System
+            FRID
           </span>
         </div>
         <div 
@@ -301,15 +302,15 @@ const HomePage: React.FC = () => {
       {/* Footer */}
       <div style={{
         padding: "24px 20px",
-        background: "#1f2937",
-        color: "#fff",
-        textAlign: "center"
+        background: "#fff",
+        textAlign: "center",
+        borderTop: "1px solid #eaeaea"
       }}>
-        <Text style={{ 
-          color: "#9ca3af",
-          fontSize: "clamp(12px, 2vw, 14px)"
-        }}>
-          © 2025 Trường Đại học Bách Khoa - Đại học Đà Nẵng. All rights reserved.
+        <Text type="secondary">
+          © {new Date().getFullYear()} FRID. All rights reserved. | Developed by&nbsp;
+          <a href="https://github.com/PBL6-FRID" target="_blank" rel="noopener" style={{ color: "#2563eb" }}>
+            SV-DUT
+          </a>
         </Text>
       </div>
     </div>
