@@ -4,6 +4,7 @@ import { PlusOutlined, TeamOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { getTeachersList } from "@/apis/teacherAPIs/teacher";
 import { getStudentsList } from "@/apis/studentAPIs/student";
+import { getClassesStats } from "@/apis/classesAPIs/adminClass";
 
 const { Title, Text } = Typography;
 
@@ -22,17 +23,18 @@ const AdminHomePage: React.FC = () => {
       try {
         setLoading(true);
         
-        // Fetch teachers and students data
-        const [teachersResponse, studentsResponse] = await Promise.all([
+        // Fetch teachers, students, and classes data in parallel
+        const [teachersResponse, studentsResponse, classesResponse] = await Promise.all([
           getTeachersList({ page: 1, limit: 1 }), // Only need stats, so limit to 1
-          getStudentsList({ page: 1, limit: 1 })
+          getStudentsList({ page: 1, limit: 1 }),
+          getClassesStats() // Get classes statistics
         ]);
 
         // Update stats with real data
         setStats([
           { title: "Tổng số Giáo viên", value: teachersResponse.stats.total, color: "#2563eb", icon: "👨‍🏫" },
           { title: "Tổng số Sinh viên", value: studentsResponse.stats.total, color: "#10b981", icon: "👨‍🎓" },
-          { title: "Tổng số Lớp học", value: 20, color: "#f59e42", icon: "📚" },
+          { title: "Tổng số Lớp học", value: classesResponse.data.total, color: "#f59e42", icon: "📚" },
         ]);
       } catch (error: any) {
         console.error("Error fetching statistics:", error);
