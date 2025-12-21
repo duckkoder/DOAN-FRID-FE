@@ -32,7 +32,6 @@ const { Title, Text } = Typography;
 interface Statistics {
   totalClasses: number;
   activeClasses: number;
-  totalStudents: number;
   avgAttendanceRate: number;
 }
 
@@ -43,7 +42,6 @@ const TeacherHomePage: React.FC = () => {
   const [stats, setStats] = useState<Statistics>({
     totalClasses: 0,
     activeClasses: 0,
-    totalStudents: 0,
     avgAttendanceRate: 0
   });
   const [loading, setLoading] = useState(true);
@@ -62,9 +60,6 @@ const TeacherHomePage: React.FC = () => {
           setClasses(classesData);
           
           const activeClasses = classesData.filter((c: ClassListItem) => c.status === 'active').length;
-          const totalStudents = classesData.reduce((sum: number, c: ClassListItem) => 
-            sum + (c.studentCount || 0), 0
-          );
           
           const allSessions: SessionWithStats[] = [];
           for (const cls of classesData) {
@@ -99,7 +94,6 @@ const TeacherHomePage: React.FC = () => {
           setStats({
             totalClasses: classesData.length,
             activeClasses,
-            totalStudents,
             avgAttendanceRate: avgRate
           });
         }
@@ -309,7 +303,7 @@ const TeacherHomePage: React.FC = () => {
 
       {/* Statistics */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={24} sm={12} md={8}>
           <Card style={{ 
             borderRadius: 16,
             boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
@@ -328,7 +322,7 @@ const TeacherHomePage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={24} sm={12} md={8}>
           <Card style={{ 
             borderRadius: 16,
             boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
@@ -347,26 +341,7 @@ const TeacherHomePage: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card style={{ 
-            borderRadius: 16,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-            border: "none"
-          }}>
-            <Statistic
-              title={<Text style={{ color: "#888", fontSize: 14 }}>Tổng sinh viên</Text>}
-              value={stats.totalStudents}
-              suffix="SV"
-              prefix={<TeamOutlined style={{ color: '#f59e0b', fontSize: 20 }} />}
-              valueStyle={{ 
-                color: '#f59e0b', 
-                fontWeight: 700, 
-                fontSize: 24 
-              }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={24} sm={12} md={8}>
           <Card style={{ 
             borderRadius: 16,
             boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
