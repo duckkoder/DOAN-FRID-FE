@@ -33,6 +33,20 @@ dayjs.extend(isSameOrBefore);
 const { TextArea } = Input;
 const { Text } = Typography;
 
+// ✅ Time slots mapping - chuẩn hóa với các trang khác
+const TIME_SLOTS: Record<number, { start: string; end: string }> = {
+  1: { start: "07:00", end: "07:50" },
+  2: { start: "08:00", end: "08:50" },
+  3: { start: "09:00", end: "09:50" },
+  4: { start: "10:00", end: "10:50" },
+  5: { start: "11:00", end: "11:50" },
+  6: { start: "13:00", end: "13:50" },
+  7: { start: "14:00", end: "14:50" },
+  8: { start: "15:00", end: "15:50" },
+  9: { start: "16:00", end: "16:50" },
+  10: { start: "17:00", end: "17:50" },
+};
+
 interface LeaveRequestModalProps {
   visible: boolean;
   onCancel: () => void;
@@ -104,27 +118,20 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
     return periods.map(periodRange => {
       const [start, end] = periodRange.split('-').map(Number);
       
-      const getTimeFromPeriod = (period: number): string => {
-        const baseHour = 6;
-        const periodDuration = 50;
-        const breakDuration = 10;
-        
-        const totalMinutes = (period - 1) * (periodDuration + breakDuration);
-        const hours = baseHour + Math.floor(totalMinutes / 60);
-        const minutes = totalMinutes % 60;
-        
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+      // ✅ Sử dụng TIME_SLOTS chuẩn thay vì tính toán sai
+      const getTimeFromPeriod = (period: number): { start: string; end: string } => {
+        return TIME_SLOTS[period] || { start: "00:00", end: "00:00" };
       };
 
-      const startTime = getTimeFromPeriod(start);
+      const startSlot = getTimeFromPeriod(start);
       const endPeriod = end || start;
-      const endTime = getTimeFromPeriod(endPeriod + 1);
+      const endSlot = getTimeFromPeriod(endPeriod);
 
       return {
         value: periodRange,
         label: start === end 
-          ? `Tiết ${start} (${startTime} - ${endTime})`
-          : `Tiết ${start}-${end} (${startTime} - ${endTime})`,
+          ? `Tiết ${start} (${startSlot.start} - ${startSlot.end})`
+          : `Tiết ${start}-${end} (${startSlot.start} - ${endSlot.end})`,
         periods: periodRange
       };
     });
