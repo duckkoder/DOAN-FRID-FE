@@ -28,6 +28,7 @@ import {
 import { startAttendanceSessionWithAI, endAttendanceSession, resumeAttendanceSession, type AISessionResponse } from '../apis/attendanceAPIs/attendanceAPIs';
 import { AIWebSocketClient, type DetectionInfo } from '../services/aiWebSocket';
 import { useSmartPolling } from '../hooks/useSmartPolling';
+import { useFrameCapture } from '../hooks/useFrameCapture';
 import PendingConfirmationPanel from './PendingConfirmationPanel';
 import StatisticsPanel from './StatisticsPanel';
 import ConfirmedStudentsPanel from './ConfirmedStudentsPanel';
@@ -66,7 +67,9 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   // Detection & Recognition states
   const [detections, setDetections] = useState<DetectionInfo[]>([]);
   const [totalFaces, setTotalFaces] = useState(0);
-  const [fps, setFps] = useState(0);
+  
+  // ✅ Frame capture stats từ hook
+  const [captureStats, setCaptureStats] = useState({ fps: 0, skipped: 0 });
   
   // Responsive state
   const [isMobile, setIsMobile] = useState(false);
@@ -92,12 +95,44 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const wsClientRef = useRef<AIWebSocketClient | null>(null);
-  const frameIntervalRef = useRef<number | null>(null);
-  const fpsCounterRef = useRef({ count: 0, lastTime: Date.now() });
-  const isProcessingFrameRef = useRef(false); // ✅ Track nếu đang xử lý frame
   const orientationRestartTimeoutRef = useRef<number | null>(null);
   const lastOrientationRef = useRef<'portrait' | 'landscape' | null>(null);
   const isRestartingRef = useRef(false);
+
+  // ✅ Dynamic Frame Capture Hook với Web Worker
+  const { 
+    startCapture, 
+    stopCapture, 
+    markFrameComplete, 
+    stats: frameCaptureStats 
+  } = useFrameCapture({
+    targetFps: 10,
+    minFps: 3,
+    maxFps: 15,
+    quality: 0.8,
+    useWorker: true,
+    onFrameReady: (blob) => {
+      if (wsClientRef.current?.isConnected()) {
+        wsClientRef.current.sendFrame(blob);
+      } else {
+        markFrameComplete(); // Reset nếu không gửi được
+      }
+    },
+    onError: (error) => {
+      console.error('[FrameCapture] Error:', error);
+    },
+    onFrameSkipped: () => {
+      // Optional: track skipped frames
+    },
+  });
+
+  // ✅ Update capture stats
+  useEffect(() => {
+    setCaptureStats({
+      fps: frameCaptureStats.actualFps,
+      skipped: frameCaptureStats.skippedFrames,
+    });
+  }, [frameCaptureStats.actualFps, frameCaptureStats.skippedFrames]);
 
   // Smart polling cho attendance records từ Backend
   const { data: attendanceData, currentInterval } = useSmartPolling({
@@ -138,7 +173,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       // ✅ Reset tất cả states khi mở modal mới
       setDetections([]);
       setTotalFaces(0);
-      setFps(0);
+      setCaptureStats({ fps: 0, skipped: 0 });
       setError(null);
       setCameraActive(false);
       setWsConnected(false);
@@ -405,22 +440,11 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       });
 
       wsClient.onFrameProcessed((detections, totalFaces) => {
-        // console.log('[WebSocket] Frame processed:', detections.length, 'faces,', totalFaces, 'total');
-        // console.log('[WebSocket] Detection details:', JSON.stringify(detections, null, 2));
         setDetections(detections);
         setTotalFaces(totalFaces);
         
-        // ✅ Mark frame processing complete
-        isProcessingFrameRef.current = false;
-        
-        // Update FPS counter
-        fpsCounterRef.current.count++;
-        const now = Date.now();
-        if (now - fpsCounterRef.current.lastTime >= 1000) {
-          setFps(fpsCounterRef.current.count);
-          fpsCounterRef.current.count = 0;
-          fpsCounterRef.current.lastTime = now;
-        }
+        // ✅ Mark frame processing complete - cho phép capture frame tiếp theo
+        markFrameComplete();
       });
 
       wsClient.onStudentValidated((student) => {
@@ -448,55 +472,20 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
 
   /**
    * Start capturing and sending frames
+   * ✅ Sử dụng Dynamic Frame Rate Hook với Web Worker
    */
   const startFrameCapture = () => {
-    
+    if (videoRef.current) {
+      console.log('[FrameCapture] Starting with dynamic rate and Web Worker');
+      startCapture(videoRef.current);
+    }
+  };
 
-    frameIntervalRef.current = window.setInterval(async () => {
-      if (!videoRef.current || !canvasRef.current || !wsClientRef.current?.isConnected()) {
-        return;
-      }
-
-      // ✅ BACKPRESSURE: Skip nếu frame trước chưa xử lý xong
-      if (isProcessingFrameRef.current) {
-        // ✅ OPTIMIZATION: Removed console.log for better performance
-        return;
-      }
-
-      try {
-        // Mark as processing
-        isProcessingFrameRef.current = true;
-        
-        // Capture frame
-        const canvas = canvasRef.current;
-        const video = videoRef.current;
-        
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          isProcessingFrameRef.current = false;
-          return;
-        }
-        
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // Convert to blob
-        canvas.toBlob((blob) => {
-          if (blob && wsClientRef.current) {
-            wsClientRef.current.sendFrame(blob);
-          } else {
-            // Failed to create blob - reset flag
-            isProcessingFrameRef.current = false;
-          }
-        }, 'image/jpeg', 0.8);
-
-      } catch (err) {
-        console.error('[FrameCapture] Error:', err);
-        isProcessingFrameRef.current = false;
-      }
-    }, 100); // 10 FPS interval, nhưng có thể skip nếu chưa xử lý xong
+  /**
+   * Stop frame capture
+   */
+  const stopFrameCapture = () => {
+    stopCapture();
   };
 
   /**
@@ -715,21 +704,14 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   const handleStopSession = async () => {
     // Prevent duplicate calls
     if (loading || !sessionInfo) {
-      
       return;
     }
 
     try {
       setLoading(true);
 
-      // Stop frame capture
-      if (frameIntervalRef.current) {
-        clearInterval(frameIntervalRef.current);
-        frameIntervalRef.current = null;
-      }
-      
-      // ✅ Reset processing flag
-      isProcessingFrameRef.current = false;
+      // ✅ Stop frame capture (hook handles cleanup)
+      stopFrameCapture();
 
       // Disconnect WebSocket
       if (wsClientRef.current) {
@@ -749,10 +731,10 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       // ✅ Reset ALL states để tránh hiển thị data cũ
       setCameraActive(false);
       setWsConnected(false);
-      setSessionInfo(null); // Clear session info to prevent duplicate calls
-      setDetections([]); // Clear detections
-      setTotalFaces(0); // Reset counters
-      setFps(0);
+      setSessionInfo(null);
+      setDetections([]);
+      setTotalFaces(0);
+      setCaptureStats({ fps: 0, skipped: 0 });
       setError(null);
       
       onSessionEnd?.();
@@ -782,7 +764,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       // ✅ Reset states khi đóng modal (không có session active)
       setDetections([]);
       setTotalFaces(0);
-      setFps(0);
+      setCaptureStats({ fps: 0, skipped: 0 });
       setError(null);
       onClose();
     }
@@ -793,9 +775,9 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
    */
   useEffect(() => {
     return () => {
-      if (frameIntervalRef.current) {
-        clearInterval(frameIntervalRef.current);
-      }
+      // ✅ Stop frame capture (hook tự cleanup)
+      stopCapture();
+      
       if (wsClientRef.current) {
         wsClientRef.current.disconnect();
       }
@@ -803,7 +785,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, []);
+  }, [stopCapture]);
 
   /**
    * Detect if device is mobile (not just based on width)
@@ -908,7 +890,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
           isLandscape && isMobile ? null : (
             <Space size={isMobile ? 4 : 8}>
               <Text type="secondary" style={{ fontSize: isMobile ? 10 : 12 }}>
-                {fps} FPS
+                {captureStats.fps} FPS
               </Text>
               <Text type="secondary" style={{ fontSize: isMobile ? 10 : 12 }}>
                 Faces: {totalFaces}
@@ -1038,7 +1020,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
             }}
           >
             <Space size={8}>
-              <Text style={{ color: '#fff', fontSize: 10 }}>{fps} FPS</Text>
+              <Text style={{ color: '#fff', fontSize: 10 }}>{captureStats.fps} FPS</Text>
               <Text style={{ color: '#fff', fontSize: 10 }}>Faces: {totalFaces}</Text>
               {wsConnected && <Tag color="success" style={{ fontSize: 9, padding: '0 4px', margin: 0 }}>OK</Tag>}
             </Space>
