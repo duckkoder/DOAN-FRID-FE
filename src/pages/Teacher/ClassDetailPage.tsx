@@ -584,32 +584,16 @@ const ClassDetailPage: React.FC = () => {
 
     const sessions: UpcomingSession[] = [];
 
-    // ✅ PRODUCTION MODE: Only show sessions that are currently happening
-    // Only show today's sessions that are within the time window
+    // ✅ DEV/TEST MODE: Show all sessions regardless of current time
+    // Allow starting attendance at any time for testing purposes
     Object.entries(classData.schedule).forEach(([dayName, periodRanges]) => {
       const dayNum = dayMapping[dayName.toLowerCase()];
       if (dayNum === undefined || !periodRanges || periodRanges.length === 0) return;
-
-      // Only process if today matches this schedule day
-      if (dayNum !== currentDayOfWeek) return;
 
       periodRanges.forEach((range, index) => {
         const [start, end] = range.split('-').map(Number);
         const startTime = TIME_SLOTS[start]?.start || '00:00';
         const endTime = TIME_SLOTS[end]?.end || '00:00';
-
-        // Check if current time is within the session time window
-        // Allow starting 15 minutes before and during the session
-        const sessionStart = dayjs().format('YYYY-MM-DD') + ' ' + startTime;
-        const sessionEnd = dayjs().format('YYYY-MM-DD') + ' ' + endTime;
-        const allowedStart = dayjs(sessionStart).subtract(15, 'minute');
-        const sessionEndTime = dayjs(sessionEnd);
-        
-        const isWithinTimeWindow = now.isAfter(allowedStart) && now.isBefore(sessionEndTime);
-        
-        if (!isWithinTimeWindow) {
-          return; // Skip sessions outside time window
-        }
 
         sessions.push({
           day: dayNum,
