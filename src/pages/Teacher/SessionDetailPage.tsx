@@ -31,7 +31,8 @@ import {
   CheckOutlined,
   CloseOutlined,
   ExclamationCircleOutlined,
-  EyeOutlined
+  EyeOutlined,
+  WarningOutlined
 } from "@ant-design/icons";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import Breadcrumb from "../../components/Breadcrumb";
@@ -42,8 +43,11 @@ import {
   confirmAttendance,
   rejectAttendance,
   confirmAllPending,
+  getSessionSpoofDetections,
   type SessionAttendanceResponse,
-  type AttendanceRecord
+  type AttendanceRecord,
+  type SpoofDetection,
+  type SpoofDetectionsResponse
 } from "../../apis/attendanceAPIs/attendanceAPIs";
 
 const { Title, Text } = Typography;
@@ -59,6 +63,10 @@ const SessionDetailPage: React.FC = () => {
   const [exporting, setExporting] = useState<boolean>(false);
   const [actionLoading, setActionLoading] = useState<{ [key: number]: boolean }>({});
   const [confirmingAll, setConfirmingAll] = useState<boolean>(false);
+  
+  // Spoof detections state
+  const [spoofDetections, setSpoofDetections] = useState<SpoofDetection[]>([]);
+  const [spoofLoading, setSpoofLoading] = useState<boolean>(false);
 
   // Fetch session details
   useEffect(() => {
@@ -87,6 +95,29 @@ const SessionDetailPage: React.FC = () => {
 
     fetchSessionDetails();
   }, [sessionId]);
+
+  // Fetch spoof detections
+  useEffect(() => {
+    const fetchSpoofDetections = async () => {
+      if (!sessionId || !sessionData) return;
+      
+      // Chỉ fetch nếu phiên đã kết thúc
+      if (sessionData.session.status !== "finished") return;
+      
+      setSpoofLoading(true);
+      try {
+        const response = await getSessionSpoofDetections(parseInt(sessionId));
+        setSpoofDetections(response.spoof_detections);
+      } catch (err: any) {
+        console.error("Failed to load spoof detections:", err);
+        // Không hiện message lỗi cho spoof (optional feature)
+      } finally {
+        setSpoofLoading(false);
+      }
+    };
+
+    fetchSpoofDetections();
+  }, [sessionId, sessionData?.session.status]);
 
   // Refetch session data
   const refetchData = async () => {
@@ -617,6 +648,131 @@ const SessionDetailPage: React.FC = () => {
           </Col>
         </Row>
       </Card>
+
+      {/* Spoof Detections Section */}
+      {session.status === "finished" && (
+        <Card
+          title={
+            <Space>
+              <WarningOutlined style={{ color: "#ef4444" }} />
+              <span>Spoof Detections</span>
+              {spoofDetections.length > 0 && (
+                <Tag color="error">{spoofDetections.length} detected</Tag>
+              )}
+            </Space>
+          }
+          style={{ 
+            borderRadius: 16, 
+            boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+            marginBottom: 24,
+            borderLeft: spoofDetections.length > 0 ? "4px solid #ef4444" : undefined
+          }}
+        >
+          {spoofLoading ? (
+            <div style={{ textAlign: "center", padding: "24px" }}>
+              <Spin tip="Loading spoof detections..." />
+            </div>
+          ) : spoofDetections.length === 0 ? (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={
+                <span style={{ color: "#10b981" }}>
+                  <CheckCircleOutlined style={{ marginRight: 8 }} />
+                  No spoofing attempts detected in this session
+                </span>
+              }
+            />
+          ) : (
+            <div>
+              <Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
+                The following faces were detected as potential spoofing attempts (photos, masks, or other fake faces).
+                These were not counted as valid attendance.
+              </Text>
+              <Row gutter={[16, 16]}>
+                {spoofDetections.map((spoof) => (
+                  <Col xs={24} sm={12} md={8} lg={6} key={spoof.id}>
+                    <Card
+                      hoverable
+                      size="small"
+                      style={{ 
+                        borderRadius: 8,
+                        border: "1px solid #fecaca",
+                        backgroundColor: "#fef2f2"
+                      }}
+                      cover={
+                        spoof.image_path ? (
+                          <Image
+                            src={spoof.image_path}
+                            alt={`Spoof detection #${spoof.id}`}
+                            style={{ 
+                              height: 150, 
+                              objectFit: "cover",
+                              borderTopLeftRadius: 8,
+                              borderTopRightRadius: 8
+                            }}
+                            preview={{
+                              mask: (
+                                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                  <EyeOutlined /> View
+                                </div>
+                              )
+                            }}
+                          />
+                        ) : (
+                          <div 
+                            style={{ 
+                              height: 150, 
+                              display: "flex", 
+                              alignItems: "center", 
+                              justifyContent: "center",
+                              backgroundColor: "#fee2e2",
+                              borderTopLeftRadius: 8,
+                              borderTopRightRadius: 8
+                            }}
+                          >
+                            <Text type="secondary">No image</Text>
+                          </div>
+                        )
+                      }
+                    >
+                      <Card.Meta
+                        title={
+                          <Tag color="error" style={{ margin: 0 }}>
+                            <WarningOutlined /> {spoof.spoofing_type.toUpperCase()}
+                          </Tag>
+                        }
+                        description={
+                          <div style={{ marginTop: 8 }}>
+                            <div>
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                Confidence: {(spoof.spoofing_confidence * 100).toFixed(1)}%
+                              </Text>
+                            </div>
+                            {spoof.detected_at && (
+                              <div>
+                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                  {dayjs(spoof.detected_at).format("HH:mm:ss")}
+                                </Text>
+                              </div>
+                            )}
+                            {spoof.frame_count !== null && (
+                              <div>
+                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                  Frame #{spoof.frame_count}
+                                </Text>
+                              </div>
+                            )}
+                          </div>
+                        }
+                      />
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Attendance Table */}
       <Card

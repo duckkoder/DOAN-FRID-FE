@@ -274,3 +274,31 @@ export const confirmAllPending = async (
 };
 
 
+// ============= Spoof Detection APIs =============
+
+export interface SpoofDetection {
+  id: number;
+  spoofing_type: string;
+  spoofing_confidence: number;
+  image_path: string | null;
+  detected_at: string | null;
+  frame_count: number | null;
+}
+
+export interface SpoofDetectionsResponse {
+  session_id: number;
+  total: number;
+  spoof_detections: SpoofDetection[];
+}
+
+/**
+ * Lấy danh sách các phát hiện giả mạo trong phiên điểm danh
+ */
+export const getSessionSpoofDetections = async (
+  sessionId: number
+): Promise<SpoofDetectionsResponse> => {
+  const response = await api.get(`${API_BASE}/sessions/${sessionId}/spoof-detections`);
+  return response.data;
+};
+
+
