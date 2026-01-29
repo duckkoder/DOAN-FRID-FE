@@ -7,12 +7,12 @@
 # - mssv: Must be 9 digits (student code), will be appended with @sv1.dut.udn.vn
 # - password: Minimum 9 characters, must contain uppercase, lowercase, and digit
 # - phone: Optional, must be 10 digits starting with 0
-# - department_name: Optional, must match existing department name (e.g., "Công nghệ thông tin")
+# - department_name: Optional, must match existing department name (e.g., "Information Technology")
 # - academic_year: Optional, e.g., 2022, 2023
 # - date_of_birth: Optional, format YYYY-MM-DD or DD/MM/YYYY
 
 # Example rows:
 full_name,mssv,password,phone,department_name,academic_year,date_of_birth
-Nguyễn Văn A,102220001,Password123,0912345678,Công nghệ thông tin,2022,2004-01-15
-Trần Thị B,102220002,Password123,0987654321,Điện tử viễn thông,2022,2004-05-20
-Lê Hoàng C,102220003,Password123,0901234567,Cơ khí,2022,15/03/2004
+John Doe,102220001,Password123,0912345678,Information Technology,2022,2004-01-15
+Jane Smith,102220002,Password123,0987654321,Electronics & Telecommunications,2022,2004-05-20
+Mike Johnson,102220003,Password123,0901234567,Mechanical Engineering,2022,15/03/2004

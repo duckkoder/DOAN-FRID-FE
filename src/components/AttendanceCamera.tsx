@@ -1,6 +1,6 @@
 /**
  * Attendance Camera Component
- * Sử dụng WebSocket trực tiếp tới AI-Service để stream frames
+ * Uses WebSocket directly to AI-Service to stream frames
  */
 import React, { useState, useRef, useEffect } from 'react';
 import {
@@ -177,7 +177,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
 
       } catch (err: any) {
         console.error('[ResumeSession] Error:', err);
-        setError(err.response?.data?.detail || 'Không thể tiếp tục phiên điểm danh. Phiên có thể đã kết thúc.');
+        setError(err.response?.data?.detail || 'Unable to resume attendance session. Session may have ended.');
       } finally {
         setLoading(false);
       }
@@ -224,7 +224,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         ensureVideoPlaying();
       } catch (err) {
         console.error('[Camera] Orientation restart failed:', err);
-        setError('Không thể khởi động lại camera sau khi xoay thiết bị');
+        setError('Unable to restart camera after rotating device');
       } finally {
         if (orientationRestartTimeoutRef.current) {
           window.clearTimeout(orientationRestartTimeoutRef.current);
@@ -289,7 +289,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       // 1. Create session với Backend → nhận WebSocket info
       // ✅ Fix: Generate session_name with Vietnam timezone (UTC+7)
       const now = new Date();
-      const sessionName = `Điểm danh ${now.toLocaleString('vi-VN', { 
+      const sessionName = `Attendance ${now.toLocaleString('en-US', { 
         timeZone: 'Asia/Ho_Chi_Minh',
         hour12: false 
       })}`;
@@ -357,7 +357,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
 
     } catch (err) {
       console.error('[Camera] Error:', err);
-      throw new Error('Không thể truy cập camera');
+      throw new Error('Unable to access camera');
     }
   };
 
@@ -374,7 +374,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       
     } catch (err) {
       console.error('[Camera] Toggle error:', err);
-      setError('Không thể chuyển đổi camera');
+      setError('Unable to toggle camera');
     }
   };
 
@@ -400,7 +400,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         setWsConnected(false);
         
         if (code === 1008) {
-          setError('Session không hợp lệ hoặc đã hết hạn');
+          setError('Session is invalid or has expired');
         }
       });
 
@@ -442,7 +442,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
 
     } catch (err) {
       console.error('[WebSocket] Connection error:', err);
-      throw new Error('Không thể kết nối tới AI-Service');
+      throw new Error('Unable to connect to AI-Service');
     }
   };
 
@@ -771,11 +771,11 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   const handleModalClose = () => {
     if (sessionInfo) {
       Modal.confirm({
-        title: 'Phiên điểm danh đang diễn ra',
+        title: 'Attendance session in progress',
         icon: <ExclamationCircleOutlined />,
-        content: 'Bạn có muốn kết thúc phiên điểm danh không?',
-        okText: 'Kết thúc',
-        cancelText: 'Tiếp tục',
+        content: 'Do you want to end the attendance session?',
+        okText: 'End',
+        cancelText: 'Continue',
         onOk: handleStopSession,
       });
     } else {
@@ -994,7 +994,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
             <CameraOutlined style={{ fontSize: 64, color: '#d9d9d9' }} />
             <div style={{ marginTop: 16 }}>
               <Text type="secondary" style={{ fontSize: 14 }}>
-                {loading ? 'Đang khởi động camera...' : 'Camera chưa bật'}
+                {loading ? 'Starting camera...' : 'Camera not started'}
               </Text>
             </div>
           </div>
@@ -1017,7 +1017,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
             <Space size={4}>
               <DisconnectOutlined style={{ fontSize: isLandscape && isMobile ? 10 : 12 }} />
               <Text style={{ color: '#fff', fontSize: isLandscape && isMobile ? 10 : 12 }}>
-                {isLandscape && isMobile ? 'Mất kết nối' : 'Mất kết nối AI'}
+                {isLandscape && isMobile ? 'Disconnected' : 'AI Disconnected'}
               </Text>
             </Space>
           </div>
@@ -1068,7 +1068,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
               backgroundColor: 'rgba(24, 144, 255, 0.9)',
               backdropFilter: 'blur(8px)'
             }}
-            title={facingMode === 'user' ? 'Chuyển sang camera sau' : 'Chuyển sang camera trước'}
+            title={facingMode === 'user' ? 'Switch to back camera' : 'Switch to front camera'}
           />
         )}
       </div>
@@ -1102,7 +1102,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
               borderRadius: 16
             } : undefined}
           >
-            {isLandscape && isMobile ? 'Bắt đầu' : 'Bắt đầu điểm danh'}
+            {isLandscape && isMobile ? 'Start' : 'Start Attendance'}
           </Button>
         ) : (
           <Button
@@ -1123,7 +1123,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
               borderRadius: 16
             } : undefined}
           >
-            {isLandscape && isMobile ? 'Kết thúc' : 'Kết thúc điểm danh'}
+            {isLandscape && isMobile ? 'End' : 'End Attendance'}
           </Button>
         )}
       </div>
@@ -1134,7 +1134,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
 
   return (
     <Modal
-      title={isLandscapeMode ? null : 'Điểm danh bằng AI'}
+      title={isLandscapeMode ? null : 'AI Attendance'}
       open={visible}
       onCancel={handleModalClose}
       width={isMobile ? '100%' : 900}
@@ -1361,7 +1361,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
 
       {error && (
         <Alert
-          message="Lỗi"
+          message="Error"
           description={
             <div>
               <p>{error}</p>
@@ -1373,7 +1373,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
                   style={{ marginTop: 8 }}
                   onClick={onClose}
                 >
-                  Đóng và quay lại
+                  Close and go back
                 </Button>
               )}
             </div>
@@ -1414,7 +1414,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         >
           <FloatButton
             icon={<BarChartOutlined />}
-            tooltip="Thống kê"
+            tooltip="Statistics"
             onClick={() => setStatisticsPanelVisible(true)}
             type="primary"
           />
@@ -1426,7 +1426,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
           >
             <FloatButton
               icon={<TeamOutlined />}
-              tooltip={newConfirmedCount > 0 ? `${newConfirmedCount} sinh viên mới` : 'Danh sách sinh viên'}
+              tooltip={newConfirmedCount > 0 ? `${newConfirmedCount} new students` : 'Student List'}
               onClick={() => {
                 setStudentsPanelVisible(true);
                 // ✅ Reset badge khi user mở panel
@@ -1439,7 +1439,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
             <Badge count={pendingCount} offset={[-5, 5]}>
               <FloatButton
                 icon={<ClockCircleOutlined />}
-                tooltip="Chờ xác nhận"
+                tooltip="Pending Confirmation"
                 onClick={() => setPendingPanelVisible(true)}
                 style={{ backgroundColor: '#faad14' }}
               />

@@ -184,17 +184,17 @@ export const getAttendanceStatusColor = (status: string): string => {
 };
 
 /**
- * Helper function to get status text in Vietnamese
+ * Helper function to get status text in English
  */
 export const getAttendanceStatusText = (status: string): string => {
   switch (status) {
     case 'present':
-      return 'Có mặt';
+      return 'Present';
     case 'absent':
-      return 'Vắng';
+      return 'Absent';
     case 'excused':
-      return 'Có phép';
+      return 'Excused';
     default:
-      return 'Chưa rõ';
+      return 'Unknown';
   }
 };

@@ -208,13 +208,13 @@ export const parseScheduleToReadable = (schedule: ScheduleModel): Record<string,
   const result: Record<string, string[]> = {};
   
   const dayMapping: Record<string, string> = {
-    monday: 'Thứ 2',
-    tuesday: 'Thứ 3',
-    wednesday: 'Thứ 4',
-    thursday: 'Thứ 5',
-    friday: 'Thứ 6',
-    saturday: 'Thứ 7',
-    sunday: 'Chủ nhật'
+    monday: 'Monday',
+    tuesday: 'Tuesday',
+    wednesday: 'Wednesday',
+    thursday: 'Thursday',
+    friday: 'Friday',
+    saturday: 'Saturday',
+    sunday: 'Sunday'
   };
 
   Object.entries(schedule).forEach(([day, periods]) => {

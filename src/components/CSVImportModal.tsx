@@ -79,13 +79,13 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
 
       if (response.data.invalid_rows > 0) {
         message.warning(
-          `Có ${response.data.invalid_rows} dòng không hợp lệ. Sẽ chỉ import ${response.data.valid_rows} dòng hợp lệ.`
+          `There are ${response.data.invalid_rows} invalid rows. Only ${response.data.valid_rows} valid rows will be imported.`
         );
       } else {
-        message.success('Tất cả dữ liệu hợp lệ!');
+        message.success('All data is valid!');
       }
     } catch (error: any) {
-      message.error(error.response?.data?.detail || 'Lỗi khi xử lý file CSV');
+      message.error(error.response?.data?.detail || 'Error processing CSV file');
       setPreviewData(null);
     } finally {
       setLoading(false);
@@ -96,7 +96,7 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
 
   const handleConfirmImport = async () => {
     if (!previewData || !previewData.can_import) {
-      message.error('Không có dữ liệu hợp lệ để import');
+      message.error('No valid data to import');
       return;
     }
 
@@ -123,12 +123,12 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
         setImportResult(null);
         onSuccess();
       } else {
-        // Có lỗi - hiển thị result để user xem
+        // Has errors - display result for user to review
         setImportResult(response.data);
-        message.warning(`Import hoàn tất với ${response.data.failed} lỗi`);
+        message.warning(`Import completed with ${response.data.failed} errors`);
       }
     } catch (error: any) {
-      message.error(error.response?.data?.detail || 'Lỗi khi import dữ liệu');
+      message.error(error.response?.data?.detail || 'Error importing data');
     } finally {
       setImporting(false);
     }
@@ -150,29 +150,29 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
 
   const columns: ColumnsType<CSVRow> = [
     {
-      title: 'Dòng',
+      title: 'Row',
       dataIndex: 'row_number',
       width: 70,
       fixed: 'left',
     },
     {
-      title: 'Trạng thái',
+      title: 'Status',
       dataIndex: 'is_valid',
       width: 100,
       fixed: 'left',
       render: (isValid: boolean) => (
         <Tag color={isValid ? 'success' : 'error'} icon={isValid ? <CheckCircleOutlined /> : <CloseCircleOutlined />}>
-          {isValid ? 'Hợp lệ' : 'Lỗi'}
+          {isValid ? 'Valid' : 'Error'}
         </Tag>
       ),
     },
     {
-      title: 'Họ tên',
+      title: 'Full Name',
       dataIndex: 'full_name',
       width: 200,
     },
     {
-      title: type === 'student' ? 'MSSV' : 'Email',
+      title: type === 'student' ? 'Student ID' : 'Email',
       dataIndex: type === 'student' ? 'mssv' : 'email',
       width: 150,
       render: (value: string) => (
@@ -184,34 +184,34 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
       ),
     },
     {
-      title: 'SĐT',
+      title: 'Phone',
       dataIndex: 'phone',
       width: 120,
     },
     {
-      title: 'Khoa',
+      title: 'Department',
       dataIndex: 'department_name',
       width: 150,
     },
     ...(type === 'student' ? [
       {
-        title: 'Niên khóa',
+        title: 'Academic Year',
         dataIndex: 'academic_year',
         width: 100,
       },
       {
-        title: 'Ngày sinh',
+        title: 'Date of Birth',
         dataIndex: 'date_of_birth',
         width: 120,
       },
     ] : []),
     ...(type === 'teacher' ? [{
-      title: 'Chuyên ngành',
+      title: 'Specialization',
       dataIndex: 'specialization_name',
       width: 150,
     }] : []),
     {
-      title: 'Lỗi',
+      title: 'Errors',
       dataIndex: 'errors',
       width: 300,
       render: (errors: string[]) => (
@@ -229,8 +229,8 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
   const downloadTemplate = () => {
     if (type === 'student') {
       const template = 'full_name,mssv,password,phone,department_name,academic_year,date_of_birth\n' +
-        'Nguyễn Văn A,102220001,Password123,0912345678,Công nghệ thông tin,2022,2004-01-15\n' +
-        'Trần Thị B,102220002,Password123,0987654321,Điện tử viễn thông,2022,2004-05-20';
+        'John Doe,102220001,Password123,0912345678,Information Technology,2022,2004-01-15\n' +
+        'Jane Smith,102220002,Password123,0987654321,Electronics & Telecommunications,2022,2004-05-20';
       
       const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
@@ -239,8 +239,8 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
       link.click();
     } else {
       const template = 'full_name,email,password,phone,department_name,specialization_name\n' +
-        'Nguyễn Văn C,nguyenvanc,Password123,0912345678,Công nghệ thông tin,Khoa học máy tính\n' +
-        'Trần Thị D,tranthid,Password123,0987654321,Điện tử viễn thông,Điện tử';
+        'John Doe,johndoe,Password123,0912345678,Information Technology,Computer Science\n' +
+        'Jane Smith,janesmith,Password123,0987654321,Electronics & Telecommunications,Electronics';
       
       const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
@@ -248,23 +248,23 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
       link.download = 'teacher_template.csv';
       link.click();
     }
-    message.success('Đã tải file mẫu');
+    message.success('Template file downloaded');
   };
 
   return (
     <Modal
-      title={`Nhập ${type === 'student' ? 'Sinh viên' : 'Giáo viên'} từ CSV`}
+      title={`Import ${type === 'student' ? 'Students' : 'Teachers'} from CSV`}
       open={visible}
       onCancel={handleClose}
       width={1200}
       footer={
         importResult ? [
           <Button key="close" type="primary" onClick={handleClose}>
-            Đóng
+            Close
           </Button>,
         ] : previewData ? [
           <Button key="back" onClick={handleClose}>
-            Hủy
+            Cancel
           </Button>,
           <Button
             key="submit"
@@ -273,14 +273,14 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
             disabled={!previewData.can_import}
             loading={importing}
           >
-            Xác nhận import ({previewData.valid_rows} dòng)
+            Confirm Import ({previewData.valid_rows} rows)
           </Button>,
         ] : [
           <Button key="template" onClick={downloadTemplate}>
-            Tải file mẫu
+            Download Template
           </Button>,
           <Button key="cancel" onClick={handleClose}>
-            Đóng
+            Close
           </Button>,
         ]
       }
@@ -288,7 +288,7 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
       {importResult ? (
         <div>
           <Alert
-            message={importResult.success ? "Import thành công!" : "Import hoàn tất với lỗi"}
+            message={importResult.success ? "Import successful!" : "Import completed with errors"}
             description={importResult.message}
             type={importResult.success ? 'success' : 'warning'}
             showIcon
@@ -298,7 +298,7 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
           {importResult.failed > 0 && (
             <Collapse defaultActiveKey={['errors']} style={{ marginBottom: 16 }}>
               <Collapse.Panel 
-                header={`Chi tiết lỗi (${importResult.failed} dòng)`} 
+                header={`Error details (${importResult.failed} rows)`} 
                 key="errors"
               >
                 <Table
@@ -309,7 +309,7 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
                   size="small"
                   columns={[
                     {
-                      title: 'Dòng',
+                      title: 'Row',
                       dataIndex: 'row',
                       width: 80,
                     },
@@ -319,7 +319,7 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
                       width: 200,
                     },
                     {
-                      title: 'Lỗi',
+                      title: 'Error',
                       dataIndex: 'error',
                       render: (error: string) => (
                         <Tag color="error">{error}</Tag>
@@ -333,7 +333,7 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
           
           {importResult.successful > 0 && (
             <Alert
-              message={`✅ Đã import thành công ${importResult.successful} ${type === 'student' ? 'sinh viên' : 'giáo viên'}`}
+              message={`✅ Successfully imported ${importResult.successful} ${type === 'student' ? 'students' : 'teachers'}`}
               type="success"
               showIcon
             />
@@ -342,21 +342,21 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
       ) : !previewData ? (
         <div>
           <Alert
-            message="Hướng dẫn"
+            message="Instructions"
             description={
               <div>
-                <p>1. Tải file mẫu bằng nút "Tải file mẫu" bên dưới</p>
-                <p>2. Điền thông tin theo định dạng mẫu</p>
-                <p>3. Kéo thả hoặc click để upload file CSV</p>
-                <p>4. Kiểm tra dữ liệu và xác nhận import</p>
+                <p>1. Download the template file using the "Download Template" button below</p>
+                <p>2. Fill in the information according to the template format</p>
+                <p>3. Drag and drop or click to upload the CSV file</p>
+                <p>4. Review the data and confirm import</p>
                 <br />
-                <p><strong>Lưu ý:</strong></p>
+                <p><strong>Notes:</strong></p>
                 <ul>
-                  <li>{type === 'student' ? 'MSSV phải là 9 chữ số' : 'Email không bao gồm @dut.udn.vn'}</li>
-                  <li>Mật khẩu phải có ít nhất 9 ký tự, bao gồm chữ hoa, chữ thường và số</li>
-                  <li>Số điện thoại phải có 10 chữ số bắt đầu bằng 0</li>
-                  <li>Tên khoa và chuyên ngành phải khớp chính xác với hệ thống</li>
-                  <li>File phải có encoding UTF-8</li>
+                  <li>{type === 'student' ? 'Student ID must be 9 digits' : 'Email should not include @dut.udn.vn'}</li>
+                  <li>Password must have at least 9 characters, including uppercase, lowercase and numbers</li>
+                  <li>Phone number must have 10 digits starting with 0</li>
+                  <li>Department and specialization names must match exactly with the system</li>
+                  <li>File must have UTF-8 encoding</li>
                 </ul>
               </div>
             }
@@ -369,10 +369,10 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
               <InboxOutlined />
             </p>
             <p className="ant-upload-text">
-              Kéo thả file CSV vào đây hoặc click để chọn file
+              Drag and drop CSV file here or click to select file
             </p>
             <p className="ant-upload-hint">
-              Chỉ hỗ trợ file .csv với encoding UTF-8
+              Only .csv files with UTF-8 encoding are supported
             </p>
           </Dragger>
         </div>
@@ -381,8 +381,8 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
           <Alert
             message={
               previewData.invalid_rows === 0
-                ? `Sẵn sàng import ${previewData.valid_rows} ${type === 'student' ? 'sinh viên' : 'giáo viên'}`
-                : `Sẵn sàng import ${previewData.valid_rows} dòng hợp lệ (bỏ qua ${previewData.invalid_rows} dòng lỗi)`
+                ? `Ready to import ${previewData.valid_rows} ${type === 'student' ? 'students' : 'teachers'}`
+                : `Ready to import ${previewData.valid_rows} valid rows (skipping ${previewData.invalid_rows} error rows)`
             }
             type={previewData.invalid_rows === 0 ? 'success' : 'warning'}
             showIcon

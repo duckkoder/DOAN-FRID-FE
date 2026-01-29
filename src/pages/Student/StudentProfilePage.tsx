@@ -74,7 +74,7 @@ const StudentProfilePage: React.FC = () => {
       } catch (error) {
         console.error("Error fetching profile:", error);
         setNotificationType('error');
-        setNotificationMessage('Không thể tải thông tin cá nhân!');
+        setNotificationMessage('Failed to load profile information!');
         setShowNotification(true);
         // Use context data as fallback
         const fallbackData = {
@@ -105,12 +105,12 @@ const StudentProfilePage: React.FC = () => {
       }
       
       setNotificationType('success');
-      setNotificationMessage('Cập nhật ảnh đại diện thành công!');
+      setNotificationMessage('Profile picture updated successfully!');
       setShowNotification(true);
     } catch (error: unknown) {
       console.error("Error uploading avatar:", error);
       const axiosError = error as { response?: { data?: { detail?: string } }; message?: string };
-      const errorMsg = axiosError?.response?.data?.detail || axiosError?.message || "Không thể tải ảnh lên!";
+      const errorMsg = axiosError?.response?.data?.detail || axiosError?.message || "Failed to upload image!";
       
       setNotificationType('error');
       setNotificationMessage(errorMsg);
@@ -141,7 +141,7 @@ const StudentProfilePage: React.FC = () => {
       }
       
       setNotificationType('success');
-      setNotificationMessage('Cập nhật thông tin thành công!');
+      setNotificationMessage('Profile updated successfully!');
       setShowNotification(true);
       
       // Update form with latest data
@@ -152,7 +152,7 @@ const StudentProfilePage: React.FC = () => {
     } catch (error: unknown) {
       console.error("Error updating profile:", error);
       const axiosError = error as { response?: { data?: { detail?: string } }; message?: string };
-      const errorMsg = axiosError?.response?.data?.detail || axiosError?.message || "Không thể cập nhật thông tin!";
+      const errorMsg = axiosError?.response?.data?.detail || axiosError?.message || "Failed to update profile!";
       
       setNotificationType('error');
       setNotificationMessage(errorMsg);
@@ -167,7 +167,7 @@ const StudentProfilePage: React.FC = () => {
       {/* Notification Alert */}
       {showNotification && (
         <Alert
-          message={notificationType === 'success' ? 'Thành công' : 'Lỗi'}
+          message={notificationType === 'success' ? 'Success' : 'Error'}
           description={notificationMessage}
           type={notificationType}
           showIcon
@@ -178,14 +178,14 @@ const StudentProfilePage: React.FC = () => {
       )}
 
       <Card 
-        title="Thông tin cá nhân"
+        title="Personal Information"
         extra={
           <Button 
             type="primary" 
             icon={<LockOutlined />}
             onClick={() => setPasswordModalVisible(true)}
           >
-            Đổi mật khẩu
+            Change Password
           </Button>
         }
       >
@@ -224,7 +224,7 @@ const StudentProfilePage: React.FC = () => {
             </div>
           </Upload>
           <div style={{ marginTop: "12px", color: "#8c8c8c", fontSize: "14px" }}>
-            Nhấp vào ảnh để thay đổi
+            Click on the photo to change
           </div>
         </div>
 
@@ -234,18 +234,18 @@ const StudentProfilePage: React.FC = () => {
           onFinish={handleSubmit}
         >
           <Form.Item
-            label="Họ và tên"
+            label="Full Name"
             name="full_name"
-            rules={[{ required: true, message: "Vui lòng nhập họ và tên!" }]}
+            rules={[{ required: true, message: "Please enter full name!" }]}
           >
-            <Input placeholder="Nhập họ và tên" disabled />
+            <Input placeholder="Enter full name" disabled />
           </Form.Item>
 
           <Form.Item
-            label="Mã sinh viên"
+            label="Student ID"
             name="student_code"
           >
-            <Input placeholder="Mã sinh viên" disabled />
+            <Input placeholder="Student ID" disabled />
           </Form.Item>
 
           <Form.Item
@@ -256,27 +256,27 @@ const StudentProfilePage: React.FC = () => {
           </Form.Item>
 
           <Form.Item
-            label="Ngày sinh"
+            label="Date of Birth"
             name="date_of_birth"
-            rules={[{ required: true, message: "Vui lòng chọn ngày sinh!" }]}
+            rules={[{ required: true, message: "Please select date of birth!" }]}
           >
             <DatePicker 
               style={{ width: "100%" }}
               format="DD/MM/YYYY"
-              placeholder="Chọn ngày sinh"
+              placeholder="Select date of birth"
               disabledDate={(current) => {
-                // Không cho chọn ngày trong tương lai
+                // Cannot select future dates
                 return current && current > dayjs().endOf('day');
               }}
             />
           </Form.Item>
 
           <Form.Item
-            label="Khoa"
+            label="Department"
             name="department_id"
           >
             <Select 
-              placeholder="Chọn khoa" 
+              placeholder="Select department" 
               allowClear
               loading={departments.length === 0}
             >
@@ -289,10 +289,10 @@ const StudentProfilePage: React.FC = () => {
           </Form.Item>
 
           <Form.Item
-            label="Niên khóa"
+            label="Academic Year"
             name="academic_year"
           >
-            <Select placeholder="Chọn niên khóa" allowClear>
+            <Select placeholder="Select academic year" allowClear>
               <Select.Option value="2019">2019</Select.Option>
               <Select.Option value="2020">2020</Select.Option>
               <Select.Option value="2021">2021</Select.Option>
@@ -304,13 +304,13 @@ const StudentProfilePage: React.FC = () => {
           </Form.Item>
 
           <Form.Item
-            label="Số điện thoại"
+            label="Phone Number"
             name="phone"
             rules={[
-              { pattern: /^[0-9]{10}$/, message: "Số điện thoại không hợp lệ!" }
+              { pattern: /^[0-9]{10}$/, message: "Invalid phone number!" }
             ]}
           >
-            <Input placeholder="Nhập số điện thoại" />
+            <Input placeholder="Enter phone number" />
           </Form.Item>
 
           <Form.Item>
@@ -322,7 +322,7 @@ const StudentProfilePage: React.FC = () => {
               block
               size="large"
             >
-              Lưu thay đổi
+              Save Changes
             </Button>
           </Form.Item>
         </Form>

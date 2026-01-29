@@ -117,7 +117,7 @@ export const validateImageFile = (file: File): { valid: boolean; error?: string 
   if (!allowedTypes.includes(file.type)) {
     return {
       valid: false,
-      error: "Chỉ chấp nhận file ảnh (JPG, PNG, GIF)",
+      error: "Only image files are accepted (JPG, PNG, GIF)",
     };
   }
 
@@ -126,7 +126,7 @@ export const validateImageFile = (file: File): { valid: boolean; error?: string 
   if (file.size > maxSize) {
     return {
       valid: false,
-      error: "Kích thước file không được vượt quá 5MB",
+      error: "File size must not exceed 5MB",
     };
   }
 

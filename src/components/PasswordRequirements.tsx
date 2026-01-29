@@ -21,7 +21,7 @@ const PasswordRequirements: React.FC<PasswordRequirementsProps> = ({
     <div style={{ marginTop: 8 }}>
       {showTitle && (
         <Text strong style={{ display: "block", marginBottom: 8 }}>
-          Yêu cầu mật khẩu:
+          Password Requirements:
         </Text>
       )}
       <Space direction="vertical" size={4}>

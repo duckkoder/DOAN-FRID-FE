@@ -108,36 +108,36 @@ const ClassCreatePage: React.FC = () => {
   }, [userStr]);
 
   const breadcrumbItems = [
-    { title: "Trang chủ", href: "/teacher" },
-    { title: "Quản lý lớp học", href: "/teacher/classes" },
-    { title: "Tạo lớp học mới" }
+    { title: "Home", href: "/teacher" },
+    { title: "Class Management", href: "/teacher/classes" },
+    { title: "Create New Class" }
   ];
 
   const weekDays = [
-    { value: 1, label: "Thứ 2" },
-    { value: 2, label: "Thứ 3" },
-    { value: 3, label: "Thứ 4" },
-    { value: 4, label: "Thứ 5" },
-    { value: 5, label: "Thứ 6" },
-    { value: 6, label: "Thứ 7" },
-    { value: 0, label: "Chủ nhật" }
+    { value: 1, label: "Monday" },
+    { value: 2, label: "Tuesday" },
+    { value: 3, label: "Wednesday" },
+    { value: 4, label: "Thursday" },
+    { value: 5, label: "Friday" },
+    { value: 6, label: "Saturday" },
+    { value: 0, label: "Sunday" }
   ];
 
   const steps = [
     {
-      title: 'Thông tin cơ bản',
+      title: 'Basic Information',
       icon: <BookOutlined />,
-      description: 'Tên môn học, mô tả'
+      description: 'Subject name, description'
     },
     {
-      title: 'Phòng học & Lịch',
+      title: 'Room & Schedule',
       icon: <CalendarOutlined />,
-      description: 'Phòng, thứ và khung giờ'
+      description: 'Room, day and time slots'
     },
     {
-      title: 'Xác nhận',
+      title: 'Confirmation',
       icon: <CheckCircleOutlined />,
-      description: 'Kiểm tra và tạo lớp'
+      description: 'Review and create class'
     }
   ];
 
@@ -232,17 +232,17 @@ const ClassCreatePage: React.FC = () => {
 
   // Format time display
   const formatTimeRange = (periods: number[]) => {
-    if (periods.length === 0) return "Chưa chọn";
+    if (periods.length === 0) return "Not selected";
     
     const sortedPeriods = [...periods].sort((a, b) => a - b);
     const firstSlot = TIME_SLOTS.find(t => t.period === sortedPeriods[0]);
     const lastSlot = TIME_SLOTS.find(t => t.period === sortedPeriods[sortedPeriods.length - 1]);
     
     if (sortedPeriods.length === 1) {
-      return `${firstSlot?.start} - ${firstSlot?.end} (Tiết ${sortedPeriods[0]})`;
+      return `${firstSlot?.start} - ${firstSlot?.end} (Period ${sortedPeriods[0]})`;
     }
     
-    return `${firstSlot?.start} - ${lastSlot?.end} (Tiết ${sortedPeriods.join(', ')})`;
+    return `${firstSlot?.start} - ${lastSlot?.end} (Period ${sortedPeriods.join(', ')})`;
   };
 
   const handleNext = async () => {
@@ -259,7 +259,7 @@ const ClassCreatePage: React.FC = () => {
         
         // Validate schedules
         if (formData.schedules.length === 0) {
-          message.error('Vui lòng chọn ít nhất một ngày học!');
+          message.error('Please select at least one class day!');
           return;
         }
         
@@ -268,7 +268,7 @@ const ClassCreatePage: React.FC = () => {
         );
         
         if (hasEmptyPeriods) {
-          message.error('Vui lòng chọn khung giờ cho tất cả các buổi học!');
+          message.error('Please select time slots for all class sessions!');
           return;
         }
         
@@ -288,8 +288,8 @@ const ClassCreatePage: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!teacherId) {
-      setErrorMessage('Không tìm thấy thông tin giáo viên. Vui lòng đăng nhập lại!');
-      message.error('Không tìm thấy thông tin giáo viên!');
+      setErrorMessage('Teacher information not found. Please log in again!');
+      message.error('Teacher information not found!');
       return;
     }
 
@@ -324,7 +324,7 @@ const ClassCreatePage: React.FC = () => {
       
 
       message.success({
-        content: 'Tạo lớp học thành công!',
+        content: 'Class created successfully!',
         duration: 2,
       });
 
@@ -339,7 +339,7 @@ const ClassCreatePage: React.FC = () => {
       // ✅ Handle ApiError from createClass
       const apiError = error as ApiError;
       
-      let displayMessage = 'Có lỗi xảy ra khi tạo lớp học';
+      let displayMessage = 'An error occurred while creating the class';
       let details = null;
 
       if (apiError.message) {
@@ -376,7 +376,7 @@ const ClassCreatePage: React.FC = () => {
     if (typeof errorDetails === 'object' && !Array.isArray(errorDetails)) {
       return (
         <div style={{ marginTop: 12 }}>
-          <Text strong>Chi tiết lỗi:</Text>
+          <Text strong>Error details:</Text>
           <ul style={{ marginTop: 8, marginBottom: 0 }}>
             {Object.entries(errorDetails).map(([field, messages]) => (
               <li key={field}>
@@ -391,7 +391,7 @@ const ClassCreatePage: React.FC = () => {
     // If errors is a string or other
     return (
       <div style={{ marginTop: 12 }}>
-        <Text strong>Chi tiết: </Text>
+        <Text strong>Details: </Text>
         <Text>{String(errorDetails)}</Text>
       </div>
     );
@@ -404,32 +404,32 @@ const ClassCreatePage: React.FC = () => {
           <Row gutter={24}>
             <Col span={24}>
               <Form.Item
-                label="Tên môn học"
+                label="Subject Name"
                 name="subject"
                 rules={[
-                  { required: true, message: 'Vui lòng nhập tên môn học!' },
-                  { min: 3, message: 'Tên môn học phải có ít nhất 3 ký tự!' }
+                  { required: true, message: 'Please enter subject name!' },
+                  { min: 3, message: 'Subject name must have at least 3 characters!' }
                 ]}
               >
                 <Input 
                   size="large" 
-                  placeholder="Ví dụ: Lập trình Java nâng cao"
+                  placeholder="Example: Advanced Java Programming"
                   prefix={<BookOutlined />}
                 />
               </Form.Item>
             </Col>
             <Col span={24}>
               <Form.Item
-                label="Mô tả môn học"
+                label="Subject Description"
                 name="description"
                 rules={[
-                  { required: true, message: 'Vui lòng nhập mô tả môn học!' },
-                  { min: 10, message: 'Mô tả phải có ít nhất 10 ký tự!' }
+                  { required: true, message: 'Please enter subject description!' },
+                  { min: 10, message: 'Description must have at least 10 characters!' }
                 ]}
               >
                 <TextArea 
                   rows={6} 
-                  placeholder="Mô tả chi tiết về môn học, mục tiêu và nội dung chính..."
+                  placeholder="Detailed description of the subject, objectives and main content..."
                 />
               </Form.Item>
             </Col>
@@ -443,30 +443,30 @@ const ClassCreatePage: React.FC = () => {
             <Row gutter={24} style={{ marginBottom: 24 }}>
               <Col span={24}>
                 <Form.Item
-                  label="Phòng học"
+                  label="Classroom"
                   name="room"
-                  rules={[{ required: true, message: 'Vui lòng nhập phòng học!' }]}
+                  rules={[{ required: true, message: 'Please enter classroom!' }]}
                 >
                   <Input
                     size="large"
-                    placeholder="Nhập tên phòng học (VD: A101, B205, LAB1...)"
+                    placeholder="Enter classroom name (e.g., A101, B205, LAB1...)"
                     prefix={<CalendarOutlined />}
                   />
                 </Form.Item>
               </Col>
             </Row>
 
-            <Divider orientation="left">Chọn lịch học</Divider>
+            <Divider orientation="left">Select Schedule</Divider>
 
             {/* Day Selection */}
             <div style={{ marginBottom: 24 }}>
               <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                Chọn các thứ trong tuần:
+                Select days of the week:
               </Text>
               <Select
                 mode="multiple"
                 size="large"
-                placeholder="Chọn các ngày học trong tuần"
+                placeholder="Select class days in the week"
                 style={{ width: '100%' }}
                 value={selectedDays}
                 onChange={handleDayChange}
@@ -502,19 +502,19 @@ const ClassCreatePage: React.FC = () => {
                   {/* ✅ Period Selector */}
                   <div style={{ marginBottom: 16 }}>
                     <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                      Chọn các tiết học:
+                      Select periods:
                     </Text>
                     <Select
                       mode="multiple"
                       size="large"
-                      placeholder="Chọn các tiết học (tự động chia buổi nếu không liên tiếp)"
+                      placeholder="Select periods (auto-split if not consecutive)"
                       style={{ width: '100%' }}
                       value={selectedPeriods}
                       onChange={(periods) => handlePeriodChange(day, periods)}
                     >
                       {TIME_SLOTS.map(slot => (
                         <Option key={slot.period} value={slot.period}>
-                          Tiết {slot.period} ({slot.start} - {slot.end})
+                          Period {slot.period} ({slot.start} - {slot.end})
                         </Option>
                       ))}
                     </Select>
@@ -525,7 +525,7 @@ const ClassCreatePage: React.FC = () => {
                     <div>
                       <Divider orientation="left" style={{ margin: '12px 0' }}>
                         <Text type="secondary" style={{ fontSize: 12 }}>
-                          Các buổi học (tự động chia)
+                          Class sessions (auto-split)
                         </Text>
                       </Divider>
                       
@@ -541,7 +541,7 @@ const ClassCreatePage: React.FC = () => {
                           >
                             <Space direction="vertical" size={4} style={{ width: '100%' }}>
                               <Text strong style={{ color: '#0369a1' }}>
-                                Buổi {index + 1}
+                                Session {index + 1}
                               </Text>
                               <Tag color="blue" icon={<ClockCircleOutlined />}>
                                 {formatTimeRange(session.periods)}
@@ -553,8 +553,8 @@ const ClassCreatePage: React.FC = () => {
 
                       {daySchedule.sessions.length > 1 && (
                         <Alert
-                          message="Lưu ý"
-                          description={`Hệ thống đã tự động chia thành ${daySchedule.sessions.length} buổi học vì các tiết không liên tiếp nhau.`}
+                          message="Note"
+                          description={`The system has automatically split into ${daySchedule.sessions.length} sessions because the periods are not consecutive.`}
                           type="info"
                           showIcon
                           style={{ marginTop: 12 }}
@@ -569,7 +569,7 @@ const ClassCreatePage: React.FC = () => {
             {selectedDays.length === 0 && (
               <Card style={{ textAlign: 'center', background: '#f8fafc' }}>
                 <Text type="secondary">
-                  Vui lòng chọn các ngày học trong tuần để thiết lập lịch học
+                  Please select class days in the week to set up the schedule
                 </Text>
               </Card>
             )}
@@ -582,7 +582,7 @@ const ClassCreatePage: React.FC = () => {
             {/* ✅ Error Alert at top of review step */}
             {errorMessage && (
               <Alert
-                message="Lỗi khi tạo lớp học"
+                message="Error creating class"
                 description={
                   <div>
                     {renderErrorDetails()}
@@ -602,16 +602,16 @@ const ClassCreatePage: React.FC = () => {
 
             <Card style={{ marginBottom: 24 }}>
               <Title level={4} style={{ marginBottom: 16, color: '#2563eb' }}>
-                📚 Thông tin môn học
+                📚 Subject Information
               </Title>
               <Row gutter={[16, 16]}>
                 <Col span={24}>
-                  <Text strong>Tên môn học:</Text>
+                  <Text strong>Subject Name:</Text>
                   <br />
                   <Text style={{ fontSize: 16 }}>{formData.subject}</Text>
                 </Col>
                 <Col span={24}>
-                  <Text strong>Mô tả:</Text>
+                  <Text strong>Description:</Text>
                   <br />
                   <Text>{formData.description}</Text>
                 </Col>
@@ -620,14 +620,14 @@ const ClassCreatePage: React.FC = () => {
 
             <Card style={{ marginBottom: 24 }}>
               <Title level={4} style={{ marginBottom: 16, color: '#10b981' }}>
-                📍 Phòng học
+                📍 Classroom
               </Title>
-              <Text style={{ fontSize: 16 }}>Phòng {formData.room}</Text>
+              <Text style={{ fontSize: 16 }}>Room {formData.room}</Text>
             </Card>
 
             <Card style={{ marginBottom: 24 }}>
               <Title level={4} style={{ marginBottom: 16, color: '#f59e0b' }}>
-                📅 Lịch học
+                📅 Schedule
               </Title>
               {formData.schedules.map(schedule => {
                 const dayLabel = weekDays.find(d => d.value === schedule.day)?.label;
@@ -641,7 +641,7 @@ const ClassCreatePage: React.FC = () => {
                         <Space>
                           <ClockCircleOutlined style={{ color: '#10b981' }} />
                           <Text>
-                            <Text strong>Buổi {index + 1}:</Text> {formatTimeRange(session.periods)}
+                            <Text strong>Session {index + 1}:</Text> {formatTimeRange(session.periods)}
                           </Text>
                         </Space>
                       </div>
@@ -653,10 +653,10 @@ const ClassCreatePage: React.FC = () => {
 
             <Card style={{ textAlign: 'center', backgroundColor: '#f0f9ff', borderColor: '#3b82f6' }}>
               <Title level={5} style={{ color: '#1e40af', marginBottom: 8 }}>
-                ℹ️ Lưu ý
+                ℹ️ Note
               </Title>
               <Text>
-                Sau khi tạo lớp học, bạn sẽ được chuyển đến trang chi tiết lớp học để thêm sinh viên.
+                After creating the class, you will be redirected to the class details page to add students.
               </Text>
             </Card>
           </div>
@@ -689,7 +689,7 @@ const ClassCreatePage: React.FC = () => {
             onClick={() => navigate(-1)}
             style={{ borderRadius: 8, marginBottom: 16 }}
           >
-            Quay lại
+            Go Back
           </Button>
           <Title level={1} style={{ 
             marginBottom: 4, 
@@ -697,10 +697,10 @@ const ClassCreatePage: React.FC = () => {
             fontSize: 32,
             fontWeight: 700
           }}>
-            ➕ Tạo lớp học mới
+            ➕ Create New Class
           </Title>
           <Text style={{ color: "#64748b", fontSize: 16 }}>
-            Tạo lớp học với thông tin chi tiết và lịch học linh hoạt
+            Create a class with detailed information and flexible schedule
           </Text>
         </div>
       </div>
@@ -734,7 +734,7 @@ const ClassCreatePage: React.FC = () => {
             <div>
               {currentStep > 0 && (
                 <Button size="large" onClick={handlePrev}>
-                  Quay lại
+                  Back
                 </Button>
               )}
             </div>
@@ -746,7 +746,7 @@ const ClassCreatePage: React.FC = () => {
                   onClick={handleNext}
                   style={{ borderRadius: 8 }}
                 >
-                  Tiếp theo
+                  Next
                 </Button>
               ) : (
                 <Button 
@@ -762,7 +762,7 @@ const ClassCreatePage: React.FC = () => {
                     border: 'none'
                   }}
                 >
-                  {loading ? 'Đang tạo lớp học...' : 'Tạo lớp học'}
+                  {loading ? 'Creating class...' : 'Create Class'}
                 </Button>
               )}
             </div>

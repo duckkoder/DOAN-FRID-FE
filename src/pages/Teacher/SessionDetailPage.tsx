@@ -64,7 +64,7 @@ const SessionDetailPage: React.FC = () => {
   useEffect(() => {
     const fetchSessionDetails = async () => {
       if (!sessionId) {
-        setError("ID phiên không hợp lệ");
+        setError("Invalid session ID");
         setLoading(false);
         return;
       }
@@ -77,7 +77,7 @@ const SessionDetailPage: React.FC = () => {
         setSessionData(response);
       } catch (err: any) {
         console.error("Failed to load session details:", err);
-        const errorMsg = err?.response?.data?.detail || err?.message || "Không thể tải chi tiết phiên điểm danh";
+        const errorMsg = err?.response?.data?.detail || err?.message || "Could not load attendance session details";
         setError(errorMsg);
         message.error(errorMsg);
       } finally {
@@ -97,7 +97,7 @@ const SessionDetailPage: React.FC = () => {
       setSessionData(response);
     } catch (err: any) {
       console.error("Failed to refresh session details:", err);
-      message.error("Không thể làm mới dữ liệu");
+      message.error("Could not refresh data");
     }
   };
 
@@ -107,14 +107,14 @@ const SessionDetailPage: React.FC = () => {
     
     try {
       await confirmAttendance(recordId, {
-        notes: `Xác nhận bởi giáo viên - ${dayjs().format("HH:mm DD/MM/YYYY")}`
+        notes: `Confirmed by teacher - ${dayjs().format("HH:mm DD/MM/YYYY")}`
       });
       
-      message.success(`Đã xác nhận ${studentName} có mặt`);
+      message.success(`Confirmed ${studentName} as present`);
       await refetchData();
     } catch (err: any) {
       console.error("Failed to confirm attendance:", err);
-      message.error(err?.response?.data?.detail || "Không thể xác nhận điểm danh");
+      message.error(err?.response?.data?.detail || "Could not confirm attendance");
     } finally {
       setActionLoading(prev => ({ ...prev, [recordId]: false }));
     }
@@ -123,25 +123,25 @@ const SessionDetailPage: React.FC = () => {
   // Handle reject attendance
   const handleRejectAttendance = (recordId: number, studentName: string) => {
     Modal.confirm({
-      title: "Từ chối điểm danh",
+      title: "Reject Attendance",
       icon: <ExclamationCircleOutlined />,
-      content: `Bạn có chắc muốn đánh dấu ${studentName} là vắng không?`,
-      okText: "Xác nhận",
-      cancelText: "Hủy",
+      content: `Are you sure you want to mark ${studentName} as absent?`,
+      okText: "Confirm",
+      cancelText: "Cancel",
       okButtonProps: { danger: true },
       onOk: async () => {
         setActionLoading(prev => ({ ...prev, [recordId]: true }));
         
         try {
           await rejectAttendance(recordId, {
-            notes: `Từ chối bởi giáo viên - AI nhận diện không chính xác`
+            notes: `Rejected by teacher - AI recognition incorrect`
           });
           
-          message.success(`Đã đánh dấu ${studentName} vắng`);
+          message.success(`Marked ${studentName} as absent`);
           await refetchData();
         } catch (err: any) {
           console.error("Failed to reject attendance:", err);
-          message.error(err?.response?.data?.detail || "Không thể từ chối điểm danh");
+          message.error(err?.response?.data?.detail || "Could not reject attendance");
         } finally {
           setActionLoading(prev => ({ ...prev, [recordId]: false }));
         }
@@ -156,26 +156,26 @@ const SessionDetailPage: React.FC = () => {
     const pendingCount = sessionData.statistics.pending_count || 0;
     
     if (pendingCount === 0) {
-      message.info("Không có sinh viên nào đang chờ xác nhận");
+      message.info("No students pending confirmation");
       return;
     }
     
     Modal.confirm({
-      title: "Xác nhận tất cả",
+      title: "Confirm All",
       icon: <ExclamationCircleOutlined />,
-      content: `Bạn có chắc muốn xác nhận tất cả ${pendingCount} sinh viên đang chờ là có mặt không?`,
-      okText: "Xác nhận tất cả",
-      cancelText: "Hủy",
+      content: `Are you sure you want to confirm all ${pendingCount} pending students as present?`,
+      okText: "Confirm All",
+      cancelText: "Cancel",
       onOk: async () => {
         setConfirmingAll(true);
         
         try {
           await confirmAllPending(parseInt(sessionId));
-          message.success(`Đã xác nhận tất cả ${pendingCount} sinh viên`);
+          message.success(`Confirmed all ${pendingCount} students`);
           await refetchData();
         } catch (err: any) {
           console.error("Failed to confirm all pending:", err);
-          message.error(err?.response?.data?.detail || "Không thể xác nhận tất cả");
+          message.error(err?.response?.data?.detail || "Could not confirm all");
         } finally {
           setConfirmingAll(false);
         }
@@ -187,29 +187,29 @@ const SessionDetailPage: React.FC = () => {
   const getStatusConfig = (status: string) => {
     switch (status) {
       case "pending":
-        return { color: "#faad14", text: "Chờ xác nhận", icon: <ClockCircleOutlined /> };
+        return { color: "#faad14", text: "Pending", icon: <ClockCircleOutlined /> };
       case "present":
-        return { color: "#10b981", text: "Có mặt", icon: <CheckCircleOutlined /> };
+        return { color: "#10b981", text: "Present", icon: <CheckCircleOutlined /> };
       case "absent":
-        return { color: "#ef4444", text: "Vắng", icon: <CloseCircleOutlined /> };
+        return { color: "#ef4444", text: "Absent", icon: <CloseCircleOutlined /> };
       case "excused":
-        return { color: "#8b5cf6", text: "Có phép", icon: <CheckCircleOutlined /> };
+        return { color: "#8b5cf6", text: "Excused", icon: <CheckCircleOutlined /> };
       default:
-        return { color: "#64748b", text: "Không xác định", icon: <UserOutlined /> };
+        return { color: "#64748b", text: "Unknown", icon: <UserOutlined /> };
     }
   };
 
   // Table columns
   const columns = [
     {
-      title: "STT",
+      title: "No.",
       key: "index",
       width: 60,
       align: "center" as const,
       render: (_: any, __: any, index: number) => index + 1
     },
     {
-      title: "Sinh viên",
+      title: "Student",
       key: "student",
       render: (record: AttendanceRecord) => (
         <Space>
@@ -225,7 +225,7 @@ const SessionDetailPage: React.FC = () => {
       )
     },
     {
-      title: "Trạng thái",
+      title: "Status",
       dataIndex: "status",
       key: "status",
       width: 120,
@@ -240,7 +240,7 @@ const SessionDetailPage: React.FC = () => {
       }
     },
     {
-      title: "Thời gian điểm danh",
+      title: "Check-in Time",
       dataIndex: "recorded_at",
       key: "recorded_at",
       width: 180,
@@ -248,11 +248,11 @@ const SessionDetailPage: React.FC = () => {
         time ? (
           <Text>{dayjs(time).format("HH:mm:ss - DD/MM/YYYY")}</Text>
         ) : (
-          <Text type="secondary">Chưa điểm danh</Text>
+          <Text type="secondary">Not checked in</Text>
         )
     },
     {
-      title: "Ảnh khuôn mặt",
+      title: "Face Photo",
       dataIndex: "image_path",
       key: "image_path",
       width: 100,
@@ -268,7 +268,7 @@ const SessionDetailPage: React.FC = () => {
             preview={{
               mask: (
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <EyeOutlined /> Xem
+                  <EyeOutlined /> View
                 </div>
               )
             }}
@@ -278,19 +278,19 @@ const SessionDetailPage: React.FC = () => {
         )
     },
     {
-      title: "Ghi chú",
+      title: "Notes",
       dataIndex: "notes",
       key: "notes",
       render: (notes: string | null) =>
         notes ? <Text style={{ fontSize: 12 }}>{notes}</Text> : <Text type="secondary">-</Text>
     },
     {
-      title: "Hành động",
+      title: "Actions",
       key: "actions",
       width: 150,
       align: "center" as const,
       render: (_, record: AttendanceRecord) => {
-        // Chỉ hiển thị actions cho sinh viên pending
+        // Only show actions for pending students
         if (record.status !== 'pending') {
           return <Text type="secondary">-</Text>;
         }
@@ -299,7 +299,7 @@ const SessionDetailPage: React.FC = () => {
 
         return (
           <Space size="small">
-            <Tooltip title="Xác nhận có mặt">
+            <Tooltip title="Confirm present">
               <Button
                 type="primary"
                 size="small"
@@ -310,7 +310,7 @@ const SessionDetailPage: React.FC = () => {
                 style={{ backgroundColor: '#10b981', borderColor: '#10b981' }}
               />
             </Tooltip>
-            <Tooltip title="Đánh dấu vắng">
+            <Tooltip title="Mark absent">
               <Button
                 danger
                 size="small"
@@ -329,77 +329,77 @@ const SessionDetailPage: React.FC = () => {
   // Handle export Excel
   const handleExportExcel = async () => {
     if (!sessionData) {
-      message.error("Không có dữ liệu để xuất");
+      message.error("No data to export");
       return;
     }
 
     setExporting(true);
-    const loadingMsg = message.loading("Đang tạo file Excel...", 0);
+    const loadingMsg = message.loading("Creating Excel file...", 0);
 
     try {
-      // Delay nhỏ để UI kịp render loading state
+      // Small delay for UI to render loading state
       await new Promise(resolve => setTimeout(resolve, 100));
 
       const { session, records, statistics } = sessionData;
 
-      // Tạo dữ liệu cho Excel
+      // Create Excel data
       const excelData = [
-        // Header thông tin phiên
-        ["BẢNG ĐIỂM DANH"],
-        [`Phiên: ${session.session_name || `Phiên #${session.id}`}`],
-        [`Thời gian: ${dayjs(session.start_time).format("HH:mm - DD/MM/YYYY")}`],
-        [`Địa điểm: ${session.location || "Không xác định"}`],
+        // Session header info
+        ["ATTENDANCE SHEET"],
+        [`Session: ${session.session_name || `Session #${session.id}`}`],
+        [`Time: ${dayjs(session.start_time).format("HH:mm - DD/MM/YYYY")}`],
+        [`Location: ${session.location || "Not specified"}`],
         [],
-        // Thống kê
-        ["THỐNG KÊ"],
-        [`Tổng sinh viên: ${statistics.total_students}`],
-        [`Có mặt: ${statistics.present_count}`],
-        [`Chờ xác nhận: ${statistics.pending_count || 0}`],
-        [`Vắng: ${statistics.absent_count}`],
-        [`Có phép: ${statistics.excused_count}`],
-        [`Tỷ lệ: ${statistics.attendance_rate.toFixed(2)}%`],
+        // Statistics
+        ["STATISTICS"],
+        [`Total Students: ${statistics.total_students}`],
+        [`Present: ${statistics.present_count}`],
+        [`Pending: ${statistics.pending_count || 0}`],
+        [`Absent: ${statistics.absent_count}`],
+        [`Excused: ${statistics.excused_count}`],
+        [`Rate: ${statistics.attendance_rate.toFixed(2)}%`],
         [],
-        // Header bảng
-        ["STT", "Mã sinh viên", "Họ và tên", "Trạng thái", "Thời gian", "Ghi chú"]
+        // Table header
+        ["No.", "Student ID", "Full Name", "Status", "Time", "Notes"]
       ];
 
-      // Thêm dữ liệu sinh viên
+      // Add student data
       records.forEach((record, index) => {
         excelData.push([
           (index + 1).toString(),
           record.student_code,
           record.student_name,
           getStatusConfig(record.status).text,
-          record.recorded_at ? dayjs(record.recorded_at).format("HH:mm:ss - DD/MM/YYYY") : "Chưa điểm danh",
+          record.recorded_at ? dayjs(record.recorded_at).format("HH:mm:ss - DD/MM/YYYY") : "Not checked in",
           record.notes || "-"
         ]);
       });
 
-      // Tạo workbook và worksheet
+      // Create workbook and worksheet
       const ws = XLSX.utils.aoa_to_sheet(excelData);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Điểm danh");
+      XLSX.utils.book_append_sheet(wb, ws, "Attendance");
 
       // Styling (optional - set column widths)
       ws["!cols"] = [
-        { wch: 5 },  // STT
-        { wch: 15 }, // Mã SV
-        { wch: 25 }, // Tên
-        { wch: 12 }, // Trạng thái
-        { wch: 20 }, // Thời gian
-        { wch: 35 }  // Ghi chú
+        { wch: 5 },  // No.
+        { wch: 15 }, // Student ID
+        { wch: 25 }, // Name
+        { wch: 12 }, // Status
+        { wch: 20 }, // Time
+        { wch: 35 }  // Notes
       ];
 
-      // Xuất file
-      const fileName = `DiemDanh_${session.id}_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`;
+      // Export file
+      const fileName = `Attendance_${session.id}_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`;
       XLSX.writeFile(wb, fileName);
 
-      loadingMsg(); // Tắt loading message
-      message.success("Xuất Excel thành công!", 2);
+      loadingMsg(); // Close loading message
+      message.success("Excel exported successfully!", 2);
     } catch (error) {
-      loadingMsg(); // Tắt loading message
+      loadingMsg(); // Close loading message
       console.error("Export Excel error:", error);
-      message.error("Có lỗi khi xuất Excel");
+      message.error("Error exporting Excel");
     } finally {
       setExporting(false);
     }
@@ -408,8 +408,8 @@ const SessionDetailPage: React.FC = () => {
   // Breadcrumb
   const breadcrumbItems = [
     { title: "Dashboard", href: "/teacher" },
-    { title: "Quản lý lớp học", href: "/teacher/classes" },
-    { title: "Chi tiết phiên điểm danh" }
+    { title: "Class Management", href: "/teacher/classes" },
+    { title: "Attendance Session Details" }
   ];
 
   // Loading state
@@ -424,7 +424,7 @@ const SessionDetailPage: React.FC = () => {
           background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)"
         }}
       >
-        <Spin size="large" tip="Đang tải chi tiết phiên điểm danh..." />
+        <Spin size="large" tip="Loading attendance session details..." />
       </div>
     );
   }
@@ -442,7 +442,7 @@ const SessionDetailPage: React.FC = () => {
         <Breadcrumb items={breadcrumbItems} />
         <Card style={{ marginTop: 24, textAlign: "center" }}>
           <Empty
-            description={error || "Không tìm thấy dữ liệu"}
+            description={error || "Data not found"}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           >
             <Button 
@@ -457,7 +457,7 @@ const SessionDetailPage: React.FC = () => {
                 }
               }}
             >
-              Quay lại
+              Go Back
             </Button>
           </Empty>
         </Card>
@@ -496,7 +496,7 @@ const SessionDetailPage: React.FC = () => {
             }}
             size="large"
           >
-            Quay lại
+            Go Back
           </Button>
         </Space>
       </div>
@@ -510,25 +510,25 @@ const SessionDetailPage: React.FC = () => {
         }}
       >
         <Title level={3} style={{ marginBottom: 24 }}>
-          📋 {session.session_name || `Phiên điểm danh #${session.id}`}
+          📋 {session.session_name || `Attendance Session #${session.id}`}
         </Title>
 
         <Descriptions bordered column={{ xs: 1, sm: 2, md: 3 }}>
-          <Descriptions.Item label={<><CalendarOutlined /> Thời gian bắt đầu</>}>
+          <Descriptions.Item label={<><CalendarOutlined /> Start Time</>}>
             {dayjs(session.start_time).format("HH:mm - DD/MM/YYYY")}
           </Descriptions.Item>
-          <Descriptions.Item label={<><CalendarOutlined /> Thời gian kết thúc</>}>
+          <Descriptions.Item label={<><CalendarOutlined /> End Time</>}>
             {session.end_time
               ? dayjs(session.end_time).format("HH:mm - DD/MM/YYYY")
-              : "Đang diễn ra"}
+              : "Ongoing"}
           </Descriptions.Item>
-          <Descriptions.Item label="Trạng thái">
+          <Descriptions.Item label="Status">
             <Tag color={session.status === "finished" ? "success" : "processing"}>
-              {session.status === "finished" ? "Đã kết thúc" : "Đang diễn ra"}
+              {session.status === "finished" ? "Finished" : "Ongoing"}
             </Tag>
           </Descriptions.Item>
           {session.location && (
-            <Descriptions.Item label={<><EnvironmentOutlined /> Địa điểm</>} span={2}>
+            <Descriptions.Item label={<><EnvironmentOutlined /> Location</>} span={2}>
               {session.location}
             </Descriptions.Item>
           )}
@@ -540,7 +540,7 @@ const SessionDetailPage: React.FC = () => {
         <Col xs={24} sm={12} md={6} lg={4.8}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
-              title="Tổng sinh viên"
+              title="Total Students"
               value={statistics.total_students}
               prefix={<UserOutlined />}
               valueStyle={{ color: "#2563eb" }}
@@ -550,7 +550,7 @@ const SessionDetailPage: React.FC = () => {
         <Col xs={24} sm={12} md={6} lg={4.8}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
-              title="Có mặt"
+              title="Present"
               value={statistics.present_count}
               prefix={<CheckCircleOutlined />}
               valueStyle={{ color: "#10b981" }}
@@ -560,7 +560,7 @@ const SessionDetailPage: React.FC = () => {
         <Col xs={24} sm={12} md={6} lg={4.8}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
-              title="Chờ xác nhận"
+              title="Pending"
               value={statistics.pending_count || 0}
               prefix={<ClockCircleOutlined />}
               valueStyle={{ color: "#faad14" }}
@@ -570,7 +570,7 @@ const SessionDetailPage: React.FC = () => {
         <Col xs={24} sm={12} md={6} lg={4.8}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
-              title="Vắng"
+              title="Absent"
               value={statistics.absent_count}
               prefix={<CloseCircleOutlined />}
               valueStyle={{ color: "#ef4444" }}
@@ -580,7 +580,7 @@ const SessionDetailPage: React.FC = () => {
         <Col xs={24} sm={12} md={6} lg={4.8}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
-              title="Có phép"
+              title="Excused"
               value={statistics.excused_count || 0}
               prefix={<CheckCircleOutlined />}
               valueStyle={{ color: "#8b5cf6" }}
@@ -594,7 +594,7 @@ const SessionDetailPage: React.FC = () => {
         <Row align="middle" gutter={24}>
           <Col flex="auto">
             <Title level={4} style={{ marginBottom: 8 }}>
-              Tỷ lệ điểm danh
+              Attendance Rate
             </Title>
             <Progress
               percent={statistics.attendance_rate}
@@ -620,11 +620,11 @@ const SessionDetailPage: React.FC = () => {
 
       {/* Attendance Table */}
       <Card
-        title="📊 Danh sách điểm danh chi tiết"
+        title="📊 Detailed Attendance List"
         style={{ borderRadius: 16, boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
         extra={
           <Space>
-            {/* Hiển thị nút "Xác nhận tất cả" nếu có sinh viên pending */}
+            {/* Show "Confirm All" button if there are pending students */}
             {sessionData && (sessionData.statistics.pending_count || 0) > 0 && (
               <Button
                 type="default"
@@ -638,7 +638,7 @@ const SessionDetailPage: React.FC = () => {
                   color: '#fff'
                 }}
               >
-                Xác nhận tất cả ({sessionData.statistics.pending_count})
+                Confirm All ({sessionData.statistics.pending_count})
               </Button>
             )}
             <Button
@@ -654,7 +654,7 @@ const SessionDetailPage: React.FC = () => {
                 border: "none"
               }}
             >
-              {exporting ? "Đang xuất..." : "Xuất Excel"}
+              {exporting ? "Exporting..." : "Export Excel"}
             </Button>
           </Space>
         }
@@ -665,7 +665,7 @@ const SessionDetailPage: React.FC = () => {
           rowKey="id"
           pagination={{
             pageSize: 15,
-            showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} sinh viên`,
+            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} students`,
             showSizeChanger: true,
             pageSizeOptions: ["10", "15", "20", "50"]
           }}

@@ -100,7 +100,7 @@ const TeacherClassPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Failed to fetch classes:', error);
-      message.error('Không thể tải danh sách lớp học');
+      message.error('Failed to load class list');
     } finally {
       setLoading(false);
     }
@@ -150,15 +150,15 @@ const TeacherClassPage: React.FC = () => {
   };
 
   const breadcrumbItems = [
-    { title: "Trang chủ", href: "/teacher" },
-    { title: "Lớp học" }
+    { title: "Home", href: "/teacher" },
+    { title: "Classes" }
   ];
 
   const weekDays = [
-    { key: 1, name: 'Thứ 2' }, { key: 2, name: 'Thứ 3' },
-    { key: 3, name: 'Thứ 4' }, { key: 4, name: 'Thứ 5' },
-    { key: 5, name: 'Thứ 6' }, { key: 6, name: 'Thứ 7' },
-    { key: 7, name: 'Chủ nhật' }
+    { key: 1, name: 'Monday' }, { key: 2, name: 'Tuesday' },
+    { key: 3, name: 'Wednesday' }, { key: 4, name: 'Thursday' },
+    { key: 5, name: 'Friday' }, { key: 6, name: 'Saturday' },
+    { key: 7, name: 'Sunday' }
   ];
 
   const getClassStatus = (classItem: ClassSession) => {
@@ -177,12 +177,12 @@ const TeacherClassPage: React.FC = () => {
 
   const getStatusConfig = (status: string) => {
     const configs: Record<string, { color: string; text: string }> = {
-      upcoming: { color: '#3b82f6', text: 'Sắp diễn ra' },
-      ongoing: { color: '#10b981', text: 'Đang diễn ra' },
-      completed: { color: '#64748b', text: 'Đã kết thúc' },
-      cancelled: { color: '#ef4444', text: 'Đã hủy' }
+      upcoming: { color: '#3b82f6', text: 'Upcoming' },
+      ongoing: { color: '#10b981', text: 'Ongoing' },
+      completed: { color: '#64748b', text: 'Completed' },
+      cancelled: { color: '#ef4444', text: 'Cancelled' }
     };
-    return configs[status] || { color: '#64748b', text: 'Không xác định' };
+    return configs[status] || { color: '#64748b', text: 'Unknown' };
   };
 
   // ✅ Memoize để tránh re-render không cần thiết
@@ -227,23 +227,23 @@ const TeacherClassPage: React.FC = () => {
     return slots;
   };
 
-  const formatPeriod = (period: string) => `Tiết ${period}`;
+  const formatPeriod = (period: string) => `Period ${period}`;
 
   const TimelineView = () => {
     if (loading) {
       return (
         <div style={{ textAlign: 'center', padding: 48 }}>
           <Spin size="large" />
-          <Text type="secondary" style={{ marginTop: 16 }}>Đang tải...</Text>
+          <Text type="secondary" style={{ marginTop: 16 }}>Loading...</Text>
         </div>
       );
     }
 
     if (classes.length === 0) {
       return (
-        <Empty description="Chưa có lớp học nào" image={Empty.PRESENTED_IMAGE_SIMPLE}>
+        <Empty description="No classes yet" image={Empty.PRESENTED_IMAGE_SIMPLE}>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/teacher/classes/create')}>
-            Tạo lớp học đầu tiên
+            Create First Class
           </Button>
         </Empty>
       );
@@ -268,7 +268,7 @@ const TeacherClassPage: React.FC = () => {
                       <Text strong style={{ color: isToday ? '#10b981' : '#374151', fontSize: 14 }}>
                         {day.name}
                       </Text>
-                      {isToday && <Tag color="#10b981">Hôm nay</Tag>}
+                      {isToday && <Tag color="#10b981">Today</Tag>}
                       <Text type="secondary" style={{ fontSize: 12 }}>({dayClasses.length})</Text>
                     </Space>
                   }
@@ -324,10 +324,10 @@ const TeacherClassPage: React.FC = () => {
                                       <BookOutlined /> {formatPeriod(cls.periods)}
                                     </Text>
                                     <Text type="secondary" style={{ fontSize: 11 }}>
-                                      <EnvironmentOutlined /> Phòng {cls.room}
+                                      <EnvironmentOutlined /> Room {cls.room}
                                     </Text>
                                     <Text type="secondary" style={{ fontSize: 11 }}>
-                                      <UserOutlined /> {cls.studentCount} SV
+                                      <UserOutlined /> {cls.studentCount} students
                                     </Text>
                                   </Space>
                                 </Space>
@@ -339,7 +339,7 @@ const TeacherClassPage: React.FC = () => {
                             marginTop: 8, padding: 8, background: '#f9fafb',
                             borderRadius: 6, border: '1px dashed #d1d5db'
                           }}>
-                            <Text type="secondary" style={{ fontSize: 11 }}>Trống</Text>
+                            <Text type="secondary" style={{ fontSize: 11 }}>Empty</Text>
                           </div>
                         )}
                       </div>
@@ -463,13 +463,13 @@ const TeacherClassPage: React.FC = () => {
       <div className="class-page-header" style={{ display: "flex", justifyContent: "space-between", marginBottom: 24 }}>
         <div className="class-page-header-content" style={{ flex: 1 }}>
           <Title level={1} className="class-page-title" style={{ margin: 0, marginBottom: 8, color: "#2563eb", fontSize: 36, fontWeight: 700 }}>
-            📚 Quản lý lớp học
+            📚 Class Management
           </Title>
           <Text className="class-page-subtitle" style={{ fontSize: 16, color: "#64748b", display: "block" }}>
-            Quản lý lịch học và thông tin các lớp học
+            Manage class schedules and information
           </Text>
           <Text className="class-page-time" style={{ fontSize: 13, color: "#10b981", fontWeight: 500, display: "block", marginTop: 8 }}>
-            🕐 Hiện tại: {currentTime.format('dddd, DD/MM/YYYY HH:mm')}
+            🕐 Current: {currentTime.format('dddd, DD/MM/YYYY HH:mm')}
           </Text>
         </div>
 
@@ -487,7 +487,7 @@ const TeacherClassPage: React.FC = () => {
                 height: 44
               }}
             >
-              Tạo lớp mới
+              Create New Class
             </Button>
             
             <Select
@@ -496,9 +496,9 @@ const TeacherClassPage: React.FC = () => {
               style={{ width: 150 }} 
               size="large"
             >
-              <Select.Option value="all">Tất cả</Select.Option>
-              <Select.Option value="active">Đang hoạt động</Select.Option>
-              <Select.Option value="inactive">Đã tắt</Select.Option>
+              <Select.Option value="all">All</Select.Option>
+              <Select.Option value="active">Active</Select.Option>
+              <Select.Option value="inactive">Inactive</Select.Option>
             </Select>
           </Space>
         </div>
@@ -507,25 +507,25 @@ const TeacherClassPage: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
-            <Statistic title="Tổng lớp học" value={statistics.total} prefix={<BookOutlined />} 
+            <Statistic title="Total Classes" value={statistics.total} prefix={<BookOutlined />} 
               valueStyle={{ color: '#2563eb', fontSize: 24 }} />
           </Card>
         </Col>
         <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
-            <Statistic title="Đang diễn ra" value={statistics.ongoing} prefix={<ClockCircleOutlined />}
+            <Statistic title="Ongoing" value={statistics.ongoing} prefix={<ClockCircleOutlined />}
               valueStyle={{ color: '#10b981', fontSize: 24 }} />
           </Card>
         </Col>
         <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
-            <Statistic title="Sắp diễn ra" value={statistics.upcoming} prefix={<CalendarOutlined />}
+            <Statistic title="Upcoming" value={statistics.upcoming} prefix={<CalendarOutlined />}
               valueStyle={{ color: '#f59e0b', fontSize: 24 }} />
           </Card>
         </Col>
         <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
-            <Statistic title="TB SV/lớp" value={statistics.avgStudents}
+            <Statistic title="Avg Students/Class" value={statistics.avgStudents}
               prefix={<Avatar size="small" icon={<UserOutlined />} />}
               valueStyle={{ color: '#8b5cf6', fontSize: 24 }} />
           </Card>

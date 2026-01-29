@@ -19,12 +19,12 @@ const NotFound: React.FC = () => {
       <Result
         status="404"
         title="404"
-        subTitle="Xin lỗi, trang bạn tìm kiếm không tồn tại."
+        subTitle="Sorry, the page you are looking for does not exist."
         extra={
           <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-            <Button onClick={() => navigate(-1)}>Quay lại</Button>
+            <Button onClick={() => navigate(-1)}>Go Back</Button>
             <Button type="primary" icon={<HomeOutlined />} onClick={() => navigate("/")}>
-              Về trang chủ
+              Go to Home
             </Button>
           </div>
         }

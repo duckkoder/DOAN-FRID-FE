@@ -1,6 +1,6 @@
 /**
  * Pending Confirmation Panel Component
- * Hiển thị danh sách sinh viên chờ xác nhận và cho phép giáo viên xác nhận/từ chối
+ * Displays list of students awaiting confirmation and allows teachers to confirm/reject
  * (Hybrid Approach - Realtime + After Session)
  */
 import React, { useState, useEffect } from 'react';
@@ -67,7 +67,7 @@ const PendingConfirmationPanel: React.FC<PendingConfirmationPanelProps> = ({
       setPendingStudents(response.students);
     } catch (error: any) {
       console.error('[PendingPanel] Failed to fetch pending students:', error);
-      message.error(error.response?.data?.detail || 'Không thể tải danh sách sinh viên chờ xác nhận');
+      message.error(error.response?.data?.detail || 'Cannot load pending confirmation list');
     } finally {
       setLoading(false);
     }
@@ -116,7 +116,7 @@ const PendingConfirmationPanel: React.FC<PendingConfirmationPanelProps> = ({
       
       await confirmAttendance(recordId);
       
-      message.success(`Đã xác nhận điểm danh cho ${studentName}`);
+      message.success(`Confirmed attendance for ${studentName}`);
       
       // Remove từ danh sách pending
       setPendingStudents((prev) => prev.filter((s) => s.record_id !== recordId));
@@ -125,7 +125,7 @@ const PendingConfirmationPanel: React.FC<PendingConfirmationPanelProps> = ({
       onConfirmed?.();
     } catch (error: any) {
       console.error('[PendingPanel] Confirm failed:', error);
-      message.error(error.response?.data?.detail || 'Không thể xác nhận điểm danh');
+      message.error(error.response?.data?.detail || 'Cannot confirm attendance');
     } finally {
       setConfirmingIds((prev) => {
         const next = new Set(prev);
@@ -143,10 +143,10 @@ const PendingConfirmationPanel: React.FC<PendingConfirmationPanelProps> = ({
       setRejectingIds((prev) => new Set(prev).add(recordId));
       
       await rejectAttendance(recordId, {
-        reason: 'Giáo viên xác nhận nhận diện sai',
+        reason: 'Teacher confirmed incorrect recognition',
       });
       
-      message.success(`Đã từ chối điểm danh cho ${studentName}`);
+      message.success(`Rejected attendance for ${studentName}`);
       
       // Remove từ danh sách pending
       setPendingStudents((prev) => prev.filter((s) => s.record_id !== recordId));
@@ -155,7 +155,7 @@ const PendingConfirmationPanel: React.FC<PendingConfirmationPanelProps> = ({
       onConfirmed?.();
     } catch (error: any) {
       console.error('[PendingPanel] Reject failed:', error);
-      message.error(error.response?.data?.detail || 'Không thể từ chối điểm danh');
+      message.error(error.response?.data?.detail || 'Cannot reject attendance');
     } finally {
       setRejectingIds((prev) => {
         const next = new Set(prev);
@@ -176,7 +176,7 @@ const PendingConfirmationPanel: React.FC<PendingConfirmationPanelProps> = ({
       
       const response = await confirmAllPending(sessionId);
       
-      message.success(`Đã xác nhận ${response.confirmed_count} sinh viên`);
+      message.success(`Confirmed ${response.confirmed_count} students`);
       
       // Clear danh sách pending
       setPendingStudents([]);
@@ -185,7 +185,7 @@ const PendingConfirmationPanel: React.FC<PendingConfirmationPanelProps> = ({
       onConfirmed?.();
     } catch (error: any) {
       console.error('[PendingPanel] Confirm all failed:', error);
-      message.error(error.response?.data?.detail || 'Không thể xác nhận tất cả');
+      message.error(error.response?.data?.detail || 'Cannot confirm all');
     } finally {
       setConfirmingAll(false);
     }
@@ -196,7 +196,7 @@ const PendingConfirmationPanel: React.FC<PendingConfirmationPanelProps> = ({
       title={
         <Space>
           <ClockCircleOutlined style={{ color: '#faad14' }} />
-          <span>Chờ xác nhận</span>
+          <span>Pending Confirmation</span>
           <Badge 
             count={pendingStudents.length} 
             showZero 
@@ -216,11 +216,11 @@ const PendingConfirmationPanel: React.FC<PendingConfirmationPanelProps> = ({
       extra={
         pendingStudents.length > 0 && (
           <Popconfirm
-            title="Xác nhận tất cả"
-            description={`Bạn có chắc muốn xác nhận tất cả ${pendingStudents.length} sinh viên?`}
+            title="Confirm all"
+            description={`Are you sure you want to confirm all ${pendingStudents.length} students?`}
             onConfirm={handleConfirmAll}
-            okText="Xác nhận"
-            cancelText="Hủy"
+            okText="Confirm"
+            cancelText="Cancel"
             icon={<ExclamationCircleOutlined style={{ color: '#faad14' }} />}
           >
             <Button 
@@ -228,7 +228,7 @@ const PendingConfirmationPanel: React.FC<PendingConfirmationPanelProps> = ({
               size="small"
               loading={confirmingAll}
             >
-              Xác nhận tất cả
+              Confirm All
             </Button>
           </Popconfirm>
         )
@@ -238,20 +238,20 @@ const PendingConfirmationPanel: React.FC<PendingConfirmationPanelProps> = ({
         <div style={{ textAlign: 'center', padding: '40px 0' }}>
           <Spin size="large" />
           <div style={{ marginTop: 16 }}>
-            <Text type="secondary">Đang tải...</Text>
+            <Text type="secondary">Loading...</Text>
           </div>
         </div>
       ) : pendingStudents.length === 0 ? (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="Không có sinh viên chờ xác nhận"
+          description="No students pending confirmation"
           style={{ marginTop: 60 }}
         />
       ) : (
         <>
           <div style={{ marginBottom: 16 }}>
             <Text type="secondary">
-              {pendingStudents.length} sinh viên cần xác nhận do độ chính xác nhận diện thấp
+              {pendingStudents.length} students need confirmation due to low recognition accuracy
             </Text>
           </div>
 
@@ -292,7 +292,7 @@ const PendingConfirmationPanel: React.FC<PendingConfirmationPanelProps> = ({
                         </Tag>
                       )}
                       <Text type="secondary" style={{ fontSize: 11 }}>
-                        {new Date(student.recorded_at).toLocaleString('vi-VN')}
+                        {new Date(student.recorded_at).toLocaleString('en-US')}
                       </Text>
                     </Space>
                   }
@@ -307,14 +307,14 @@ const PendingConfirmationPanel: React.FC<PendingConfirmationPanelProps> = ({
                     disabled={rejectingIds.has(student.record_id)}
                     style={{ width: '100%' }}
                   >
-                    Xác nhận
+                    Confirm
                   </Button>
                   <Popconfirm
-                    title="Từ chối điểm danh"
-                    description="Sinh viên sẽ được đánh dấu vắng"
+                    title="Reject Attendance"
+                    description="Student will be marked as absent"
                     onConfirm={() => handleReject(student.record_id, student.full_name)}
-                    okText="Từ chối"
-                    cancelText="Hủy"
+                    okText="Reject"
+                    cancelText="Cancel"
                     okButtonProps={{ danger: true }}
                   >
                     <Button
@@ -325,7 +325,7 @@ const PendingConfirmationPanel: React.FC<PendingConfirmationPanelProps> = ({
                       disabled={confirmingIds.has(student.record_id)}
                       style={{ width: '100%' }}
                     >
-                      Từ chối
+                      Reject
                     </Button>
                   </Popconfirm>
                 </Space>

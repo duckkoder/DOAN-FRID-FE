@@ -136,11 +136,11 @@ const AdminTeacherPage: React.FC = () => {
       const response = await uploadAvatar(file);
       setAvatarUrl(response.data.url || "");
       
-      message.success("Upload ảnh đại diện thành công!");
+      message.success("Avatar uploaded successfully!");
       return true;
     } catch (error: any) {
       console.error("Error uploading avatar:", error);
-      message.error(error?.response?.data?.detail || "Không thể upload ảnh");
+      message.error(error?.response?.data?.detail || "Cannot upload image");
       return false;
     } finally {
       setAvatarUploading(false);
@@ -179,7 +179,7 @@ const AdminTeacherPage: React.FC = () => {
     } catch (error: any) {
       console.error("Error fetching teachers:", error);
       message.error(
-        error?.response?.data?.detail || "Không thể tải danh sách giáo viên"
+        error?.response?.data?.detail || "Cannot load teachers list"
       );
     } finally {
       setLoading(false);
@@ -318,7 +318,7 @@ const AdminTeacherPage: React.FC = () => {
       };
 
       await createTeacher(createData);
-      message.success("Tạo tài khoản giáo viên thành công!");
+      message.success("Teacher account created successfully!");
       handleModalCancel();
       fetchTeachers();
     } catch (error: any) {
@@ -331,13 +331,13 @@ const AdminTeacherPage: React.FC = () => {
         form.setFields([
           {
             name: "email",
-            errors: ["Email này đã được đăng ký. Vui lòng sử dụng email khác."],
+            errors: ["This email is already registered. Please use a different email."],
           },
         ]);
       } else {
         // Show general error message
         message.error(
-          errorDetail || "Không thể tạo tài khoản giáo viên"
+          errorDetail || "Cannot create teacher account"
         );
       }
     } finally {
@@ -359,13 +359,13 @@ const AdminTeacherPage: React.FC = () => {
       };
 
       await updateTeacher(editingTeacher.id, updateData);
-      message.success("Cập nhật thông tin giáo viên thành công!");
+      message.success("Teacher information updated successfully!");
       handleModalCancel();
       fetchTeachers();
     } catch (error: any) {
       console.error("Error updating teacher:", error);
       message.error(
-        error?.response?.data?.detail || "Không thể cập nhật thông tin giáo viên"
+        error?.response?.data?.detail || "Cannot update teacher information"
       );
     } finally {
       setLoading(false);
@@ -376,12 +376,12 @@ const AdminTeacherPage: React.FC = () => {
     try {
       setLoading(true);
       await deleteTeacher(teacherId);
-      message.success("Vô hiệu hóa tài khoản giáo viên thành công!");
+      message.success("Teacher account deactivated successfully!");
       fetchTeachers();
     } catch (error: any) {
       console.error("Error deleting teacher:", error);
       message.error(
-        error?.response?.data?.detail || "Không thể vô hiệu hóa tài khoản"
+        error?.response?.data?.detail || "Cannot deactivate account"
       );
     } finally {
       setLoading(false);
@@ -439,7 +439,7 @@ const AdminTeacherPage: React.FC = () => {
       fixed: "left",
     },
     {
-      title: "Ảnh",
+      title: "Photo",
       dataIndex: "avatar_url",
       key: "avatar_url",
       width: 70,
@@ -454,7 +454,7 @@ const AdminTeacherPage: React.FC = () => {
       ),
     },
     {
-      title: "Họ và tên",
+      title: "Full Name",
       dataIndex: "full_name",
       key: "full_name",
       width: 200,
@@ -468,7 +468,7 @@ const AdminTeacherPage: React.FC = () => {
       ellipsis: true,
     },
     {
-      title: "Khoa",
+      title: "Department",
       dataIndex: "department",
       key: "department",
       width: 200,
@@ -476,7 +476,7 @@ const AdminTeacherPage: React.FC = () => {
       render: (text) => text || "-",
     },
     {
-      title: "Trạng thái",
+      title: "Status",
       dataIndex: "is_active",
       key: "is_active",
       width: 130,
@@ -499,15 +499,15 @@ const AdminTeacherPage: React.FC = () => {
       {/* Breadcrumb */}
       <Breadcrumb
         items={[
-          { title: "Trang chủ", href: "/admin" },
-          { title: "Quản lý giáo viên" },
+          { title: "Home", href: "/admin" },
+          { title: "Teachers Management" },
         ]}
       />
 
       {/* Page Title */}
       <Title level={2} style={{ marginTop: 16, marginBottom: 24 }}>
         <UserOutlined style={{ marginRight: 8 }} />
-        Quản lý giáo viên
+        Teachers Management
       </Title>
 
       {/* Statistics Cards */}
@@ -515,7 +515,7 @@ const AdminTeacherPage: React.FC = () => {
         <Col xs={24} sm={8}>
           <Card>
             <Statistic
-              title="Tổng số giáo viên"
+              title="Total Teachers"
               value={stats.total}
               valueStyle={{ color: "#1890ff" }}
               prefix={<UserOutlined />}
@@ -525,7 +525,7 @@ const AdminTeacherPage: React.FC = () => {
         <Col xs={24} sm={8}>
           <Card>
             <Statistic
-              title="Đang hoạt động"
+              title="Active"
               value={stats.active}
               valueStyle={{ color: "#52c41a" }}
               prefix={<CheckCircleOutlined />}
@@ -535,7 +535,7 @@ const AdminTeacherPage: React.FC = () => {
         <Col xs={24} sm={8}>
           <Card>
             <Statistic
-              title="Không hoạt động"
+              title="Inactive"
               value={stats.inactive}
               valueStyle={{ color: "#ff4d4f" }}
               prefix={<CloseCircleOutlined />}
@@ -550,7 +550,7 @@ const AdminTeacherPage: React.FC = () => {
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           <Col xs={24} sm={24} md={8} lg={6}>
             <Input
-              placeholder="Tìm theo tên, email, mã GV"
+              placeholder="Search by name, email, teacher ID"
               prefix={<SearchOutlined />}
               allowClear
               value={searchText}
@@ -559,7 +559,7 @@ const AdminTeacherPage: React.FC = () => {
           </Col>
           <Col xs={12} sm={12} md={6} lg={5}>
             <Select
-              placeholder="Lọc theo khoa"
+              placeholder="Filter by department"
               style={{ width: "100%" }}
               allowClear
               value={selectedDepartment}
@@ -574,33 +574,33 @@ const AdminTeacherPage: React.FC = () => {
           </Col>
           <Col xs={12} sm={12} md={6} lg={5}>
             <Select
-              placeholder="Lọc theo trạng thái"
+              placeholder="Filter by status"
               style={{ width: "100%" }}
               allowClear
               value={selectedStatus}
               onChange={handleStatusFilterChange}
             >
-              <Option value={true}>Hoạt động</Option>
-              <Option value={false}>Không hoạt động</Option>
+              <Option value={true}>Active</Option>
+              <Option value={false}>Inactive</Option>
             </Select>
           </Col>
           <Col xs={24} sm={24} md={4} lg={8} style={{ textAlign: "right" }}>
             <Space wrap>
               <Button icon={<ReloadOutlined />} onClick={handleReset}>
-                Làm mới
+                Refresh
               </Button>
               <Button
                 icon={<UploadOutlined />}
                 onClick={() => setIsCSVImportModalOpen(true)}
               >
-                Nhập CSV
+                Import CSV
               </Button>
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
                 onClick={showCreateModal}
               >
-                Thêm giáo viên
+                Add Teacher
               </Button>
             </Space>
           </Col>
@@ -619,7 +619,7 @@ const AdminTeacherPage: React.FC = () => {
             pageSize: pagination.pageSize,
             total: pagination.total,
             showSizeChanger: true,
-            showTotal: (total) => `Tổng ${total} giáo viên`,
+            showTotal: (total) => `Total ${total} teachers`,
             pageSizeOptions: ["10", "20", "50", "100"],
             responsive: true,
           }}
@@ -636,15 +636,15 @@ const AdminTeacherPage: React.FC = () => {
       {/* Create/Edit Modal */}
       <Modal
         title={
-          editingTeacher ? "Chỉnh sửa giáo viên" : "Thêm giáo viên mới"
+          editingTeacher ? "Edit Teacher" : "Add New Teacher"
         }
         open={isModalOpen}
         onOk={handleModalSubmit}
         onCancel={handleModalCancel}
         confirmLoading={loading}
         width={600}
-        okText={editingTeacher ? "Cập nhật" : "Tạo mới"}
-        cancelText="Hủy"
+        okText={editingTeacher ? "Update" : "Create"}
+        cancelText="Cancel"
       >
         <Form
           form={form}
@@ -653,15 +653,15 @@ const AdminTeacherPage: React.FC = () => {
         >
           {/* Full Name */}
           <Form.Item
-            label="Họ và tên"
+            label="Full Name"
             name="full_name"
             rules={[
-              { required: true, message: "Vui lòng nhập họ và tên!" },
-              { min: 2, message: "Họ tên phải có ít nhất 2 ký tự" },
+              { required: true, message: "Please enter full name!" },
+              { min: 2, message: "Name must be at least 2 characters" },
             ]}
           >
             <Input
-              placeholder="Nguyễn Văn A"
+              placeholder="John Doe"
               disabled={!!editingTeacher}
             />
           </Form.Item>
@@ -670,16 +670,16 @@ const AdminTeacherPage: React.FC = () => {
             <Col xs={24} sm={12}>
               {/* Email */}
               <Form.Item
-                label="Email (tên đăng nhập)"
+                label="Email (username)"
                 name="email"
                 rules={[
-                  { required: true, message: "Vui lòng nhập email!" },
+                  { required: true, message: "Please enter email!" },
                   {
                     pattern: /^[a-zA-Z0-9._%+-]+$/,
-                    message: "Email không hợp lệ!",
+                    message: "Invalid email format!",
                   },
                 ]}
-                tooltip="Nhập phần trước @. Hệ thống tự động thêm @dut.udn.vn"
+                tooltip="Enter the part before @. System will add @dut.udn.vn automatically"
               >
                 <Input
                   placeholder="ten.giaovien"
@@ -693,11 +693,11 @@ const AdminTeacherPage: React.FC = () => {
           {/* Password (only for create) */}
           {!editingTeacher && (
             <Form.Item
-              label="Mật khẩu"
+              label="Password"
               name="password"
               rules={[
-                { required: true, message: "Vui lòng nhập mật khẩu!" },
-                { min: 8, message: "Mật khẩu phải có ít nhất 8 ký tự" },
+                { required: true, message: "Please enter password!" },
+                { min: 8, message: "Password must be at least 8 characters" },
                 {
                   validator: (_, value) => {
                     if (!value) return Promise.resolve();
@@ -712,7 +712,7 @@ const AdminTeacherPage: React.FC = () => {
               extra={<PasswordRequirements password={passwordValue} />}
             >
               <Input.Password 
-                placeholder="Nhập mật khẩu"
+                placeholder="Enter password"
                 onChange={(e) => setPasswordValue(e.target.value)}
               />
             </Form.Item>
@@ -722,12 +722,12 @@ const AdminTeacherPage: React.FC = () => {
             <Col xs={24} sm={12}>
               {/* Department */}
               <Form.Item
-                label="Khoa"
+                label="Department"
                 name="department_id"
-                rules={[{ required: true, message: "Vui lòng chọn khoa!" }]}
+                rules={[{ required: true, message: "Please select department!" }]}
               >
                 <Select
-                  placeholder="Chọn khoa"
+                  placeholder="Select department"
                   onChange={handleDepartmentChange}
                   showSearch
                   optionFilterProp="children"
@@ -743,11 +743,11 @@ const AdminTeacherPage: React.FC = () => {
             <Col xs={24} sm={12}>
               {/* Specialization */}
               <Form.Item
-                label="Chuyên ngành"
+                label="Specialization"
                 name="specialization_id"
               >
                 <Select
-                  placeholder="Chọn chuyên ngành"
+                  placeholder="Select specialization"
                   allowClear
                   showSearch
                   optionFilterProp="children"
@@ -767,12 +767,12 @@ const AdminTeacherPage: React.FC = () => {
             <Col xs={24} sm={12}>
               {/* Phone */}
               <Form.Item
-                label="Số điện thoại"
+                label="Phone Number"
                 name="phone"
                 rules={[
                   {
                     pattern: /^[0-9]{10,11}$/,
-                    message: "SĐT phải có 10-11 chữ số",
+                    message: "Phone must be 10-11 digits",
                   },
                 ]}
               >
@@ -783,14 +783,14 @@ const AdminTeacherPage: React.FC = () => {
               <Col xs={24} sm={12}>
                 {/* Active Status (only for edit) */}
                 <Form.Item
-                  label="Trạng thái"
+                  label="Status"
                   name="is_active"
                   valuePropName="checked"
                   initialValue={true}
                 >
                   <Select>
-                    <Option value={true}>Hoạt động</Option>
-                    <Option value={false}>Không hoạt động</Option>
+                    <Option value={true}>Active</Option>
+                    <Option value={false}>Inactive</Option>
                   </Select>
                 </Form.Item>
               </Col>
@@ -798,7 +798,7 @@ const AdminTeacherPage: React.FC = () => {
           </Row>
 
           {/* Avatar Upload */}
-          <Form.Item label="Ảnh đại diện">
+          <Form.Item label="Avatar">
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               {avatarUrl ? (
                 <Avatar
@@ -828,7 +828,7 @@ const AdminTeacherPage: React.FC = () => {
                   loading={avatarUploading}
                   disabled={avatarUploading}
                 >
-                  {avatarUrl ? "Thay đổi ảnh" : "Chọn ảnh đại diện"}
+                  {avatarUrl ? "Change Photo" : "Select Avatar"}
                 </Button>
               </Upload>
               {avatarUrl && (
@@ -839,12 +839,12 @@ const AdminTeacherPage: React.FC = () => {
                     setAvatarUrl("");
                   }}
                 >
-                  Xóa ảnh
+                  Remove Photo
                 </Button>
               )}
             </div>
             <div style={{ marginTop: 8, fontSize: 12, color: "#888" }}>
-              Chấp nhận: JPG, PNG, GIF. Kích thước tối đa: 5MB
+              Accepted: JPG, PNG, GIF. Max size: 5MB
             </div>
           </Form.Item>
         </Form>
@@ -855,7 +855,7 @@ const AdminTeacherPage: React.FC = () => {
         title={
           <Space>
             <UserOutlined />
-            <span>Thông tin chi tiết giáo viên</span>
+            <span>Teacher Details</span>
           </Space>
         }
         open={isDetailModalOpen}
@@ -899,7 +899,7 @@ const AdminTeacherPage: React.FC = () => {
                     <Text strong>Email:</Text> {viewingTeacher.email}
                   </div>
                   <div>
-                    <Text strong>Số điện thoại:</Text>{" "}
+                    <Text strong>Phone:</Text>{" "}
                     {viewingTeacher.phone || "-"}
                   </div>
                 </Space>
@@ -911,12 +911,12 @@ const AdminTeacherPage: React.FC = () => {
             {/* Department and Specialization */}
             <Row gutter={[16, 16]}>
               <Col xs={24} sm={12}>
-                <Card size="small" title="Khoa">
+                <Card size="small" title="Department">
                   <Text>{viewingTeacher.department || "-"}</Text>
                 </Card>
               </Col>
               <Col xs={24} sm={12}>
-                <Card size="small" title="Chuyên ngành">
+                <Card size="small" title="Specialization">
                   <Text>{viewingTeacher.specialization || "-"}</Text>
                 </Card>
               </Col>
@@ -928,14 +928,14 @@ const AdminTeacherPage: React.FC = () => {
             <Row gutter={[16, 16]}>
               <Col xs={24} sm={12}>
                 <Text type="secondary">
-                  <strong>Ngày tạo:</strong>{" "}
-                  {new Date(viewingTeacher.created_at).toLocaleString("vi-VN")}
+                  <strong>Created:</strong>{" "}
+                  {new Date(viewingTeacher.created_at).toLocaleString("en-US")}
                 </Text>
               </Col>
               <Col xs={24} sm={12}>
                 <Text type="secondary">
-                  <strong>Cập nhật:</strong>{" "}
-                  {new Date(viewingTeacher.updated_at).toLocaleString("vi-VN")}
+                  <strong>Updated:</strong>{" "}
+                  {new Date(viewingTeacher.updated_at).toLocaleString("en-US")}
                 </Text>
               </Col>
             </Row>
@@ -949,33 +949,33 @@ const AdminTeacherPage: React.FC = () => {
                 icon={<EditOutlined />}
                 onClick={() => showEditModal(viewingTeacher)}
               >
-                Chỉnh sửa
+                Edit
               </Button>
               <Button
                 icon={<LockOutlined />}
                 onClick={() => showResetPasswordModal(viewingTeacher)}
               >
-                Đặt lại mật khẩu
+                Reset Password
               </Button>
               <Popconfirm
-                title="Vô hiệu hóa giáo viên"
-                description="Bạn có chắc muốn vô hiệu hóa tài khoản này?"
+                title="Deactivate Teacher"
+                description="Are you sure you want to deactivate this account?"
                 onConfirm={() => {
                   handleDeleteTeacher(viewingTeacher.id);
                   handleDetailModalCancel();
                 }}
-                okText="Có"
-                cancelText="Không"
+                okText="Yes"
+                cancelText="No"
               >
                 <Button
                   danger
                   icon={<DeleteOutlined />}
                   disabled={!viewingTeacher.is_active}
                 >
-                  Vô hiệu hóa
+                  Deactivate
                 </Button>
               </Popconfirm>
-              <Button onClick={handleDetailModalCancel}>Đóng</Button>
+              <Button onClick={handleDetailModalCancel}>Close</Button>
             </Space>
           </div>
         )}

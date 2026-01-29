@@ -180,7 +180,7 @@ export const getStatusColor = (isActive: boolean): string => {
  * Get status text for display
  */
 export const getStatusText = (isActive: boolean): string => {
-  return isActive ? "Hoạt động" : "Không hoạt động";
+  return isActive ? "Active" : "Inactive";
 };
 
 /**
@@ -194,7 +194,7 @@ export const getVerificationColor = (isVerified: boolean): string => {
  * Get verification status text
  */
 export const getVerificationText = (isVerified: boolean): string => {
-  return isVerified ? "Đã xác thực" : "Chưa xác thực";
+  return isVerified ? "Verified" : "Not Verified";
 };
 
 /**

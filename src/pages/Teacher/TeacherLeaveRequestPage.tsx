@@ -78,20 +78,20 @@ const TeacherLeaveRequestPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const breadcrumbItems = [
-    { title: "Trang chủ", href: "/teacher" },
-    { title: "Đơn xin nghỉ học" }
+    { title: "Home", href: "/teacher" },
+    { title: "Leave Requests" }
   ];
 
   // ✅ Convert English day to Vietnamese
   const convertDayToVietnamese = (englishDay: string): string => {
     const dayMap: { [key: string]: string } = {
-      'Monday': 'Thứ Hai',
-      'Tuesday': 'Thứ Ba', 
-      'Wednesday': 'Thứ Tư',
-      'Thursday': 'Thứ Năm',
-      'Friday': 'Thứ Sáu',
-      'Saturday': 'Thứ Bảy',
-      'Sunday': 'Chủ Nhật'
+      'Monday': 'Monday',
+      'Tuesday': 'Tuesday', 
+      'Wednesday': 'Wednesday',
+      'Thursday': 'Thursday',
+      'Friday': 'Friday',
+      'Saturday': 'Saturday',
+      'Sunday': 'Sunday'
     };
     return dayMap[englishDay] || englishDay;
   };
@@ -123,7 +123,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
       }
     } catch (err: unknown) {
       console.error('Failed to fetch leave requests:', err);
-      const errorMsg = (err as Error).message || 'Không thể tải danh sách đơn xin nghỉ';
+      const errorMsg = (err as Error).message || 'Could not load leave requests';
       setError(errorMsg);
       message.error(errorMsg);
     } finally {
@@ -150,13 +150,13 @@ const TeacherLeaveRequestPage: React.FC = () => {
   const getStatusConfig = (status: LeaveRequestStatus) => {
     switch(status) {
       case 'pending':
-        return { color: '#f59e42', text: 'Đang xử lý', icon: <ClockCircleOutlined /> };
+        return { color: '#f59e42', text: 'Pending', icon: <ClockCircleOutlined /> };
       case 'approved':
-        return { color: '#10b981', text: 'Đã duyệt', icon: <CheckCircleOutlined /> };
+        return { color: '#10b981', text: 'Approved', icon: <CheckCircleOutlined /> };
       case 'rejected':
-        return { color: '#ef4444', text: 'Từ chối', icon: <CloseCircleOutlined /> };
+        return { color: '#ef4444', text: 'Rejected', icon: <CloseCircleOutlined /> };
       default:
-        return { color: '#64748b', text: 'Không xác định', icon: <ClockCircleOutlined /> };
+        return { color: '#64748b', text: 'Unknown', icon: <ClockCircleOutlined /> };
     }
   };
 
@@ -176,14 +176,14 @@ const TeacherLeaveRequestPage: React.FC = () => {
       
       // Validate: từ chối phải có lý do
       if (action === 'reject' && !values.review_notes?.trim()) {
-        message.error('Vui lòng nhập lý do từ chối!');
+        message.error('Please enter a rejection reason!');
         return;
       }
 
       setSubmitting(true);
       
       message.loading({ 
-        content: action === 'approve' ? 'Đang duyệt đơn...' : 'Đang từ chối đơn...', 
+        content: action === 'approve' ? 'Approving request...' : 'Rejecting request...', 
         key: 'reviewRequest',
         duration: 0
       });
@@ -195,8 +195,8 @@ const TeacherLeaveRequestPage: React.FC = () => {
 
       message.success({ 
         content: action === 'approve' 
-          ? '✅ Đã duyệt đơn xin nghỉ thành công!' 
-          : '✅ Đã từ chối đơn xin nghỉ!',
+          ? '✅ Leave request approved successfully!' 
+          : '✅ Leave request rejected!',
         key: 'reviewRequest',
         duration: 3
       });
@@ -214,14 +214,14 @@ const TeacherLeaveRequestPage: React.FC = () => {
 
       console.error('Failed to review leave request:', err);
       
-      let errorMessage = 'Không thể xử lý đơn. Vui lòng thử lại!';
+      let errorMessage = 'Could not process request. Please try again!';
       
       const errorObj = err as Error;
       if (errorObj.message) {
         if (errorObj.message.includes('network') || errorObj.message.includes('timeout')) {
-          errorMessage = '⚠️ Lỗi kết nối mạng. Vui lòng kiểm tra và thử lại!';
+          errorMessage = '⚠️ Network error. Please check and try again!';
         } else if (errorObj.message.includes('401') || errorObj.message.includes('unauthorized')) {
-          errorMessage = '🔒 Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!';
+          errorMessage = '🔒 Session expired. Please login again!';
         } else {
           errorMessage = `❌ ${errorObj.message}`;
         }
@@ -240,7 +240,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
   // ✅ Handle batch review
   const handleOpenBatchModal = (action: 'approve' | 'reject') => {
     if (selectedRowKeys.length === 0) {
-      message.warning('Vui lòng chọn ít nhất một đơn để xử lý!');
+      message.warning('Please select at least one request to process!');
       return;
     }
 
@@ -255,7 +255,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
     
     try {
       message.loading({ 
-        content: `Đang xử lý ${selectedRowKeys.length} đơn...`, 
+        content: `Processing ${selectedRowKeys.length} requests...`, 
         key: 'batchReview',
         duration: 0
       });
@@ -270,13 +270,13 @@ const TeacherLeaveRequestPage: React.FC = () => {
 
       if (failedCount > 0) {
         message.warning({ 
-          content: `Đã xử lý ${successCount} đơn thành công, ${failedCount} đơn thất bại!`,
+          content: `Processed ${successCount} requests successfully, ${failedCount} failed!`,
           key: 'batchReview',
           duration: 5
         });
       } else {
         message.success({ 
-          content: `✅ Đã xử lý ${successCount} đơn thành công!`,
+          content: `✅ Processed ${successCount} requests successfully!`,
           key: 'batchReview',
           duration: 3
         });
@@ -291,7 +291,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
     } catch (err: unknown) {
       console.error('Failed to batch review:', err);
       message.error({ 
-        content: (err as Error).message || 'Không thể xử lý hàng loạt. Vui lòng thử lại!',
+        content: (err as Error).message || 'Could not batch process. Please try again!',
         key: 'batchReview',
         duration: 5
       });
@@ -321,7 +321,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
   // ✅ Table columns
   const columns = [
     {
-      title: 'Học sinh',
+      title: 'Student',
       key: 'student',
       width: 150,
       fixed: 'left' as const,
@@ -336,7 +336,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
       )
     },
     {
-      title: 'Môn học',
+      title: 'Subject',
       key: 'class',
       width: 140,
       ellipsis: true,
@@ -345,13 +345,13 @@ const TeacherLeaveRequestPage: React.FC = () => {
           <Text strong style={{ fontSize: 13 }}>{record.className}</Text>
           <br />
           <Text type="secondary" style={{ fontSize: 11 }}>
-            Tiết: {record.timeSlot || 'N/A'}
+            Period: {record.timeSlot || 'N/A'}
           </Text>
         </div>
       )
     },
     {
-      title: 'Ngày nghỉ',
+      title: 'Leave Date',
       key: 'date',
       width: 120,
       render: (record: LeaveRequestDetail) => (
@@ -365,7 +365,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
       )
     },
     {
-      title: 'Lý do',
+      title: 'Reason',
       dataIndex: 'reason',
       key: 'reason',
       width: 160,
@@ -379,7 +379,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
       )
     },
     {
-      title: 'Trạng thái',
+      title: 'Status',
       dataIndex: 'status',
       key: 'status',
       width: 110,
@@ -393,7 +393,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
       }
     },
     {
-      title: 'Ngày gửi',
+      title: 'Submitted',
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 120,
@@ -412,19 +412,19 @@ const TeacherLeaveRequestPage: React.FC = () => {
       }
     },
     {
-      title: 'Thao tác',
+      title: 'Actions',
       key: 'actions',
       width: 90,
       fixed: 'right' as const,
       render: (record: LeaveRequestDetail) => (
-        <Tooltip title="Xem chi tiết">
+        <Tooltip title="View details">
           <Button 
             type="primary" 
             size="small"
             icon={<EyeOutlined />}
             onClick={() => handleViewRequest(record)}
           >
-            Chi tiết
+            Details
           </Button>
         </Tooltip>
       )
@@ -455,7 +455,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
       {/* ✅ Error Alert */}
       {error && (
         <Alert
-          message="Lỗi tải dữ liệu"
+          message="Error loading data"
           description={error}
           type="error"
           closable
@@ -466,7 +466,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
 
       {/* Header */}
       <Title level={2} style={{ marginTop: 16, marginBottom: 24 }}>
-        📋 Quản lý đơn xin nghỉ
+        📋 Leave Request Management
       </Title>
 
       {/* Search and Filters */}
@@ -477,7 +477,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} sm={24} md={8} lg={6}>
             <Search
-              placeholder="Tìm theo tên, mã học sinh..."
+              placeholder="Search by name, student code..."
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               onSearch={setSearchText}
@@ -487,25 +487,25 @@ const TeacherLeaveRequestPage: React.FC = () => {
           </Col>
           <Col xs={12} sm={8} md={4} lg={4}>
             <Select
-              placeholder="Trạng thái"
+              placeholder="Status"
               value={statusFilter}
               onChange={setStatusFilter}
               style={{ width: '100%' }}
             >
-              <Select.Option value="all">Tất cả trạng thái</Select.Option>
-              <Select.Option value="pending">Đang xử lý</Select.Option>
-              <Select.Option value="approved">Đã duyệt</Select.Option>
-              <Select.Option value="rejected">Từ chối</Select.Option>
+              <Select.Option value="all">All Statuses</Select.Option>
+              <Select.Option value="pending">Pending</Select.Option>
+              <Select.Option value="approved">Approved</Select.Option>
+              <Select.Option value="rejected">Rejected</Select.Option>
             </Select>
           </Col>
           <Col xs={12} sm={8} md={4} lg={4}>
             <Select
-              placeholder="Lớp học"
+              placeholder="Class"
               value={subjectFilter}
               onChange={setSubjectFilter}
               style={{ width: '100%' }}
             >
-              <Select.Option value="all">Tất cả lớp học</Select.Option>
+              <Select.Option value="all">All Classes</Select.Option>
               {uniqueClasses.map(cls => (
                 <Select.Option key={cls.id} value={cls.id.toString()}>
                   {cls.name}
@@ -519,7 +519,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
                 icon={<ReloadOutlined />}
                 onClick={handleClearFilters}
               >
-                Đặt lại
+                Reset
               </Button>
               <Button 
                 icon={<ReloadOutlined />}
@@ -527,7 +527,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
                 loading={loading}
                 type="primary"
               >
-                Làm mới
+                Refresh
               </Button>
             </Space>
           </Col>
@@ -539,7 +539,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
         <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 12, textAlign: 'center' }} loading={loading}>
             <Statistic
-              title="Tổng đơn"
+              title="Total Requests"
               value={summary.totalRequests}
               valueStyle={{ color: '#2563eb' }}
             />
@@ -548,7 +548,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
         <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 12, textAlign: 'center' }} loading={loading}>
             <Statistic
-              title="Đang chờ"
+              title="Pending"
               value={summary.pendingCount}
               valueStyle={{ color: '#f59e42' }}
             />
@@ -557,7 +557,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
         <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 12, textAlign: 'center' }} loading={loading}>
             <Statistic
-              title="Đã duyệt"
+              title="Approved"
               value={summary.approvedCount}
               valueStyle={{ color: '#10b981' }}
             />
@@ -566,7 +566,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
         <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 12, textAlign: 'center' }} loading={loading}>
             <Statistic
-              title="Từ chối"
+              title="Rejected"
               value={summary.rejectedCount}
               valueStyle={{ color: '#ef4444' }}
             />
@@ -583,8 +583,8 @@ const TeacherLeaveRequestPage: React.FC = () => {
               key: '1',
               label: (
                 <Space>
-                  <span>📊 Thống kê theo lớp</span>
-                  <Tag color="blue">{classSummary.filter(c => c.totalRequests > 0).length} lớp có đơn</Tag>
+                  <span>📊 Statistics by Class</span>
+                  <Tag color="blue">{classSummary.filter(c => c.totalRequests > 0).length} classes with requests</Tag>
                 </Space>
               ),
               children: (
@@ -599,10 +599,10 @@ const TeacherLeaveRequestPage: React.FC = () => {
                           <Text strong style={{ fontSize: 13 }}>{cls.className}</Text>
                           <div style={{ marginTop: 8 }}>
                             <Space size={4} wrap>
-                              <Tag color="blue" style={{ margin: 2 }}>Tổng: {cls.totalRequests}</Tag>
-                              <Tag color="orange" style={{ margin: 2 }}>Chờ: {cls.pendingCount}</Tag>
-                              <Tag color="green" style={{ margin: 2 }}>Duyệt: {cls.approvedCount}</Tag>
-                              <Tag color="red" style={{ margin: 2 }}>Từ chối: {cls.rejectedCount}</Tag>
+                              <Tag color="blue" style={{ margin: 2 }}>Total: {cls.totalRequests}</Tag>
+                              <Tag color="orange" style={{ margin: 2 }}>Pending: {cls.pendingCount}</Tag>
+                              <Tag color="green" style={{ margin: 2 }}>Approved: {cls.approvedCount}</Tag>
+                              <Tag color="red" style={{ margin: 2 }}>Rejected: {cls.rejectedCount}</Tag>
                             </Space>
                           </div>
                         </Card>
@@ -611,14 +611,14 @@ const TeacherLeaveRequestPage: React.FC = () => {
                   {classSummary.filter(cls => cls.totalRequests > 0).length > 12 && (
                     <Col span={24}>
                       <Text type="secondary" style={{ textAlign: 'center', display: 'block' }}>
-                        ... và {classSummary.filter(cls => cls.totalRequests > 0).length - 12} lớp khác. Sử dụng bộ lọc "Môn học" để xem chi tiết.
+                        ... and {classSummary.filter(cls => cls.totalRequests > 0).length - 12} more classes. Use the "Class" filter to view details.
                       </Text>
                     </Col>
                   )}
                   {classSummary.filter(cls => cls.totalRequests > 0).length === 0 && (
                     <Col span={24}>
                       <Text type="secondary" style={{ textAlign: 'center', display: 'block' }}>
-                        Chưa có đơn xin nghỉ nào từ các lớp.
+                        No leave requests from any class yet.
                       </Text>
                     </Col>
                   )}
@@ -642,7 +642,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
           size="small"
         >
           <Space wrap>
-            <Text strong>Đã chọn {selectedRowKeys.length} đơn</Text>
+            <Text strong>{selectedRowKeys.length} requests selected</Text>
             <Button
               type="primary"
               icon={<CheckCircleOutlined />}
@@ -651,7 +651,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
               loading={submitting}
               size="small"
             >
-              Duyệt
+              Approve
             </Button>
             <Button
               danger
@@ -660,10 +660,10 @@ const TeacherLeaveRequestPage: React.FC = () => {
               loading={submitting}
               size="small"
             >
-              Từ chối
+              Reject
             </Button>
             <Button onClick={() => setSelectedRowKeys([])} size="small">
-              Bỏ chọn
+              Deselect
             </Button>
           </Space>
         </Card>
@@ -674,7 +674,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
         borderRadius: 12
       }}>
         <Divider style={{ margin: '0 0 16px 0' }} orientation="left">
-          📊 Danh sách đơn xin nghỉ
+          📊 Leave Request List
         </Divider>
         <Table
           dataSource={filteredData}
@@ -686,14 +686,14 @@ const TeacherLeaveRequestPage: React.FC = () => {
             current: 1,
             pageSize: 10,
             showSizeChanger: true,
-            showTotal: (total) => `Tổng ${total} đơn`,
+            showTotal: (total) => `Total ${total} requests`,
             pageSizeOptions: ["10", "20", "50", "100"],
             responsive: true
           }}
           scroll={{ x: 900 }}
           size="middle"
           locale={{
-            emptyText: loading ? <Spin /> : "Không có đơn xin nghỉ nào"
+            emptyText: loading ? <Spin /> : "No leave requests found"
           }}
         />
       </Card>
@@ -703,7 +703,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
         title={
           <Space>
             <FileTextOutlined style={{ color: '#2563eb', fontSize: 18 }} />
-            <span>Chi tiết đơn xin nghỉ</span>
+            <span>Leave Request Details</span>
           </Space>
         }
         open={isViewModalVisible}
@@ -725,23 +725,23 @@ const TeacherLeaveRequestPage: React.FC = () => {
               title={
                 <Space>
                   <UserOutlined style={{ color: '#2563eb' }} />
-                  <Text strong style={{ fontSize: 13 }}>Thông tin học sinh</Text>
+                  <Text strong style={{ fontSize: 13 }}>Student Information</Text>
                 </Space>
               }
             >
               <Row gutter={[12, 12]}>
                 <Col xs={24} sm={12}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Họ và tên:</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Full Name:</Text>
                   <br />
                   <Text strong style={{ fontSize: 14 }}>{selectedRequest.studentName}</Text>
                 </Col>
                 <Col xs={24} sm={12}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Mã sinh viên:</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Student ID:</Text>
                   <br />
                   <Text strong style={{ fontSize: 14 }}>{selectedRequest.studentCode || 'N/A'}</Text>
                 </Col>
                 <Col xs={24} sm={12}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Môn học:</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Subject:</Text>
                   <br />
                   <Space>
                     <BookOutlined style={{ color: '#3b82f6' }} />
@@ -758,35 +758,35 @@ const TeacherLeaveRequestPage: React.FC = () => {
               title={
                 <Space>
                   <CalendarOutlined style={{ color: '#f59e42' }} />
-                  <Text strong style={{ fontSize: 13 }}>Thông tin nghỉ học</Text>
+                  <Text strong style={{ fontSize: 13 }}>Leave Information</Text>
                 </Space>
               }
             >
               <Row gutter={[12, 12]}>
                 <Col xs={12} sm={12}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Ngày nghỉ:</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Leave Date:</Text>
                   <br />
                   <Text strong style={{ fontSize: 14 }}>
                     {dayjs(selectedRequest.leaveDate).format('DD/MM/YYYY')}
                   </Text>
                 </Col>
                 <Col xs={12} sm={12}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Thứ:</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Day:</Text>
                   <br />
                   <Text strong style={{ fontSize: 14 }}>
                     {convertDayToVietnamese(selectedRequest.dayOfWeek)}
                   </Text>
                 </Col>
                 <Col xs={12} sm={12}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Tiết học:</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Period:</Text>
                   <br />
                   <Space>
                     <ClockCircleOutlined style={{ color: '#f59e42' }} />
-                    <Text strong style={{ fontSize: 14 }}>Tiết {selectedRequest.timeSlot || 'N/A'}</Text>
+                    <Text strong style={{ fontSize: 14 }}>Period {selectedRequest.timeSlot || 'N/A'}</Text>
                   </Space>
                 </Col>
                 <Col xs={12} sm={12}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Ngày gửi đơn:</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Submitted Date:</Text>
                   <br />
                   <Text strong style={{ fontSize: 14 }}>
                     {dayjs(selectedRequest.createdAt).format('DD/MM/YYYY HH:mm')}
@@ -794,7 +794,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
                 </Col>
                 {selectedRequest.reviewedAt && (
                   <Col xs={12} sm={12}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Ngày xử lý:</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>Reviewed Date:</Text>
                     <br />
                     <Text strong style={{ fontSize: 14 }}>
                       {dayjs(selectedRequest.reviewedAt).format('DD/MM/YYYY HH:mm')}
@@ -802,7 +802,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
                   </Col>
                 )}
                 <Col span={24}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Lý do nghỉ học:</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Reason for Leave:</Text>
                   <br />
                   <Text style={{ 
                     fontSize: 13,
@@ -827,7 +827,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
                 title={
                   <Space>
                     <FileImageOutlined style={{ color: '#10b981' }} />
-                    <Text strong>File minh chứng</Text>
+                    <Text strong>Evidence File</Text>
                   </Space>
                 }
               >
@@ -841,7 +841,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
                           icon={<EyeOutlined />}
                           onClick={() => window.open(selectedRequest.evidenceFileUrl, '_blank')}
                         >
-                          Xem file PDF
+                          View PDF File
                         </Button>
                       </div>
                     </div>
@@ -869,7 +869,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
                 title={
                   <Space>
                     <FileTextOutlined style={{ color: '#6366f1' }} />
-                    <Text strong>Ghi chú phê duyệt</Text>
+                    <Text strong>Review Notes</Text>
                   </Space>
                 }
               >
@@ -886,7 +886,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
                 {selectedRequest.reviewerName && (
                   <div style={{ marginTop: 12 }}>
                     <Text type="secondary" style={{ fontSize: 12 }}>
-                      Người xử lý: <Text strong>{selectedRequest.reviewerName}</Text>
+                      Reviewer: <Text strong>{selectedRequest.reviewerName}</Text>
                     </Text>
                   </div>
                 )}
@@ -904,14 +904,14 @@ const TeacherLeaveRequestPage: React.FC = () => {
                 <Form.Item
                   label={
                     <Text strong style={{ fontSize: 13 }}>
-                      Ghi chú phê duyệt
+                      Review Notes
                     </Text>
                   }
                   name="review_notes"
                 >
                   <TextArea
                     rows={3}
-                    placeholder="Nhập ghi chú cho học sinh (không bắt buộc)..."
+                    placeholder="Enter notes for the student (optional)..."
                     style={{ borderRadius: 8 }}
                   />
                 </Form.Item>
@@ -931,7 +931,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
                           fontWeight: 600
                         }}
                       >
-                        Duyệt đơn
+                        Approve
                       </Button>
                     </Col>
                     <Col xs={12} sm={12}>
@@ -945,7 +945,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
                           fontWeight: 600
                         }}
                       >
-                        Từ chối
+                        Reject
                       </Button>
                     </Col>
                   </Row>
@@ -978,7 +978,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
                   </Text>
                   {selectedRequest.reviewedAt && (
                     <Text type="secondary" style={{ fontSize: 12 }}>
-                      Đã xử lý vào {dayjs(selectedRequest.reviewedAt).format('DD/MM/YYYY HH:mm')}
+                      Reviewed on {dayjs(selectedRequest.reviewedAt).format('DD/MM/YYYY HH:mm')}
                     </Text>
                   )}
                 </Space>
@@ -999,8 +999,8 @@ const TeacherLeaveRequestPage: React.FC = () => {
             )}
             <span>
               {approvalAction === 'approve' 
-                ? `Duyệt ${selectedRowKeys.length} đơn` 
-                : `Từ chối ${selectedRowKeys.length} đơn`}
+                ? `Approve ${selectedRowKeys.length} Requests` 
+                : `Reject ${selectedRowKeys.length} Requests`}
             </span>
           </Space>
         }
@@ -1013,10 +1013,10 @@ const TeacherLeaveRequestPage: React.FC = () => {
         width={500}
       >
         <div style={{ marginBottom: 12, padding: 12, background: '#f8fafc', borderRadius: 8 }}>
-          <Text strong style={{ fontSize: 13 }}>Bạn đang xử lý {selectedRowKeys.length} đơn xin nghỉ</Text>
+          <Text strong style={{ fontSize: 13 }}>You are processing {selectedRowKeys.length} leave requests</Text>
           <br />
           <Text type="secondary" style={{ fontSize: 11 }}>
-            Ghi chú sẽ được áp dụng cho tất cả các đơn đã chọn
+            Notes will be applied to all selected requests
           </Text>
         </div>
 
@@ -1026,19 +1026,19 @@ const TeacherLeaveRequestPage: React.FC = () => {
           onFinish={handleSubmitBatchReview}
         >
           <Form.Item
-            label={approvalAction === 'approve' ? "Ghi chú duyệt đơn" : "Lý do từ chối"}
+            label={approvalAction === 'approve' ? "Approval Notes" : "Rejection Reason"}
             name="note"
             rules={[{ 
               required: approvalAction === 'reject', 
-              message: "Vui lòng nhập lý do từ chối!" 
+              message: "Please enter a rejection reason!" 
             }]}
           >
             <TextArea
               rows={4}
               placeholder={
                 approvalAction === 'approve' 
-                  ? "Nhập ghi chú chung cho các đơn (không bắt buộc)..."
-                  : "Nhập lý do từ chối chung..."
+                  ? "Enter general notes for the requests (optional)..."
+                  : "Enter a general rejection reason..."
               }
             />
           </Form.Item>
@@ -1055,11 +1055,11 @@ const TeacherLeaveRequestPage: React.FC = () => {
                 }}
               >
                 {approvalAction === 'approve' 
-                  ? `Duyệt ${selectedRowKeys.length} đơn` 
-                  : `Từ chối ${selectedRowKeys.length} đơn`}
+                  ? `Approve ${selectedRowKeys.length} Requests` 
+                  : `Reject ${selectedRowKeys.length} Requests`}
               </Button>
               <Button onClick={() => setIsBatchModalVisible(false)}>
-                Hủy
+                Cancel
               </Button>
             </Space>
           </Form.Item>

@@ -12,9 +12,9 @@ const AdminHomePage: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState([
-    { title: "Tổng số Giáo viên", value: 0, color: "#2563eb", icon: "👨‍🏫" },
-    { title: "Tổng số Sinh viên", value: 0, color: "#10b981", icon: "👨‍🎓" },
-    { title: "Tổng số Lớp học", value: 20, color: "#f59e42", icon: "📚" },
+    { title: "Total Teachers", value: 0, color: "#2563eb", icon: "👨‍🏫" },
+    { title: "Total Students", value: 0, color: "#10b981", icon: "👨‍🎓" },
+    { title: "Total Classes", value: 20, color: "#f59e42", icon: "📚" },
   ]);
 
   // Fetch statistics from APIs
@@ -32,13 +32,13 @@ const AdminHomePage: React.FC = () => {
 
         // Update stats with real data
         setStats([
-          { title: "Tổng số Giáo viên", value: teachersResponse.stats.total, color: "#2563eb", icon: "👨‍🏫" },
-          { title: "Tổng số Sinh viên", value: studentsResponse.stats.total, color: "#10b981", icon: "👨‍🎓" },
-          { title: "Tổng số Lớp học", value: classesResponse.data.total, color: "#f59e42", icon: "📚" },
+          { title: "Total Teachers", value: teachersResponse.stats.total, color: "#2563eb", icon: "👨‍🏫" },
+          { title: "Total Students", value: studentsResponse.stats.total, color: "#10b981", icon: "👨‍🎓" },
+          { title: "Total Classes", value: classesResponse.data.total, color: "#f59e42", icon: "📚" },
         ]);
       } catch (error: any) {
         console.error("Error fetching statistics:", error);
-        message.error("Không thể tải thống kê hệ thống");
+        message.error("Cannot load system statistics");
       } finally {
         setLoading(false);
       }
@@ -61,7 +61,7 @@ const AdminHomePage: React.FC = () => {
           fontSize: 36,
           fontWeight: 700
         }}>
-          🎯 Bảng điều khiển Quản trị
+          🎯 Admin Dashboard
         </Title>
         <Text style={{ 
           fontSize: 18, 
@@ -69,7 +69,7 @@ const AdminHomePage: React.FC = () => {
           display: "block",
           marginBottom: 24
         }}>
-          Chào mừng trở lại! Quản lý toàn bộ hệ thống giáo dục từ đây.
+          Welcome back! Manage the entire education system from here.
         </Text>
       </div>
 
@@ -81,7 +81,7 @@ const AdminHomePage: React.FC = () => {
         border: "none"
       }}>
         <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
-          ⚡ Thao tác nhanh
+          ⚡ Quick Actions
         </Title>
         <Space size={16} wrap>
           <Button 
@@ -91,7 +91,7 @@ const AdminHomePage: React.FC = () => {
             style={{ borderRadius: 8, height: 48 }}
             onClick={() => navigate("/admin/teachers")}
           >
-            Tạo tài khoản Giáo viên
+            Create Teacher Account
           </Button>
           <Button 
             size="large"
@@ -99,18 +99,18 @@ const AdminHomePage: React.FC = () => {
             style={{ borderRadius: 8, height: 48 }}
             onClick={() => navigate("/admin/students")}
           >
-            Tạo tài khoản Sinh viên
+            Create Student Account
           </Button>
         </Space>
       </Card>
 
       {/* Statistics Cards */}
       <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
-        📊 Tổng quan Hệ thống
+        📊 System Overview
       </Title>
       {loading ? (
         <div style={{ textAlign: "center", padding: "60px 0" }}>
-          <Spin size="large" tip="Đang tải thống kê..." />
+          <Spin size="large" tip="Loading statistics..." />
         </div>
       ) : (
         <Row gutter={[24, 24]}>

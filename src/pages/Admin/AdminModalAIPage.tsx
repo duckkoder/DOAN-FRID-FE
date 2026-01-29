@@ -4,8 +4,8 @@ const { Title } = Typography;
 
 const AdminModalAIPage: React.FC = () => (
   <div style={{ padding: 32 }}>
-    <Title level={2}>Quản trị - Quản lý ModalAI</Title>
-    <p>Quản lý ModalAI.</p>
+    <Title level={2}>Admin - ModalAI Management</Title>
+    <p>Manage ModalAI.</p>
   </div>
 );
 

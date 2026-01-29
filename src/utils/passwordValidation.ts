@@ -20,22 +20,22 @@ export interface PasswordRequirement {
 export const PASSWORD_REQUIREMENTS: PasswordRequirement[] = [
   {
     regex: /.{8,}/,
-    message: "Ít nhất 8 ký tự",
+    message: "At least 8 characters",
     check: (password: string) => password.length >= 8,
   },
   {
     regex: /[A-Z]/,
-    message: "Ít nhất 1 chữ hoa (A-Z)",
+    message: "At least 1 uppercase letter (A-Z)",
     check: (password: string) => /[A-Z]/.test(password),
   },
   {
     regex: /[a-z]/,
-    message: "Ít nhất 1 chữ thường (a-z)",
+    message: "At least 1 lowercase letter (a-z)",
     check: (password: string) => /[a-z]/.test(password),
   },
   {
     regex: /\d/,
-    message: "Ít nhất 1 chữ số (0-9)",
+    message: "At least 1 digit (0-9)",
     check: (password: string) => /\d/.test(password),
   },
 ];
@@ -96,7 +96,7 @@ export const getPasswordFormValidation = (password: string) => {
   if (validation.isValid) {
     return {
       validateStatus: "success" as const,
-      help: "Mật khẩu hợp lệ",
+      help: "Password is valid",
     };
   }
 
@@ -120,8 +120,8 @@ export const VALID_PASSWORD_EXAMPLES = [
  * Examples of invalid passwords with reasons
  */
 export const INVALID_PASSWORD_EXAMPLES = [
-  { password: "pass1234", reason: "Thiếu chữ hoa" },
-  { password: "PASS1234", reason: "Thiếu chữ thường" },
-  { password: "Password", reason: "Thiếu chữ số" },
-  { password: "Pass123", reason: "Ít hơn 8 ký tự" },
+  { password: "pass1234", reason: "Missing uppercase letter" },
+  { password: "PASS1234", reason: "Missing lowercase letter" },
+  { password: "Password", reason: "Missing digit" },
+  { password: "Pass123", reason: "Less than 8 characters" },
 ];

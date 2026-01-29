@@ -50,7 +50,7 @@ const ConfirmedStudentsPanel: React.FC<ConfirmedStudentsPanelProps> = ({
       title={
         <Space>
           <TeamOutlined />
-          <span>Sinh viên đã xác nhận</span>
+          <span>Confirmed Students</span>
           <Badge
             count={confirmedCount}
             showZero
@@ -69,15 +69,15 @@ const ConfirmedStudentsPanel: React.FC<ConfirmedStudentsPanelProps> = ({
       {!sessionActive ? (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="Bắt đầu phiên điểm danh để xem danh sách"
+          description="Start attendance session to view list"
           imageStyle={{ height: 100, marginTop: 60 }}
         />
       ) : (
         <>
           {wsConnected && confirmedCount === 0 && pendingCount === 0 && (
             <Alert
-              message="Đang chờ nhận diện"
-              description="Camera đang hoạt động. Sinh viên sẽ xuất hiện ở đây khi được AI nhận diện và xác nhận."
+              message="Waiting for recognition"
+              description="Camera is active. Students will appear here when recognized and confirmed by AI."
               type="info"
               showIcon
               style={{ marginBottom: 16 }}
@@ -87,8 +87,8 @@ const ConfirmedStudentsPanel: React.FC<ConfirmedStudentsPanelProps> = ({
           {/* Warning nếu có pending */}
           {pendingCount > 0 && (
             <Alert
-              message={`${pendingCount} sinh viên chờ xác nhận`}
-              description="Độ tin cậy nhận diện thấp. Vui lòng kiểm tra và xác nhận."
+              message={`${pendingCount} students pending confirmation`}
+              description="Low recognition confidence. Please check and confirm."
               type="warning"
               showIcon
               icon={<ClockCircleOutlined />}
@@ -100,7 +100,7 @@ const ConfirmedStudentsPanel: React.FC<ConfirmedStudentsPanelProps> = ({
                     onClick={onOpenPendingPanel}
                     style={{ backgroundColor: '#faad14', borderColor: '#faad14' }}
                   >
-                    Xem ngay
+                    View now
                   </Button>
                 ) : undefined
               }
@@ -153,8 +153,8 @@ const ConfirmedStudentsPanel: React.FC<ConfirmedStudentsPanelProps> = ({
             )}
             locale={{
               emptyText: wsConnected
-                ? 'Đang chờ nhận diện sinh viên...'
-                : 'Chưa có sinh viên nào được xác nhận',
+                ? 'Waiting for student recognition...'
+                : 'No students confirmed yet',
             }}
           />
         </>

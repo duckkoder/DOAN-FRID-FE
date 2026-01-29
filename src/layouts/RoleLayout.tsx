@@ -10,83 +10,83 @@ import { message } from "antd";
 const leftBarConfig = {
   "admin": [ // Admin
     {
-      label: "Tổng quan",
+      label: "Overview",
       items: [
-        { key: "dashboard", label: "Trang chủ", path: "/admin" }
+        { key: "dashboard", label: "Home", path: "/admin" }
       ]
     },
     {
-      label: "Quản lý",
+      label: "Management",
       items: [
-        { key: "teachers", label: "Giáo viên", path: "/admin/teachers" },
-        { key: "students", label: "Học sinh", path: "/admin/students" },
+        { key: "teachers", label: "Teachers", path: "/admin/teachers" },
+        { key: "students", label: "Students", path: "/admin/students" },
       ]
     },
     {
-      label: "Hành động",
+      label: "Actions",
       items: [
-        { key: "logout", label: "Đăng xuất", path: "/auth", action: "logout" }
+        { key: "logout", label: "Sign Out", path: "/auth", action: "logout" }
       ]
     }
   ],
   "teacher": [ // Teacher
     {
-      label: "Phân tích",
+      label: "Analytics",
       items: [
-        { key: "dashboard", label: "Trang chủ", path: "/teacher" },
+        { key: "dashboard", label: "Home", path: "/teacher" },
       ]
     },
     {
-      label: "Quản lý",
+      label: "Management",
       items: [
-        { key: "class", label: "Lớp học", path: "/teacher/classes" },
-        { key: "leave", label: "Đơn nghỉ học", path: "/teacher/leave-requests" }
+        { key: "class", label: "Classes", path: "/teacher/classes" },
+        { key: "leave", label: "Leave Requests", path: "/teacher/leave-requests" }
       ]
     },
     {
-      label: "Cá nhân",
+      label: "Personal",
       items: [
-        { key: "profile", label: "Thông tin cá nhân", path: "/teacher/profile" }
+        { key: "profile", label: "Profile", path: "/teacher/profile" }
       ]
     },
     {
-      label: "Hành động",
+      label: "Actions",
       items: [
-        { key: "logout", label: "Đăng xuất", path: "/auth", action: "logout" }
+        { key: "logout", label: "Sign Out", path: "/auth", action: "logout" }
       ]
     }
   ],
   "student": [ // Student
     {
-        label: "Theo dõi",
+        label: "Track",
       items: [
-        { key: "classes", label: "Lớp học", path: "/student/classes" },
-        { key: "attendance", label: "Điểm danh", path: "/student/attendance" }
+        { key: "classes", label: "Classes", path: "/student/classes" },
+        { key: "attendance", label: "Attendance", path: "/student/attendance" }
       ]
     },
     {
-      label: "Phân tích",
+      label: "Analytics",
       items: [
-        { key: "dashboard", label: "Trang chủ", path: "/student" },
-        { key: "report", label: "Đơn nghỉ học", path: "/student/reports" }
+        { key: "dashboard", label: "Home", path: "/student" },
+        { key: "report", label: "Leave Requests", path: "/student/reports" }
       ]
     },
     {
-      label: "Quản lý",
+      label: "Management",
       items: [
-        { key: "registerFace", label: "Đăng ký khuôn mặt", path: "/student/register-face" }
+        { key: "registerFace", label: "Face Registration", path: "/student/register-face" }
       ]
     },
     {
-      label: "Cá nhân",
+      label: "Personal",
       items: [
-        { key: "profile", label: "Thông tin cá nhân", path: "/student/profile" }
+        { key: "profile", label: "Profile", path: "/student/profile" }
       ]
     },
     {
-      label: "Hành động",
+      label: "Actions",
       items: [
-        { key: "logout", label: "Đăng xuất", path: "/auth", action: "logout" }
+        { key: "logout", label: "Sign Out", path: "/auth", action: "logout" }
       ]
     }
   ]
@@ -126,7 +126,7 @@ const RoleLayout: React.FC = () => {
       
       auth?.logout();
       
-      message.success("Đăng xuất thành công!");
+      message.success("Signed out successfully!");
       
       // Redirect to login
       navigate("/auth");
@@ -134,9 +134,9 @@ const RoleLayout: React.FC = () => {
     } catch (error) {
       console.error("Logout error:", error);
       
-      // Vẫn clear auth và redirect dù API fail
+      // Still clear auth and redirect even if API fails
       auth?.logout();
-      message.warning("Đã đăng xuất");
+      message.warning("Signed out");
       navigate("/auth");
     }
   };

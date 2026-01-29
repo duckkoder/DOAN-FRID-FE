@@ -36,7 +36,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
       
       await onSuccess(values.new_password);
       
-      message.success(`Đặt lại mật khẩu cho ${userType === "student" ? "sinh viên" : "giáo viên"} ${userName} thành công!`);
+      message.success(`Password reset for ${userType === "student" ? "student" : "teacher"} ${userName} successful!`);
       form.resetFields();
       setPasswordValue("");
       onCancel();
@@ -47,7 +47,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
         return;
       }
       message.error(
-        error?.response?.data?.detail || "Không thể đặt lại mật khẩu"
+        error?.response?.data?.detail || "Cannot reset password"
       );
     } finally {
       setConfirmLoading(false);
@@ -65,31 +65,31 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
       title={
         <span>
           <LockOutlined style={{ marginRight: 8 }} />
-          Đặt lại mật khẩu
+          Reset Password
         </span>
       }
       open={visible}
       onOk={handleOk}
       onCancel={handleCancel}
       confirmLoading={confirmLoading || loading}
-      okText="Đặt lại mật khẩu"
-      cancelText="Hủy"
+      okText="Reset Password"
+      cancelText="Cancel"
       width={500}
     >
       <div style={{ marginBottom: 16 }}>
         <p>
-          Đặt lại mật khẩu cho {userType === "student" ? "sinh viên" : "giáo viên"}:{" "}
+          Reset password for {userType === "student" ? "student" : "teacher"}:{" "}
           <strong>{userName}</strong>
         </p>
       </div>
 
       <Form form={form} layout="vertical">
         <Form.Item
-          label="Mật khẩu mới"
+          label="New Password"
           name="new_password"
           rules={[
-            { required: true, message: "Vui lòng nhập mật khẩu mới!" },
-            { min: 8, message: "Mật khẩu phải có ít nhất 8 ký tự" },
+            { required: true, message: "Please enter new password!" },
+            { min: 8, message: "Password must be at least 8 characters" },
             {
               validator: (_, value) => {
                 if (!value) return Promise.resolve();
@@ -107,24 +107,24 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
         >
           <Input.Password
             prefix={<LockOutlined />}
-            placeholder="Nhập mật khẩu mới"
+            placeholder="Enter new password"
             onChange={(e) => setPasswordValue(e.target.value)}
           />
         </Form.Item>
 
         <Form.Item
-          label="Xác nhận mật khẩu"
+          label="Confirm Password"
           name="confirm_password"
           dependencies={["new_password"]}
           rules={[
-            { required: true, message: "Vui lòng xác nhận mật khẩu!" },
+            { required: true, message: "Please confirm password!" },
             ({ getFieldValue }) => ({
               validator(_, value) {
                 if (!value || getFieldValue("new_password") === value) {
                   return Promise.resolve();
                 }
                 return Promise.reject(
-                  new Error("Mật khẩu xác nhận không khớp!")
+                  new Error("Passwords do not match!")
                 );
               },
             }),
@@ -132,7 +132,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
         >
           <Input.Password
             prefix={<LockOutlined />}
-            placeholder="Nhập lại mật khẩu mới"
+            placeholder="Re-enter new password"
           />
         </Form.Item>
       </Form>
@@ -147,8 +147,8 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
         }}
       >
         <p style={{ margin: 0, fontSize: 13, color: "#ad6800" }}>
-          <strong>Lưu ý:</strong> Sau khi đặt lại mật khẩu, {userType === "student" ? "sinh viên" : "giáo viên"} sẽ
-          cần sử dụng mật khẩu mới để đăng nhập.
+          <strong>Note:</strong> After resetting password, {userType === "student" ? "student" : "teacher"} will
+          need to use the new password to sign in.
         </p>
       </div>
     </Modal>

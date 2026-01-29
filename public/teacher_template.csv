@@ -7,11 +7,11 @@
 # - email: Username only (without @dut.udn.vn), will be appended automatically
 # - password: Minimum 9 characters, must contain uppercase, lowercase, and digit
 # - phone: Optional, must be 10 digits starting with 0
-# - department_name: Optional, must match existing department name (e.g., "Công nghệ thông tin")
-# - specialization_name: Optional, must match existing specialization name (e.g., "Khoa học máy tính")
+# - department_name: Optional, must match existing department name (e.g., "Information Technology")
+# - specialization_name: Optional, must match existing specialization name (e.g., "Computer Science")
 
 # Example rows:
 full_name,email,password,phone,department_name,specialization_name
-Nguyễn Văn C,nguyenvanc,Password123,0912345678,Công nghệ thông tin,Khoa học máy tính
-Trần Thị D,tranthid,Password123,0987654321,Điện tử viễn thông,Điện tử
-Lê Hoàng E,lehoange,Password123,0901234567,Cơ khí,Cơ khí chế tạo
+John Doe,johndoe,Password123,0912345678,Information Technology,Computer Science
+Jane Smith,janesmith,Password123,0987654321,Electronics & Telecommunications,Electronics
+Mike Johnson,mikejohnson,Password123,0901234567,Mechanical Engineering,Manufacturing Engineering

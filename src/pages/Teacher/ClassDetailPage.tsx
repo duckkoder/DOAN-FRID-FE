@@ -95,7 +95,7 @@ const TIME_SLOTS: Record<number, { start: string; end: string }> = {
 
 const TIME_SLOT_OPTIONS = Object.entries(TIME_SLOTS).map(([period, time]) => ({
   period: Number(period),
-  label: `Tiết ${period} (${time.start} - ${time.end})`,
+  label: `Period ${period} (${time.start} - ${time.end})`,
   ...time
 }));
 
@@ -232,13 +232,13 @@ const ClassDetailPage: React.FC = () => {
   const [isScheduleExpanded, setIsScheduleExpanded] = useState(false);
 
   const weekDays = [
-    { value: 1, label: "Thứ 2" },
-    { value: 2, label: "Thứ 3" },
-    { value: 3, label: "Thứ 4" },
-    { value: 4, label: "Thứ 5" },
-    { value: 5, label: "Thứ 6" },
-    { value: 6, label: "Thứ 7" },
-    { value: 0, label: "Chủ nhật" }
+    { value: 1, label: "Monday" },
+    { value: 2, label: "Tuesday" },
+    { value: 3, label: "Wednesday" },
+    { value: 4, label: "Thursday" },
+    { value: 5, label: "Friday" },
+    { value: 6, label: "Saturday" },
+    { value: 0, label: "Sunday" }
   ];
 
   // ✅ Split periods into consecutive groups
@@ -306,13 +306,13 @@ const ClassDetailPage: React.FC = () => {
   // ✅ Parse schedule to readable format
   const parseSchedule = (schedule: Record<string, string[]>): ScheduleSession[] => {
     const dayMapping: Record<string, string> = {
-      monday: 'Thứ 2',
-      tuesday: 'Thứ 3',
-      wednesday: 'Thứ 4',
-      thursday: 'Thứ 5',
-      friday: 'Thứ 6',
-      saturday: 'Thứ 7',
-      sunday: 'Chủ nhật'
+      monday: 'Monday',
+      tuesday: 'Tuesday',
+      wednesday: 'Wednesday',
+      thursday: 'Thursday',
+      friday: 'Friday',
+      saturday: 'Saturday',
+      sunday: 'Sunday'
     };
 
     const result: ScheduleSession[] = [];
@@ -326,7 +326,7 @@ const ClassDetailPage: React.FC = () => {
         const endTime = TIME_SLOTS[end]?.end || '??:??';
         
         return {
-          periods: start === end ? `Tiết ${start}` : `Tiết ${start}-${end}`,
+          periods: start === end ? `Period ${start}` : `Period ${start}-${end}`,
           timeRange: `${startTime} - ${endTime}`
         };
       });
@@ -395,17 +395,17 @@ const ClassDetailPage: React.FC = () => {
 
   // Format time display
   const formatTimeRange = (periods: number[]) => {
-    if (periods.length === 0) return "Chưa chọn";
+    if (periods.length === 0) return "Not selected";
     
     const sortedPeriods = [...periods].sort((a, b) => a - b);
     const firstSlot = TIME_SLOTS[sortedPeriods[0]];
     const lastSlot = TIME_SLOTS[sortedPeriods[sortedPeriods.length - 1]];
     
     if (sortedPeriods.length === 1) {
-      return `${firstSlot?.start} - ${firstSlot?.end} (Tiết ${sortedPeriods[0]})`;
+      return `${firstSlot?.start} - ${firstSlot?.end} (Period ${sortedPeriods[0]})`;
     }
     
-    return `${firstSlot?.start} - ${lastSlot?.end} (Tiết ${sortedPeriods.join(', ')})`;
+    return `${firstSlot?.start} - ${lastSlot?.end} (Period ${sortedPeriods.join(', ')})`;
   };
 
   // ✅ Open edit modal
@@ -443,7 +443,7 @@ const ClassDetailPage: React.FC = () => {
 
       // Validate schedules
       if (editSchedules.length === 0) {
-        message.error('Vui lòng chọn ít nhất một ngày học!');
+        message.error('Please select at least one class day!');
         return;
       }
 
@@ -452,7 +452,7 @@ const ClassDetailPage: React.FC = () => {
       );
 
       if (hasEmptyPeriods) {
-        message.error('Vui lòng chọn khung giờ cho tất cả các buổi học!');
+        message.error('Please select time slots for all sessions!');
         return;
       }
 
@@ -476,7 +476,7 @@ const ClassDetailPage: React.FC = () => {
 
       
 
-      message.success('Cập nhật lớp học thành công!');
+      message.success('Class updated successfully!');
 
       // Refresh class data
       const refreshedData = await getClassDetails(Number(classId));
@@ -485,7 +485,7 @@ const ClassDetailPage: React.FC = () => {
       if (cls) {
         const mapped: ClassData = {
           id: cls.id,
-          subject: cls.subject || "Không tên",
+          subject: cls.subject || "Unnamed",
           classCode: cls.classCode || "",
           description: cls.description || "",
           room: cls.room || "N/A",
@@ -505,7 +505,7 @@ const ClassDetailPage: React.FC = () => {
       console.error('Failed to update class:', error);
 
       const apiError = error as ApiError;
-      let displayMessage = 'Có lỗi xảy ra khi cập nhật lớp học';
+      let displayMessage = 'An error occurred while updating the class';
       let details = null;
 
       if (apiError.message) {
@@ -535,7 +535,7 @@ const ClassDetailPage: React.FC = () => {
     if (typeof editErrorDetails === 'object' && !Array.isArray(editErrorDetails)) {
       return (
         <div style={{ marginTop: 12 }}>
-          <Text strong>Chi tiết lỗi:</Text>
+          <Text strong>Error details:</Text>
           <ul style={{ marginTop: 8, marginBottom: 0 }}>
             {Object.entries(editErrorDetails).map(([field, messages]) => (
               <li key={field}>
@@ -549,7 +549,7 @@ const ClassDetailPage: React.FC = () => {
 
     return (
       <div style={{ marginTop: 12 }}>
-        <Text strong>Chi tiết: </Text>
+        <Text strong>Details: </Text>
         <Text>{String(editErrorDetails)}</Text>
       </div>
     );
@@ -573,13 +573,13 @@ const ClassDetailPage: React.FC = () => {
     };
 
     const dayLabelMapping: Record<number, string> = {
-      0: 'Chủ nhật',
-      1: 'Thứ 2',
-      2: 'Thứ 3',
-      3: 'Thứ 4',
-      4: 'Thứ 5',
-      5: 'Thứ 6',
-      6: 'Thứ 7'
+      0: 'Sunday',
+      1: 'Monday',
+      2: 'Tuesday',
+      3: 'Wednesday',
+      4: 'Thursday',
+      5: 'Friday',
+      6: 'Saturday'
     };
 
     const sessions: UpcomingSession[] = [];
@@ -599,7 +599,7 @@ const ClassDetailPage: React.FC = () => {
           day: dayNum,
           dayLabel: dayLabelMapping[dayNum] || dayName,
           sessionIndex: index,
-          periods: start === end ? `Tiết ${start}` : `Tiết ${start}-${end}`,
+          periods: start === end ? `Period ${start}` : `Period ${start}-${end}`,
           timeRange: `${startTime} - ${endTime}`,
           date: now.format('DD/MM/YYYY')
         });
@@ -637,7 +637,7 @@ const ClassDetailPage: React.FC = () => {
   // ✅ Handle start attendance with camera
   const handleStartAttendance = () => {
     if (!selectedAttendanceSession) {
-      message.warning('Vui lòng chọn buổi học để bắt đầu điểm danh!');
+      message.warning('Please select a session to start attendance!');
       return;
     }
 
@@ -670,7 +670,7 @@ const ClassDetailPage: React.FC = () => {
     
     try {
       await endAttendanceSession(endSessionId, { mark_absent: true });
-      message.success('Đã kết thúc phiên điểm danh!');
+      message.success('Attendance session ended!');
       
       // Reload sessions
       if (classId) {
@@ -682,7 +682,7 @@ const ClassDetailPage: React.FC = () => {
       setEndSessionId(null);
     } catch (error: any) {
       console.error('Failed to end session:', error);
-      message.error(error.response?.data?.detail || 'Không thể kết thúc phiên điểm danh');
+      message.error(error.response?.data?.detail || 'Could not end attendance session');
     } finally {
       setEndSessionLoading(false);
     }
@@ -690,7 +690,7 @@ const ClassDetailPage: React.FC = () => {
 
   // ✅ Handle session end
   const handleSessionEnd = async () => {
-    message.success('Kết thúc phiên điểm danh!');
+    message.success('Attendance session ended!');
     
     setIsAttendanceCameraVisible(false);
     setResumeSessionId(undefined); // ✅ Clear resume session ID
@@ -715,7 +715,7 @@ const ClassDetailPage: React.FC = () => {
         if (cls) {
           const mapped: ClassData = {
             id: cls.id,
-            subject: cls.subject || "Không tên",
+            subject: cls.subject || "Unnamed",
             classCode: cls.classCode || "",
             description: cls.description || "",
             room: cls.room || "N/A",
@@ -728,11 +728,11 @@ const ClassDetailPage: React.FC = () => {
             attendanceStats: res.data.attendance
           };
           setClassData(mapped);
-          message.success('Đã cập nhật thông tin lớp học!');
+          message.success('Class information updated!');
         }
       } catch (err: any) {
         console.error("Failed to refresh class details:", err);
-        message.warning('Không thể cập nhật thông tin lớp học. Vui lòng làm mới trang.');
+        message.warning('Could not update class information. Please refresh the page.');
       }
     }
   };
@@ -741,7 +741,7 @@ const ClassDetailPage: React.FC = () => {
   useEffect(() => {
     const fetchClass = async () => {
       if (!classId) {
-        setClassError("Không tìm thấy ID lớp học. Vui lòng thử lại.");
+        setClassError("Class ID not found. Please try again.");
         return;
       }
 
@@ -753,13 +753,13 @@ const ClassDetailPage: React.FC = () => {
         
         const cls = res?.data?.class;
         if (!cls) {
-          throw new Error("Không có dữ liệu lớp học trả về từ server.");
+          throw new Error("No class data returned from server.");
         }
 
         // ✅ Map backend response to ClassData
         const mapped: ClassData = {
           id: cls.id,
-          subject: cls.subject || "Không tên",
+          subject: cls.subject || "Unnamed",
           classCode: cls.classCode || "",
           description: cls.description || "",
           room: cls.room || "N/A",
@@ -775,7 +775,7 @@ const ClassDetailPage: React.FC = () => {
         setClassData(mapped);
       } catch (err: any) {
         console.error("Failed to load class details:", err);
-        const msg = err?.response?.data?.message || err?.message || "Không thể tải chi tiết lớp học";
+        const msg = err?.response?.data?.message || err?.message || "Could not load class details";
         setClassError(String(msg));
         message.error(String(msg));
       } finally {
@@ -799,7 +799,7 @@ const ClassDetailPage: React.FC = () => {
         setAttendanceSessions(response.sessions);
       } catch (error: any) {
         console.error('Failed to load attendance sessions:', error);
-        message.error('Không thể tải lịch sử điểm danh');
+        message.error('Could not load attendance history');
       } finally {
         setLoadingSessions(false);
       }
@@ -818,7 +818,7 @@ const ClassDetailPage: React.FC = () => {
       setClassSummary(response.data.summary); // ✅ Save summary data
     } catch (error: any) {
       console.error('❌ Failed to fetch students:', error);
-      message.error('Không thể tải danh sách học sinh');
+      message.error('Could not load student list');
     } finally {
       setLoadingStudents(false);
     }
@@ -836,7 +836,7 @@ const ClassDetailPage: React.FC = () => {
     return (
       <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Card>
-          <Text>Đang tải chi tiết lớp học...</Text>
+          <Text>Loading class details...</Text>
         </Card>
       </div>
     );
@@ -847,10 +847,10 @@ const ClassDetailPage: React.FC = () => {
     return (
       <div style={{ padding: 32 }}>
         <Card>
-          <Title level={4}>Không thể tải lớp học</Title>
+          <Title level={4}>Could not load class</Title>
           <Text type="danger">{classError}</Text>
           <div style={{ marginTop: 16 }}>
-            <Button onClick={() => navigate(-1)}>Quay lại</Button>
+            <Button onClick={() => navigate(-1)}>Go Back</Button>
           </div>
         </Card>
       </div>
@@ -861,8 +861,8 @@ const ClassDetailPage: React.FC = () => {
     return (
       <div style={{ padding: 32 }}>
         <Card>
-          <Title level={4}>Không tìm thấy dữ liệu lớp học</Title>
-          <Button onClick={() => navigate(-1)}>Quay lại</Button>
+          <Title level={4}>Class data not found</Title>
+          <Button onClick={() => navigate(-1)}>Go Back</Button>
         </Card>
       </div>
     );
@@ -875,9 +875,9 @@ const ClassDetailPage: React.FC = () => {
   const students: Student[] = [
     {
       id: "1",
-      name: "Nguyễn Văn An",
+      name: "John Smith",
       studentId: "SV001",
-      email: "an.nv@student.hust.edu.vn",
+      email: "john.smith@student.hust.edu.vn",
       totalSessions: 15,
       presentCount: 14,
       absentCount: 1,
@@ -917,27 +917,27 @@ const ClassDetailPage: React.FC = () => {
   const getStatusConfig = (status: string) => {
     switch(status) {
       case 'active':
-        return { color: '#10b981', text: 'Đang hoạt động' };
+        return { color: '#10b981', text: 'Active' };
       case 'inactive':
-        return { color: '#ef4444', text: 'Không hoạt động' };
+        return { color: '#ef4444', text: 'Inactive' };
       case 'pending':
-        return { color: '#f59e0b', text: 'Đang chờ' };
+        return { color: '#f59e0b', text: 'Pending' };
       case 'approved':
-        return { color: '#10b981', text: 'Đã duyệt' };
+        return { color: '#10b981', text: 'Approved' };
       case 'rejected':
-        return { color: '#ef4444', text: 'Từ chối' };
+        return { color: '#ef4444', text: 'Rejected' };
       case 'completed':
-        return { color: '#64748b', text: 'Đã hoàn thành' };
+        return { color: '#64748b', text: 'Completed' };
       case 'ongoing':
-        return { color: '#10b981', text: 'Đang diễn ra' };
+        return { color: '#10b981', text: 'Ongoing' };
       case 'scheduled':
-        return { color: '#3b82f6', text: 'Đã lên lịch' };
+        return { color: '#3b82f6', text: 'Scheduled' };
       case 'finished':
-        return { color: '#64748b', text: 'Đã kết thúc' };
+        return { color: '#64748b', text: 'Finished' };
       case 'upcoming':
-        return { color: '#3b82f6', text: 'Sắp diễn ra' };
+        return { color: '#3b82f6', text: 'Upcoming' };
       default:
-        return { color: '#64748b', text: 'Không xác định' };
+        return { color: '#64748b', text: 'Unknown' };
     }
   };
 
@@ -955,7 +955,7 @@ const ClassDetailPage: React.FC = () => {
 
   const studentColumns = [
     {
-      title: 'Học sinh',
+      title: 'Student',
       key: 'student',
       render: (record: StudentDetailInClass) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -971,19 +971,19 @@ const ClassDetailPage: React.FC = () => {
       )
     },
     {
-      title: 'Khoa',
+      title: 'Department',
       dataIndex: 'department',
       key: 'department',
       render: (dept: string) => dept || <Text type="secondary">-</Text>
     },
     {
-      title: 'Tổng buổi',
+      title: 'Total Sessions',
       key: 'totalSessions',
       align: 'center' as const,
       render: (record: StudentDetailInClass) => record.attendanceStats.totalSessions
     },
     {
-      title: 'Có mặt',
+      title: 'Present',
       key: 'presentCount',
       align: 'center' as const,
       render: (record: StudentDetailInClass) => (
@@ -993,7 +993,7 @@ const ClassDetailPage: React.FC = () => {
       )
     },
     {
-      title: 'Vắng',
+      title: 'Absent',
       key: 'absentCount',
       align: 'center' as const,
       render: (record: StudentDetailInClass) => (
@@ -1003,7 +1003,7 @@ const ClassDetailPage: React.FC = () => {
       )
     },
     {
-      title: 'Tỷ lệ',
+      title: 'Rate',
       key: 'attendanceRate',
       align: 'center' as const,
       render: (record: StudentDetailInClass) => {
@@ -1025,13 +1025,13 @@ const ClassDetailPage: React.FC = () => {
       }
     },
     {
-      title: 'Xác thực',
+      title: 'Verification',
       dataIndex: 'isVerified',
       key: 'isVerified',
       align: 'center' as const,
       render: (verified: boolean) => (
         <Tag color={verified ? 'success' : 'warning'}>
-          {verified ? 'Đã xác thực' : 'Chưa'}
+          {verified ? 'Verified' : 'Not yet'}
         </Tag>
       )
     }
@@ -1039,11 +1039,11 @@ const ClassDetailPage: React.FC = () => {
 
   const sessionColumns = [
     {
-      title: 'Phiên điểm danh',
+      title: 'Attendance Session',
       key: 'session',
       render: (record: SessionWithStats) => {
-        // ✅ Fix: Convert day_of_week (0=Sunday, 1=Monday, ...) to Vietnamese label
-        const dayLabels = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+        // ✅ Fix: Convert day_of_week (0=Sunday, 1=Monday, ...) to English label
+        const dayLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const dayLabel = record.day_of_week !== null && record.day_of_week !== undefined
           ? dayLabels[record.day_of_week]
           : 'N/A';
@@ -1053,7 +1053,7 @@ const ClassDetailPage: React.FC = () => {
         
         return (
           <div>
-            <Text strong>{dayLabel}, buổi {record.period_range || 'N/A'}</Text>
+            <Text strong>{dayLabel}, session {record.period_range || 'N/A'}</Text>
             <br />
             <Text type="secondary" style={{ fontSize: 12 }}>
               {displayTime.format('DD/MM/YYYY HH:mm')}
@@ -1063,7 +1063,7 @@ const ClassDetailPage: React.FC = () => {
       }
     },
     {
-      title: 'Trạng thái',
+      title: 'Status',
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => {
@@ -1072,7 +1072,7 @@ const ClassDetailPage: React.FC = () => {
       }
     },
     {
-      title: 'Có mặt',
+      title: 'Present',
       key: 'presentCount',
       align: 'center' as const,
       render: (record: SessionWithStats) => (
@@ -1082,7 +1082,7 @@ const ClassDetailPage: React.FC = () => {
       )
     },
     {
-      title: 'Vắng',
+      title: 'Absent',
       key: 'absentCount', 
       align: 'center' as const,
       render: (record: SessionWithStats) => (
@@ -1092,7 +1092,7 @@ const ClassDetailPage: React.FC = () => {
       )
     },
     {
-      title: 'Có phép',
+      title: 'Excused',
       key: 'excusedCount',
       align: 'center' as const,
       render: (record: SessionWithStats) => (
@@ -1102,7 +1102,7 @@ const ClassDetailPage: React.FC = () => {
       )
     },
     {
-      title: 'Tỷ lệ (%)',
+      title: 'Rate (%)',
       key: 'attendance_rate',
       align: 'center' as const,
       render: (record: SessionWithStats) => (
@@ -1114,7 +1114,7 @@ const ClassDetailPage: React.FC = () => {
       )
     },
     {
-      title: 'Thao tác',
+      title: 'Actions',
       key: 'actions',
       render: (record: SessionWithStats) => (
         <Space>
@@ -1128,7 +1128,7 @@ const ClassDetailPage: React.FC = () => {
                   handleResumeSession(record.id);
                 }}
               >
-                Điểm danh
+                Attendance
               </Button>
               <Button 
                 danger
@@ -1139,7 +1139,7 @@ const ClassDetailPage: React.FC = () => {
                   handleEndOngoingSession(record.id);
                 }}
               >
-                Kết thúc
+                End
               </Button>
             </>
           )}
@@ -1155,7 +1155,7 @@ const ClassDetailPage: React.FC = () => {
                 });
               }}
             >
-              Chi tiết
+              Details
             </Button>
           )}
         </Space>
@@ -1367,7 +1367,7 @@ const ClassDetailPage: React.FC = () => {
               onClick={() => navigate(-1)}
               style={{ borderRadius: 8 }}
             >
-              Quay lại
+              Go Back
             </Button>
             <div style={{ flex: 1 }}>
               <Title level={1} className="class-detail-title" style={{ 
@@ -1384,7 +1384,7 @@ const ClassDetailPage: React.FC = () => {
                   {getStatusConfig(classData.status).text}
                 </Tag>
                 <Text style={{ color: "#64748b", fontSize: 14 }}>
-                  <BookOutlined /> Mã: {classData.classCode}
+                  <BookOutlined /> Code: {classData.classCode}
                 </Text>
                 <Text style={{ color: "#64748b", fontSize: 14 }}>
                   <EnvironmentOutlined /> {classData.room}
@@ -1410,13 +1410,13 @@ const ClassDetailPage: React.FC = () => {
             >
               <Space align="center">
                 <Title level={5} style={{ margin: 0, color: '#0369a1', fontSize: 16 }}>
-                  📅 Lịch dạy trong tuần
+                  📅 Weekly Teaching Schedule
                 </Title>
                 {!isScheduleExpanded && scheduleSessions.length > 0 && (
                   <Badge 
                     count={scheduleSessions.length} 
                     style={{ backgroundColor: '#0369a1' }}
-                    title={`${scheduleSessions.length} ngày học`}
+                    title={`${scheduleSessions.length} teaching days`}
                   />
                 )}
               </Space>
@@ -1433,7 +1433,7 @@ const ClassDetailPage: React.FC = () => {
                   fontWeight: 500
                 }}
               >
-                {isScheduleExpanded ? 'Thu gọn' : 'Mở rộng'}
+                {isScheduleExpanded ? 'Collapse' : 'Expand'}
               </Button>
             </div>
             
@@ -1486,7 +1486,7 @@ const ClassDetailPage: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <Text type="secondary">Chưa có lịch học</Text>
+                <Text type="secondary">No schedule yet</Text>
               )}
             </div>
           </Card>
@@ -1508,7 +1508,7 @@ const ClassDetailPage: React.FC = () => {
                 height: 44
               }}
             >
-              Điểm danh
+              Attendance
             </Button>
             <Button 
               type="primary"
@@ -1517,7 +1517,7 @@ const ClassDetailPage: React.FC = () => {
               onClick={handleOpenEditModal}
               style={{ borderRadius: 8, minWidth: 160, height: 44 }}
             >
-              Chỉnh sửa
+              Edit
             </Button>
           </Space>
         </div>
@@ -1529,7 +1529,7 @@ const ClassDetailPage: React.FC = () => {
         <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
-              title="Tổng sinh viên"
+              title="Total Students"
               value={totalStudents}
               prefix={<TeamOutlined />}
               valueStyle={{ color: '#2563eb', fontSize: 20 }}
@@ -1540,7 +1540,7 @@ const ClassDetailPage: React.FC = () => {
         <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
-              title="Phiên điểm danh"
+              title="Attendance Sessions"
               value={totalSessions}
               prefix={<CalendarOutlined />}
               valueStyle={{ color: '#10b981', fontSize: 20 }}
@@ -1551,7 +1551,7 @@ const ClassDetailPage: React.FC = () => {
         <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
-              title="Điểm danh TB"
+              title="Avg Attendance"
               value={avgAttendance}
               suffix="%"
               prefix={<CheckCircleOutlined />}
@@ -1567,7 +1567,7 @@ const ClassDetailPage: React.FC = () => {
         <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
-              title="Đã xác thực"
+              title="Verified"
               value={verifiedCount}
               suffix={`/${totalStudents}`}
               valueStyle={{ color: '#8b5cf6', fontSize: 20 }}
@@ -1599,7 +1599,7 @@ const ClassDetailPage: React.FC = () => {
             tab={
               <span>
                 <TeamOutlined />
-                Tổng quan ({totalStudents})
+                Overview ({totalStudents})
               </span>
             } 
             key="overview"
@@ -1608,13 +1608,13 @@ const ClassDetailPage: React.FC = () => {
               {/* ✅ Summary Statistics Card - Also remove progress bars here */}
               <Col span={24}>
                 <Card 
-                  title="📊 Thống kê lớp học"
+                  title="📊 Class Statistics"
                   style={{ borderRadius: 12, marginBottom: 24 }}
                 >
                   <Row gutter={[12, 12]}>
                     <Col xs={12} sm={12} md={6}>
                       <div style={{ textAlign: 'center' }}>
-                        <Text type="secondary" style={{ fontSize: 12 }}>Tổng sinh viên</Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>Total Students</Text>
                         <div style={{ fontSize: 24, fontWeight: 'bold', color: '#2563eb' }}>
                           {totalStudents}
                         </div>
@@ -1622,7 +1622,7 @@ const ClassDetailPage: React.FC = () => {
                     </Col>
                     <Col xs={12} sm={12} md={6}>
                       <div style={{ textAlign: 'center' }}>
-                        <Text type="secondary" style={{ fontSize: 12 }}>Phiên điểm danh</Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>Attendance Sessions</Text>
                         <div style={{ fontSize: 24, fontWeight: 'bold', color: '#10b981' }}>
                           {totalSessions}
                         </div>
@@ -1630,7 +1630,7 @@ const ClassDetailPage: React.FC = () => {
                     </Col>
                     <Col xs={12} sm={12} md={6}>
                       <div style={{ textAlign: 'center' }}>
-                        <Text type="secondary" style={{ fontSize: 12 }}>Điểm danh TB</Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>Avg Attendance</Text>
                         <div style={{ 
                           fontSize: 24, 
                           fontWeight: 'bold', 
@@ -1643,7 +1643,7 @@ const ClassDetailPage: React.FC = () => {
                     </Col>
                     <Col xs={12} sm={12} md={6}>
                       <div style={{ textAlign: 'center' }}>
-                        <Text type="secondary" style={{ fontSize: 12 }}>Đã xác thực</Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>Verified</Text>
                         <div style={{ fontSize: 24, fontWeight: 'bold', color: '#8b5cf6' }}>
                           {verifiedCount}/{totalStudents}
                         </div>
@@ -1659,10 +1659,10 @@ const ClassDetailPage: React.FC = () => {
 
               <Col span={24}>
                 <Card 
-                  title="📝 Mô tả lớp học"
+                  title="📝 Class Description"
                   style={{ borderRadius: 12, marginBottom: 24 }}
                 >
-                  <Text>{classData?.description || "Chưa có mô tả"}</Text>
+                  <Text>{classData?.description || "No description yet"}</Text>
                 </Card>
               </Col>
 
@@ -1678,7 +1678,7 @@ const ClassDetailPage: React.FC = () => {
                     }}>
                       <Space>
                         <TeamOutlined style={{ color: '#1890ff' }} />
-                        <Text strong style={{ fontSize: '16px' }}>📋 Danh sách học sinh</Text>
+                        <Text strong style={{ fontSize: '16px' }}>📋 Student List</Text>
                         <Badge count={studentsData.length} style={{ backgroundColor: '#52c41a' }} />
                       </Space>
                       <Button 
@@ -1687,7 +1687,7 @@ const ClassDetailPage: React.FC = () => {
                         loading={loadingStudents}
                         size="small"
                       >
-                        Làm mới
+                        Refresh
                       </Button>
                     </div>
                   }
@@ -1704,13 +1704,13 @@ const ClassDetailPage: React.FC = () => {
                         pageSize: 10,
                         showSizeChanger: true,
                         showTotal: (total, range) => 
-                          `${range[0]}-${range[1]} của ${total} học sinh`
+                          `${range[0]}-${range[1]} of ${total} students`
                       }}
                       locale={{
                         emptyText: loadingStudents ? (
-                          <Spin tip="Đang tải danh sách học sinh..." />
+                          <Spin tip="Loading student list..." />
                         ) : (
-                          <Empty description="Chưa có học sinh nào trong lớp" />
+                          <Empty description="No students in this class yet" />
                         )
                       }}
                     />
@@ -1721,8 +1721,8 @@ const ClassDetailPage: React.FC = () => {
           </TabPane>
 
           {/* Attendance Tab - Keep existing */}
-          <TabPane tab="📅 Điểm danh" key="attendance">
-            <Card title="📊 Lịch sử điểm danh" style={{ borderRadius: 12 }}>
+          <TabPane tab="📅 Attendance" key="attendance">
+            <Card title="📊 Attendance History" style={{ borderRadius: 12 }}>
               <div style={{ overflowX: 'auto' }}>
                 <Table
                   dataSource={attendanceSessions}
@@ -1733,7 +1733,7 @@ const ClassDetailPage: React.FC = () => {
                   pagination={{
                     pageSize: 10,
                     showTotal: (total, range) => 
-                      `${range[0]}-${range[1]} của ${total} phiên điểm danh`
+                      `${range[0]}-${range[1]} of ${total} sessions`
                   }}
                 />
               </div>
@@ -1746,12 +1746,12 @@ const ClassDetailPage: React.FC = () => {
 
       {/* Student Detail Modal */}
       <Modal
-        title="Chi tiết học sinh"
+        title="Student Details"
         open={isStudentDetailVisible}
         onCancel={() => setIsStudentDetailVisible(false)}
         footer={[
           <Button key="close" onClick={() => setIsStudentDetailVisible(false)}>
-            Đóng
+            Close
           </Button>
         ]}
         width={600}
@@ -1771,14 +1771,14 @@ const ClassDetailPage: React.FC = () => {
               
               <Col xs={24} sm={12}>
                 <Statistic
-                  title="Tổng buổi học"
+                  title="Total Sessions"
                   value={selectedStudent.totalSessions}
                   prefix={<BookOutlined />}
                 />
               </Col>
               <Col xs={24} sm={12}>
                 <Statistic
-                  title="Tỷ lệ điểm danh"
+                  title="Attendance Rate"
                   value={selectedStudent.attendanceRate.toFixed(1)}
                   suffix="%"
                   valueStyle={{ color: getAttendanceColor(selectedStudent.attendanceRate) }}
@@ -1787,21 +1787,21 @@ const ClassDetailPage: React.FC = () => {
               
               <Col xs={8} sm={8}>
                 <Statistic
-                  title="Có mặt"
+                  title="Present"
                   value={selectedStudent.presentCount}
                   valueStyle={{ color: '#10b981' }}
                 />
               </Col>
               <Col xs={8} sm={8}>
                 <Statistic
-                  title="Vắng mặt"
+                  title="Absent"
                   value={selectedStudent.absentCount}
                   valueStyle={{ color: '#ef4444' }}
                 />
               </Col>
               <Col xs={8} sm={8}>
                 <Statistic
-                  title="Nghỉ có phép"
+                  title="Excused"
                   value={selectedStudent.excusedCount}
                   valueStyle={{ color: '#8b5cf6' }}
                 />
@@ -1813,7 +1813,7 @@ const ClassDetailPage: React.FC = () => {
 
       {/* ✅ Edit Class Modal */}
       <Modal
-        title="Chỉnh sửa thông tin lớp học"
+        title="Edit Class Information"
         open={isEditModalVisible}
         onCancel={() => setIsEditModalVisible(false)}
         footer={null}
@@ -1822,7 +1822,7 @@ const ClassDetailPage: React.FC = () => {
       >
         {editError && (
           <Alert
-            message="Lỗi khi cập nhật lớp học"
+            message="Error updating class"
             description={
               <div>
                 <Text>{editError}</Text>
@@ -1847,43 +1847,43 @@ const ClassDetailPage: React.FC = () => {
           style={{ marginTop: 16 }}
         >
           <Form.Item 
-            label="Tên môn học"
+            label="Subject Name"
             name="subject"
             rules={[
-              { required: true, message: 'Vui lòng nhập tên môn học!' },
-              { min: 3, message: 'Tên môn học phải có ít nhất 3 ký tự!' }
+              { required: true, message: 'Please enter subject name!' },
+              { min: 3, message: 'Subject name must be at least 3 characters!' }
             ]}
           >
-            <Input size="large" placeholder="Nhập tên môn học" />
+            <Input size="large" placeholder="Enter subject name" />
           </Form.Item>
 
           <Form.Item 
-            label="Mô tả"
+            label="Description"
             name="description"
             rules={[
-              { required: true, message: 'Vui lòng nhập mô tả!' },
-              { min: 10, message: 'Mô tả phải có ít nhất 10 ký tự!' }
+              { required: true, message: 'Please enter description!' },
+              { min: 10, message: 'Description must be at least 10 characters!' }
             ]}
           >
-            <TextArea rows={4} placeholder="Mô tả chi tiết về lớp học" />
+            <TextArea rows={4} placeholder="Detailed description of the class" />
           </Form.Item>
 
               <Form.Item 
-                label="Phòng học"
+                label="Room"
                 name="room"
-                rules={[{ required: true, message: 'Vui lòng nhập phòng học!' }]}
+                rules={[{ required: true, message: 'Please enter room!' }]}
               >
-                <Input size="large" placeholder="VD: A101, LAB1" />
+                <Input size="large" placeholder="E.g.: A101, LAB1" />
               </Form.Item>
 
-          <Divider orientation="left">Lịch học</Divider>
+          <Divider orientation="left">Schedule</Divider>
 
           {/* Day Selection */}
-          <Form.Item label="Chọn các thứ trong tuần">
+          <Form.Item label="Select days of the week">
             <Select
               mode="multiple"
               size="large"
-              placeholder="Chọn các ngày học trong tuần"
+              placeholder="Select teaching days"
               style={{ width: '100%' }}
               value={selectedDays}
               onChange={handleEditDayChange}
@@ -1919,12 +1919,12 @@ const ClassDetailPage: React.FC = () => {
               >
                 <div style={{ marginBottom: 12 }}>
                   <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                    Chọn các tiết học:
+                    Select periods:
                   </Text>
                   <Select
                     mode="multiple"
                     size="large"
-                    placeholder="Chọn các tiết học"
+                    placeholder="Select periods"
                     style={{ width: '100%' }}
                     value={selectedPeriods}
                     onChange={(periods) => handleEditPeriodChange(day, periods)}
@@ -1941,7 +1941,7 @@ const ClassDetailPage: React.FC = () => {
                 {daySchedule && daySchedule.sessions.length > 0 && (
                   <div style={{ marginTop: 12 }}>
                     <Text type="secondary" style={{ fontSize: 12 }}>
-                      Các buổi học (tự động chia):
+                      Sessions (auto-split):
                     </Text>
                     <Space direction="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
                       {daySchedule.sessions.map((session, index) => (
@@ -1952,7 +1952,7 @@ const ClassDetailPage: React.FC = () => {
                           border: '1px solid #bae6fd'
                         }}>
                           <Text strong style={{ color: '#0369a1', fontSize: 12 }}>
-                            Buổi {index + 1}:
+                            Session {index + 1}:
                           </Text>{' '}
                           <Tag color="blue">
                             {formatTimeRange(session.periods)}
@@ -1963,7 +1963,7 @@ const ClassDetailPage: React.FC = () => {
 
                     {daySchedule.sessions.length > 1 && (
                       <Alert
-                        message={`Đã tự động chia thành ${daySchedule.sessions.length} buổi học`}
+                        message={`Auto-split into ${daySchedule.sessions.length} sessions`}
                         type="info"
                         showIcon
                         style={{ marginTop: 12 }}
@@ -1984,14 +1984,14 @@ const ClassDetailPage: React.FC = () => {
                 onClick={handleUpdateClass}
                 disabled={!!editError}
               >
-                {editLoading ? 'Đang cập nhật...' : 'Lưu thay đổi'}
+                {editLoading ? 'Updating...' : 'Save Changes'}
               </Button>
               <Button 
                 size="large" 
                 onClick={() => setIsEditModalVisible(false)}
                 disabled={editLoading}
               >
-                Hủy
+                Cancel
               </Button>
             </Space>
           </Form.Item>
@@ -2003,7 +2003,7 @@ const ClassDetailPage: React.FC = () => {
         title={
           <Space>
             <PlayCircleOutlined style={{ color: '#10b981' }} />
-            <Text strong>Tạo phiên điểm danh</Text>
+            <Text strong>Create Attendance Session</Text>
           </Space>
         }
         open={isAttendanceModalVisible}
@@ -2014,7 +2014,7 @@ const ClassDetailPage: React.FC = () => {
             key="cancel" 
             onClick={() => setIsAttendanceModalVisible(false)}
           >
-            Hủy
+            Cancel
           </Button>,
           <Button
             key="start"
@@ -2029,14 +2029,14 @@ const ClassDetailPage: React.FC = () => {
               border: 'none'
             }}
           >
-            Bắt đầu điểm danh
+            Start Attendance
           </Button>
         ]}
       >
         
         <div style={{ marginTop: 16 }}>
           <Title level={5} style={{ marginBottom: 16, fontSize: 16 }}>
-            Chọn buổi học để điểm danh
+            Select session for attendance
           </Title>
 
           {upcomingSessions.length > 0 ? (
@@ -2088,7 +2088,7 @@ const ClassDetailPage: React.FC = () => {
                               {session.date}
                             </Text>
                             <Tag color="success" style={{ fontSize: 11, marginTop: 4 }}>
-                              Đang diễn ra
+                              Ongoing
                             </Tag>
                           </Space>
                         </Col>
@@ -2103,10 +2103,10 @@ const ClassDetailPage: React.FC = () => {
                         <Col xs={24} sm={8}>
                           <Space direction="vertical" size={0}>
                             <Text type="secondary" style={{ fontSize: 11 }}>
-                              Phòng: {classData.room}
+                              Room: {classData.room}
                             </Text>
                             <Text type="secondary" style={{ fontSize: 11 }}>
-                              Buổi {session.sessionIndex + 1}
+                              Session {session.sessionIndex + 1}
                             </Text>
                           </Space>
                         </Col>
@@ -2121,10 +2121,10 @@ const ClassDetailPage: React.FC = () => {
               <Space direction="vertical" size={12}>
                 <ClockCircleOutlined style={{ fontSize: 48, color: '#fa8c16' }} />
                 <Text style={{ color: '#ad6800', fontWeight: 500 }}>
-                  Hiện không có buổi học nào đang diễn ra
+                  No session is currently ongoing
                 </Text>
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  Chỉ có thể tạo phiên điểm danh trong thời gian buổi học đang diễn ra
+                  Attendance sessions can only be created during scheduled class time
                 </Text>
               </Space>
             </Card>
@@ -2132,7 +2132,7 @@ const ClassDetailPage: React.FC = () => {
 
           {selectedAttendanceSession && (
             <Alert
-              message="Buổi học đã chọn"
+              message="Selected Session"
               description={
                 <div>
                   <Text strong>{selectedAttendanceSession.dayLabel}</Text>
@@ -2142,7 +2142,7 @@ const ClassDetailPage: React.FC = () => {
                   <Text type="secondary">{selectedAttendanceSession.timeRange}</Text>
                   {')'}
                   <br />
-                  <Text type="secondary">Ngày: {selectedAttendanceSession.date}</Text>
+                  <Text type="secondary">Date: {selectedAttendanceSession.date}</Text>
                 </div>
               }
               type="success"
@@ -2174,7 +2174,7 @@ const ClassDetailPage: React.FC = () => {
         title={
           <Space>
             <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
-            <span>Kết thúc phiên điểm danh</span>
+            <span>End Attendance Session</span>
           </Space>
         }
         open={endSessionModalVisible}
@@ -2191,7 +2191,7 @@ const ClassDetailPage: React.FC = () => {
             }}
             disabled={endSessionLoading}
           >
-            Hủy
+            Cancel
           </Button>,
           <Button
             key="confirm"
@@ -2200,13 +2200,13 @@ const ClassDetailPage: React.FC = () => {
             loading={endSessionLoading}
             onClick={confirmEndSession}
           >
-            Kết thúc
+            End Session
           </Button>
         ]}
         centered
       >
-        <p>Bạn có chắc chắn muốn kết thúc phiên điểm danh này?</p>
-        <p style={{ color: '#666' }}>Sinh viên chưa điểm danh sẽ được đánh dấu là vắng.</p>
+        <p>Are you sure you want to end this attendance session?</p>
+        <p style={{ color: '#666' }}>Students who haven't checked in will be marked as absent.</p>
       </Modal>
     </div>
   );

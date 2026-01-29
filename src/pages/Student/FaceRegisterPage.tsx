@@ -49,8 +49,8 @@ const FaceRegisterPage: React.FC = () => {
   const [videoAspectRatio, setVideoAspectRatio] = useState<number>(4 / 3); // Default 4:3
 
   const breadcrumbItems = [
-    { title: "Trang chủ", href: "/student" },
-    { title: "Đăng ký khuôn mặt" }
+    { title: "Home", href: "/student" },
+    { title: "Face Registration" }
   ];
 
   // Check registration status on mount
@@ -71,7 +71,7 @@ const FaceRegisterPage: React.FC = () => {
           } catch (error: any) {
             console.error('Failed to load pending review images:', error);
             console.error('Error response:', error?.response?.data);
-            message.error(error?.response?.data?.detail || 'Không thể tải ảnh đang chờ xác nhận');
+            message.error(error?.response?.data?.detail || 'Could not load pending review images');
           } finally {
             setIsLoadingPendingReview(false);
           }
@@ -107,7 +107,7 @@ const FaceRegisterPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Failed to confirm review:', error);
-      message.error(error?.response?.data?.detail || 'Không thể xác nhận. Vui lòng thử lại.');
+      message.error(error?.response?.data?.detail || 'Could not confirm. Please try again.');
     } finally {
       setIsConfirming(false);
     }
@@ -115,18 +115,18 @@ const FaceRegisterPage: React.FC = () => {
 
   const steps = [
     {
-      title: 'Chuẩn bị',
-      description: 'Kết nối và khởi động camera',
+      title: 'Preparation',
+      description: 'Connect and start camera',
       icon: <SafetyCertificateOutlined />,
     },
     {
-      title: 'Thu thập dữ liệu',
-      description: 'Thu thập ảnh khuôn mặt (12 bước)',
+      title: 'Data Collection',
+      description: 'Collect face images (12 steps)',
       icon: <CameraOutlined />,
     },
     {
-      title: 'Hoàn thành',
-      description: 'Xử lý và lưu trữ dữ liệu',
+      title: 'Complete',
+      description: 'Process and save data',
       icon: <CheckCircleOutlined />,
     },
   ];
@@ -291,13 +291,13 @@ const FaceRegisterPage: React.FC = () => {
   const getConnectionBadge = () => {
     switch (connectionStatus) {
       case 'connected':
-        return <Badge status='success' text='Đã kết nối' />;
+        return <Badge status='success' text='Connected' />;
       case 'connecting':
-        return <Badge status='processing' text='Đang kết nối...' />;
+        return <Badge status='processing' text='Connecting...' />;
       case 'error':
-        return <Badge status='error' text='Lỗi kết nối' />;
+        return <Badge status='error' text='Connection Error' />;
       default:
-        return <Badge status='default' text='Chưa kết nối' />;
+        return <Badge status='default' text='Not Connected' />;
     }
   };
 
@@ -306,13 +306,13 @@ const FaceRegisterPage: React.FC = () => {
       <Breadcrumb items={breadcrumbItems} />
       <div style={{ marginBottom: 16 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} size="small" style={{ borderRadius: 8, marginBottom: 12 }}>
-          Quay lại
+          Back
         </Button>
         <Title level={2} style={{ marginBottom: 8, color: '#2563eb', fontSize: 'clamp(20px, 5vw, 32px)', fontWeight: 700 }}>
           🔒 Face Registration
         </Title>
         <Text style={{ fontSize: 'clamp(14px, 3.5vw, 18px)', color: '#64748b', display: 'block' }}>
-          Đăng ký khuôn mặt để sử dụng tính năng điểm danh tự động
+          Register your face to use the automatic attendance feature
         </Text>
       </div>
 
@@ -321,7 +321,7 @@ const FaceRegisterPage: React.FC = () => {
         <Card style={{ borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.08)', border: 'none', textAlign: 'center', padding: '24px 16px' }}>
           <Spin indicator={<LoadingOutlined style={{ fontSize: 'clamp(32px, 8vw, 48px)' }} spin />} />
           <Text type='secondary' style={{ display: 'block', marginTop: 12, fontSize: 'clamp(14px, 3.5vw, 16px)' }}>
-            Đang kiểm tra trạng thái đăng ký...
+            Checking registration status...
           </Text>
         </Card>
       )}
@@ -341,7 +341,7 @@ const FaceRegisterPage: React.FC = () => {
               <>
                 <CheckCircleOutlined style={{ fontSize: 'clamp(48px, 12vw, 64px)', color: '#10b981', marginBottom: 12 }} />
                 <Title level={4} style={{ color: '#065f46', marginBottom: 8, fontSize: 'clamp(16px, 4vw, 20px)' }}>
-                  Khuôn mặt đã được phê duyệt ✅
+                  Face Already Approved ✅
                 </Title>
                 <Text style={{ fontSize: 'clamp(14px, 3.5vw, 16px)', color: '#047857', display: 'block', marginBottom: 16 }}>
                   {initialStatus.message}
@@ -351,7 +351,7 @@ const FaceRegisterPage: React.FC = () => {
               <>
                 <ClockCircleOutlined style={{ fontSize: 'clamp(48px, 12vw, 64px)', color: '#d97706', marginBottom: 12 }} />
                 <Title level={4} style={{ color: '#92400e', marginBottom: 8, fontSize: 'clamp(16px, 4vw, 20px)' }}>
-                  Đang chờ admin phê duyệt ⏳
+                  Awaiting Admin Approval ⏳
                 </Title>
                 <Text style={{ fontSize: 'clamp(14px, 3.5vw, 16px)', color: '#b45309', display: 'block', marginBottom: 16 }}>
                   {initialStatus.message}
@@ -361,7 +361,7 @@ const FaceRegisterPage: React.FC = () => {
               <>
                 <ExclamationCircleOutlined style={{ fontSize: 'clamp(48px, 12vw, 64px)', color: '#6b7280', marginBottom: 12 }} />
                 <Title level={4} style={{ color: '#374151', marginBottom: 8, fontSize: 'clamp(16px, 4vw, 20px)' }}>
-                  Không thể đăng ký
+                  Cannot Register
                 </Title>
                 <Text style={{ fontSize: 'clamp(14px, 3.5vw, 16px)', color: '#4b5563', display: 'block', marginBottom: 16 }}>
                   {initialStatus.message}
@@ -371,10 +371,10 @@ const FaceRegisterPage: React.FC = () => {
 
             {initialStatus.details && (
               <Alert 
-                message="Chi tiết" 
+                message="Details" 
                 description={
                   <div>
-                    <Text strong>Trạng thái: </Text>
+                    <Text strong>Status: </Text>
                     <Tag color={
                       initialStatus.status === 'approved' ? 'success' : 
                       initialStatus.status === 'pending_admin_review' ? 'warning' :
@@ -397,7 +397,7 @@ const FaceRegisterPage: React.FC = () => {
               style={{ marginTop: 16, borderRadius: 8, width: '100%', maxWidth: 300 }}
               icon={<ArrowLeftOutlined />}
             >
-              Quay về Dashboard
+              Back to Dashboard
             </Button>
           </div>
         </Card>
@@ -414,10 +414,10 @@ const FaceRegisterPage: React.FC = () => {
           <div style={{ textAlign: 'center', padding: '24px 16px' }}>
             <EyeOutlined style={{ fontSize: 'clamp(48px, 12vw, 64px)', color: '#d97706', marginBottom: 12 }} />
             <Title level={4} style={{ color: '#92400e', marginBottom: 8, fontSize: 'clamp(16px, 4vw, 20px)' }}>
-              Xem lại ảnh đã thu thập 📸
+              Review Collected Images 📸
             </Title>
             <Text style={{ fontSize: 'clamp(14px, 3.5vw, 16px)', color: '#b45309', display: 'block', marginBottom: 16 }}>
-              Vui lòng kiểm tra {pendingReviewData?.total_images || 0} ảnh khuôn mặt của bạn
+              Please review {pendingReviewData?.total_images || 0} face images
             </Text>
             
             {isLoadingPendingReview ? (
@@ -459,8 +459,8 @@ const FaceRegisterPage: React.FC = () => {
                 </Row>
                 
                 <Alert 
-                  message="Lưu ý" 
-                  description="Sau khi chấp nhận, ảnh sẽ được gửi cho admin duyệt. Nếu không hài lòng, bạn có thể từ chối và thu thập lại." 
+                  message="Note" 
+                  description="After accepting, images will be sent to admin for approval. If not satisfied, you can reject and collect again." 
                   type="warning" 
                   showIcon 
                   style={{ marginBottom: 16, textAlign: 'left' }}
@@ -475,7 +475,7 @@ const FaceRegisterPage: React.FC = () => {
                     loading={isConfirming}
                     style={{ borderRadius: 8, background: '#10b981', borderColor: '#10b981', width: '100%' }}
                   >
-                    Chấp nhận
+                    Accept
                   </Button>
                   <Button 
                     size="middle" 
@@ -485,14 +485,14 @@ const FaceRegisterPage: React.FC = () => {
                     loading={isConfirming}
                     style={{ borderRadius: 8, width: '100%' }}
                   >
-                    Từ chối & Thu thập lại
+                    Reject & Collect Again
                   </Button>
                 </Space>
               </>
             ) : (
               <Alert 
-                message="Không có dữ liệu" 
-                description="Không thể tải ảnh. Vui lòng thử lại hoặc liên hệ admin." 
+                message="No Data" 
+                description="Could not load images. Please try again or contact admin." 
                 type="error" 
                 showIcon 
               />
@@ -504,18 +504,18 @@ const FaceRegisterPage: React.FC = () => {
       {/* Rejection Notice - show when rejected status (can still register) */}
       {!isLoadingStatus && initialStatus && initialStatus.status === 'rejected' && initialStatus.can_register && (
         <Alert
-          message="Đăng ký trước đó đã bị từ chối"
+          message="Previous Registration Rejected"
           description={
             <div>
-              <Text strong style={{ color: '#dc2626' }}>Lý do từ chối: </Text>
-              <Text>{initialStatus.details?.rejection_reason || 'Không có lý do cụ thể'}</Text>
+              <Text strong style={{ color: '#dc2626' }}>Rejection Reason: </Text>
+              <Text>{initialStatus.details?.rejection_reason || 'No specific reason'}</Text>
               <br />
               <Text type="secondary" style={{ marginTop: 8, display: 'block' }}>
-                Vui lòng chụp lại ảnh khuôn mặt với chất lượng tốt hơn để đăng ký lại.
+                Please take new face images with better quality to register again.
               </Text>
               {initialStatus.details?.admin_reviewed_at && (
                 <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
-                  Ngày từ chối: {new Date(initialStatus.details.admin_reviewed_at).toLocaleString('vi-VN')}
+                  Rejection Date: {new Date(initialStatus.details.admin_reviewed_at).toLocaleString('en-US')}
                 </Text>
               )}
             </div>
@@ -542,7 +542,7 @@ const FaceRegisterPage: React.FC = () => {
           <Card style={{ borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.08)', border: 'none', textAlign: 'center', padding: 'clamp(12px, 3vw, 24px)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
               <Title level={5} style={{ margin: 0, color: '#374151', fontSize: 'clamp(16px, 4vw, 18px)', fontWeight: 600 }}>
-                {isReviewing ? '👁️ Xem lại ảnh đã thu thập' : '📷 Camera Preview'}
+                {isReviewing ? '👁️ Review Collected Images' : '📷 Camera Preview'}
               </Title>
               {!isReviewing && getConnectionBadge()}
             </div>
@@ -551,8 +551,8 @@ const FaceRegisterPage: React.FC = () => {
             {isReviewing && previewImages.length > 0 ? (
               <div style={{ marginBottom: 16 }}>
                 <Alert 
-                  message="Đã thu thập xong!" 
-                  description="Vui lòng kiểm tra các ảnh khuôn mặt bên dưới. Nếu hài lòng, hãy chấp nhận để gửi cho admin duyệt." 
+                  message="Collection Complete!" 
+                  description="Please review the face images below. If satisfied, accept to submit for admin approval." 
                   type="success" 
                   showIcon 
                   style={{ marginBottom: 16, fontSize: 'clamp(13px, 3.5vw, 15px)' }}
@@ -606,7 +606,7 @@ const FaceRegisterPage: React.FC = () => {
                       borderColor: '#10b981'
                     }}
                   >
-                    Chấp nhận
+                    Accept
                   </Button>
                   <Button 
                     size='large' 
@@ -620,7 +620,7 @@ const FaceRegisterPage: React.FC = () => {
                       fontSize: 'clamp(14px, 3.5vw, 16px)'
                     }}
                   >
-                    Từ chối & Thu thập lại
+                    Reject & Collect Again
                   </Button>
                 </Space>
               </div>
@@ -663,18 +663,18 @@ const FaceRegisterPage: React.FC = () => {
                 ) : connectionStatus === 'connecting' ? (
                   <div style={{ width: '100%', height: '100%', background: '#f8fafc', border: '2px dashed #d1d5db', borderRadius: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 16 }}>
                     <Spin indicator={<LoadingOutlined style={{ fontSize: 'clamp(32px, 8vw, 48px)' }} spin />} />
-                    <Text type='secondary' style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>Đang kết nối WebSocket...</Text>
+                    <Text type='secondary' style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>Connecting WebSocket...</Text>
                   </div>
                 ) : (
                   <div style={{ width: '100%', height: '100%', background: '#f8fafc', border: '2px dashed #d1d5db', borderRadius: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 16 }}>
                     <CameraOutlined style={{ fontSize: 'clamp(32px, 8vw, 48px)', color: '#9ca3af' }} />
-                    <Text type='secondary' style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>Camera chưa được khởi động</Text>
+                    <Text type='secondary' style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}>Camera not started</Text>
                   </div>
                 )}
               </div>
               <video ref={videoRef} style={{ display: 'none' }} autoPlay muted playsInline />
             </div>
-            {error && <Alert message='Lỗi' description={error} type='error' showIcon closable style={{ marginBottom: 12, fontSize: 'clamp(13px, 3.5vw, 15px)' }} />}
+            {error && <Alert message='Error' description={error} type='error' showIcon closable style={{ marginBottom: 12, fontSize: 'clamp(13px, 3.5vw, 15px)' }} />}
             <Space size='middle' wrap style={{ justifyContent: 'center', width: '100%' }}>
               {!isConnected ? (
                 <Button 
@@ -691,7 +691,7 @@ const FaceRegisterPage: React.FC = () => {
                     fontWeight: 600
                   }}
                 >
-                  Bắt đầu
+                  Start
                 </Button>
               ) : (
                 <>
@@ -708,7 +708,7 @@ const FaceRegisterPage: React.FC = () => {
                       fontSize: 'clamp(14px, 3.5vw, 16px)'
                     }}
                   >
-                    Làm lại
+                    Retry
                   </Button>
                   <Button 
                     size='large' 
@@ -722,7 +722,7 @@ const FaceRegisterPage: React.FC = () => {
                       fontSize: 'clamp(14px, 3.5vw, 16px)'
                     }}
                   >
-                    Hủy
+                    Cancel
                   </Button>
                 </>
               )}
@@ -735,11 +735,11 @@ const FaceRegisterPage: React.FC = () => {
           <Space direction='vertical' size='middle' style={{ width: '100%' }}>
             {processedFrame && (
               <Card style={{ borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.08)', border: 'none', padding: 'clamp(12px, 3vw, 20px)' }}>
-                <Title level={5} style={{ marginBottom: 12, color: '#374151', fontSize: 'clamp(16px, 4vw, 18px)', fontWeight: 600 }}>📊 Tiến độ</Title>
+                <Title level={5} style={{ marginBottom: 12, color: '#374151', fontSize: 'clamp(16px, 4vw, 18px)', fontWeight: 600 }}>📊 Progress</Title>
                 <Space direction='vertical' size='middle' style={{ width: '100%' }}>
                   <div>
                     <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 'clamp(15px, 4vw, 17px)' }}>
-                      Bước {processedFrame.currentStep + 1} / {processedFrame.totalSteps}
+                      Step {processedFrame.currentStep + 1} / {processedFrame.totalSteps}
                     </Text>
                     <Progress 
                       percent={processedFrame.progress} 
@@ -750,7 +750,7 @@ const FaceRegisterPage: React.FC = () => {
                   </div>
                   {processedFrame.poseAngles && (
                     <div style={{ background: '#f8fafc', padding: 'clamp(10px, 3vw, 12px)', borderRadius: 8 }}>
-                      <Text type='secondary' strong style={{ display: 'block', marginBottom: 8, fontSize: 'clamp(13px, 3.5vw, 15px)' }}>Góc độ khuôn mặt:</Text>
+                      <Text type='secondary' strong style={{ display: 'block', marginBottom: 8, fontSize: 'clamp(13px, 3.5vw, 15px)' }}>Face Angles:</Text>
                       <Row gutter={[8, 8]}>
                         <Col xs={8} sm={8}>
                           <Statistic 
@@ -783,17 +783,17 @@ const FaceRegisterPage: React.FC = () => {
               </Card>
             )}
             <Card style={{ borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.08)', border: 'none', padding: 'clamp(12px, 3vw, 20px)' }}>
-              <Title level={5} style={{ marginBottom: 12, color: '#374151', fontSize: 'clamp(16px, 4vw, 18px)', fontWeight: 600 }}>📋 Hướng dẫn</Title>
+              <Title level={5} style={{ marginBottom: 12, color: '#374151', fontSize: 'clamp(16px, 4vw, 18px)', fontWeight: 600 }}>📋 Instructions</Title>
               <Space direction='vertical' size='small' style={{ width: '100%' }}>
-                <Alert message='Lưu ý quan trọng' description='Hệ thống sẽ tự động thu thập 12 bước ảnh từ các góc độ khác nhau. Hãy làm theo hướng dẫn hiển thị trên màn hình.' type='info' showIcon style={{ fontSize: 'clamp(13px, 3.5vw, 15px)' }} />
+                <Alert message='Important Note' description='The system will automatically collect 12 steps of images from different angles. Please follow the instructions displayed on screen.' type='info' showIcon style={{ fontSize: 'clamp(13px, 3.5vw, 15px)' }} />
                 <div>
-                  <Text strong style={{ fontSize: 'clamp(13px, 3.5vw, 15px)' }}>Các bước thực hiện:</Text>
+                  <Text strong style={{ fontSize: 'clamp(13px, 3.5vw, 15px)' }}>Steps to follow:</Text>
                   <ul style={{ marginTop: 8, paddingLeft: 16, fontSize: 'clamp(13px, 3.5vw, 15px)', lineHeight: '1.6' }}>
-                    <li style={{ marginBottom: 6 }}>Đảm bảo ánh sáng đủ và khuôn mặt rõ ràng</li>
-                    <li style={{ marginBottom: 6 }}>Ngồi thẳng, giữ khuôn mặt trong khung hình</li>
-                    <li style={{ marginBottom: 6 }}>Làm theo hướng dẫn: nhìn thẳng, quay trái/phải, ngẩng/cúi</li>
-                    <li style={{ marginBottom: 6 }}>Giữ tư thế ổn định khi chỉ thị Tư thế đúng xuất hiện</li>
-                    <li>Hệ thống sẽ tự động chụp ảnh và chuyển bước</li>
+                    <li style={{ marginBottom: 6 }}>Ensure adequate lighting and clear face visibility</li>
+                    <li style={{ marginBottom: 6 }}>Sit straight and keep your face in frame</li>
+                    <li style={{ marginBottom: 6 }}>Follow instructions: look straight, turn left/right, look up/down</li>
+                    <li style={{ marginBottom: 6 }}>Hold steady when "Correct Pose" indicator appears</li>
+                    <li>System will automatically capture and proceed to next step</li>
                   </ul>
                 </div>
               </Space>
@@ -813,16 +813,16 @@ const FaceRegisterPage: React.FC = () => {
                   {registrationStatus === 'pending_admin_review' ? (
                     <>
                       <LoadingOutlined style={{ fontSize: 'clamp(32px, 8vw, 48px)', color: '#7c3aed', marginBottom: 12 }} />
-                      <Title level={5} style={{ color: '#5b21b6', marginBottom: 8, fontSize: 'clamp(14px, 3.5vw, 16px)' }}>Đang chờ duyệt!</Title>
+                      <Title level={5} style={{ color: '#5b21b6', marginBottom: 8, fontSize: 'clamp(14px, 3.5vw, 16px)' }}>Pending Approval!</Title>
                       <Text style={{ color: '#6d28d9', display: 'block', marginBottom: 8, fontSize: 'clamp(12px, 3vw, 14px)' }}>
-                        Ảnh khuôn mặt của bạn đã được gửi và đang chờ admin phê duyệt.
+                        Your face images have been submitted and are awaiting admin approval.
                       </Text>
                       <Text type='secondary' style={{ display: 'block', marginBottom: 12, fontSize: 'clamp(12px, 3vw, 14px)' }}>
-                        Bạn sẽ nhận được thông báo khi admin xem xét xong.
+                        You will receive a notification when admin reviews your submission.
                       </Text>
                       <Alert 
-                        message="Trạng thái: Đang chờ phê duyệt" 
-                        description="Quá trình duyệt có thể mất vài phút đến vài giờ. Vui lòng kiên nhẫn chờ đợi." 
+                        message="Status: Pending Approval" 
+                        description="The approval process may take a few minutes to several hours. Please be patient." 
                         type="info" 
                         showIcon 
                         style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}
@@ -831,17 +831,17 @@ const FaceRegisterPage: React.FC = () => {
                   ) : (
                     <>
                       <CheckCircleOutlined style={{ fontSize: 'clamp(32px, 8vw, 48px)', color: '#10b981', marginBottom: 12 }} />
-                      <Title level={5} style={{ color: '#065f46', marginBottom: 8, fontSize: 'clamp(14px, 3.5vw, 16px)' }}>Hoàn thành!</Title>
+                      <Title level={5} style={{ color: '#065f46', marginBottom: 8, fontSize: 'clamp(14px, 3.5vw, 16px)' }}>Complete!</Title>
                       <Text style={{ color: '#047857', display: 'block', marginBottom: 8, fontSize: 'clamp(12px, 3vw, 14px)' }}>{completionData.message}</Text>
                       <Text type='secondary' style={{ display: 'block', marginBottom: 12, fontSize: 'clamp(12px, 3vw, 14px)' }}>
-                        Đã thu thập {completionData.totalImages} ảnh khuôn mặt
+                        Collected {completionData.totalImages} face images
                       </Text>
                       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
                         <Button type='primary' icon={<EyeOutlined />} onClick={() => navigate('/student/attendance')} style={{ borderRadius: 8, width: '100%' }}>
-                          Xem điểm danh
+                          View Attendance
                         </Button>
                         <Button icon={<ReloadOutlined />} onClick={restart} style={{ borderRadius: 8, width: '100%' }}>
-                          Đăng ký lại
+                          Register Again
                         </Button>
                       </Space>
                     </>

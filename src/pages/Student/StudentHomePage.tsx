@@ -22,7 +22,7 @@ const StudentHomePage: React.FC = () => {
       const data = await getStudentDashboardData();
       setDashboardData(data);
     } catch (error: any) {
-      message.error(error.message || "Không thể tải dữ liệu bảng điều khiển");
+      message.error(error.message || "Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
@@ -52,7 +52,7 @@ const StudentHomePage: React.FC = () => {
     name: item.status,
     value: item.count,
     percentage: item.percentage,
-    color: item.status === 'Có mặt' ? '#10b981' : item.status === 'Vắng' ? '#ef4444' : '#f59e42'
+    color: item.status === 'Present' ? '#10b981' : item.status === 'Absent' ? '#ef4444' : '#f59e42'
   }));
 
   const weeklyData = weekly_attendance.map(item => ({
@@ -73,11 +73,11 @@ const StudentHomePage: React.FC = () => {
   }));
 
   const stats = [
-    { title: "Lớp học của tôi", value: summary.my_classes, color: "#2563eb", icon: "📚" },
-    { title: "Tỷ lệ có mặt", value: `${summary.attendance_rate.toFixed(1)}%`, color: "#10b981", icon: "✅" },
-    { title: "Tổng số buổi vắng", value: summary.total_absences, color: "#ef4444", icon: "❌" },
-    { title: "Tuần này có mặt", value: summary.this_week_attended, color: "#10b981", icon: "📅" },
-    { title: "Tổng buổi tuần này", value: summary.this_week_total, color: "#f59e42", icon: "📆" },
+    { title: "My Classes", value: summary.my_classes, color: "#2563eb", icon: "📚" },
+    { title: "Attendance Rate", value: `${summary.attendance_rate.toFixed(1)}%`, color: "#10b981", icon: "✅" },
+    { title: "Total Absences", value: summary.total_absences, color: "#ef4444", icon: "❌" },
+    { title: "This Week Present", value: summary.this_week_attended, color: "#10b981", icon: "📅" },
+    { title: "Total Sessions This Week", value: summary.this_week_total, color: "#f59e42", icon: "📆" },
   ];
 
   return (
@@ -125,14 +125,14 @@ const StudentHomePage: React.FC = () => {
           fontSize: 36,
           fontWeight: 700
         }}>
-          🎓 Bảng Điều Khiển Sinh Viên
+          🎓 Student Dashboard
         </Title>
         <Text className="page-subtitle" style={{ 
           fontSize: 18, 
           color: "#64748b",
           display: "block"
         }}>
-          Chào mừng trở lại! Theo dõi điểm danh và tiến độ học tập của bạn tại đây.
+          Welcome back! Track your attendance and learning progress here.
         </Text>
       </div>
 
@@ -152,7 +152,7 @@ const StudentHomePage: React.FC = () => {
               style={{ borderRadius: 8, height: 48 }}
               onClick={() => navigate('/student/attendance')}
             >
-              Xem Điểm Danh
+              View Attendance
             </Button>
           </Col>
           <Col xs={24} sm={12} md={6}>
@@ -162,7 +162,7 @@ const StudentHomePage: React.FC = () => {
               style={{ borderRadius: 8, height: 48 }}
               onClick={() => navigate('/student/classes')}
             >
-              Danh Sách Lớp
+              Classes List
             </Button>
           </Col>
         </Row>
@@ -202,7 +202,7 @@ const StudentHomePage: React.FC = () => {
             minHeight: 350
           }}>
             <Title level={4} style={{ marginBottom: 16, color: "#374151", fontSize: 16 }}>
-              📊 Phân Bố Điểm Danh
+              📊 Attendance Distribution
             </Title>
             {attendanceData.length > 0 ? (
               <ResponsiveContainer width="100%" height={280}>
@@ -227,7 +227,7 @@ const StudentHomePage: React.FC = () => {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>Không có dữ liệu</div>
+              <div style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>No data</div>
             )}
           </Card>
         </Col>
@@ -241,7 +241,7 @@ const StudentHomePage: React.FC = () => {
             minHeight: 350
           }}>
             <Title level={4} style={{ marginBottom: 16, color: "#374151", fontSize: 16 }}>
-              📈 Điểm Danh Theo Tuần
+              📈 Weekly Attendance
             </Title>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={weeklyData}>
@@ -250,8 +250,8 @@ const StudentHomePage: React.FC = () => {
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="present" fill="#10b981" name="Có mặt" />
-                <Bar dataKey="absent" fill="#ef4444" name="Vắng" />
+                <Bar dataKey="present" fill="#10b981" name="Present" />
+                <Bar dataKey="absent" fill="#ef4444" name="Absent" />
               </BarChart>
             </ResponsiveContainer>
           </Card>
@@ -266,7 +266,7 @@ const StudentHomePage: React.FC = () => {
             minHeight: 350
           }}>
             <Title level={4} style={{ marginBottom: 16, color: "#374151", fontSize: 16 }}>
-              📉 Xu Hướng Theo Tháng
+              📉 Monthly Trend
             </Title>
             <ResponsiveContainer width="100%" height={260}>
               <LineChart data={monthlyData}>
@@ -280,7 +280,7 @@ const StudentHomePage: React.FC = () => {
                   dataKey="rate" 
                   stroke="#2563eb" 
                   strokeWidth={3}
-                  name="Tỷ lệ có mặt (%)"
+                  name="Attendance Rate (%)"
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -295,7 +295,7 @@ const StudentHomePage: React.FC = () => {
             border: "none"
           }}>
             <Title level={4} style={{ marginBottom: 16, color: "#374151", fontSize: 16 }}>
-              📚 Điểm Danh Theo Môn Học
+              📚 Attendance by Subject
             </Title>
             {subjectData.length > 0 ? (
               subjectData.map((subject, index) => (
@@ -306,7 +306,7 @@ const StudentHomePage: React.FC = () => {
                     marginBottom: 8 
                   }}>
                     <Text strong>{subject.subject}</Text>
-                    <Text>{subject.rate.toFixed(1)}% ({subject.sessions} buổi)</Text>
+                    <Text>{subject.rate.toFixed(1)}% ({subject.sessions} sessions)</Text>
                   </div>
                   <Progress 
                     percent={subject.rate} 
@@ -319,7 +319,7 @@ const StudentHomePage: React.FC = () => {
                 </div>
               ))
             ) : (
-              <div style={{ textAlign: 'center', padding: 20, color: '#9ca3af' }}>Không có môn học nào</div>
+              <div style={{ textAlign: 'center', padding: 20, color: '#9ca3af' }}>No subjects</div>
             )}
           </Card>
         </Col>
@@ -332,7 +332,7 @@ const StudentHomePage: React.FC = () => {
             border: "none"
           }}>
             <Title level={4} style={{ marginBottom: 16, color: "#374151", fontSize: 16 }}>
-              🕒 Hoạt Động Gần Đây
+              🕒 Recent Activity
             </Title>
             <div style={{ color: "#64748b" }}>
               {recent_activity.length > 0 ? (
@@ -354,7 +354,7 @@ const StudentHomePage: React.FC = () => {
                       <Text>{activity.description}</Text>
                       <br />
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        {new Date(activity.timestamp).toLocaleString('vi-VN', {
+                        {new Date(activity.timestamp).toLocaleString('en-US', {
                           month: 'short',
                           day: 'numeric',
                           hour: '2-digit',
@@ -365,7 +365,7 @@ const StudentHomePage: React.FC = () => {
                   </div>
                 ))
               ) : (
-                <div style={{ textAlign: 'center', padding: 20, color: '#9ca3af' }}>Không có hoạt động gần đây</div>
+                <div style={{ textAlign: 'center', padding: 20, color: '#9ca3af' }}>No recent activity</div>
               )}
             </div>
           </Card>

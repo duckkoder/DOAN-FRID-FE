@@ -442,18 +442,18 @@ export const convertFrontendScheduleToBackend = (
  * ```typescript
  * const schedule = { monday: ["1-3", "6-9"], wednesday: ["1-3"] };
  * console.log(formatScheduleDisplay(schedule));
- * // Output: "Thứ 2: 07:00-09:50, 13:00-16:50; Thứ 4: 07:00-09:50"
+ * // Output: "Monday: 07:00-09:50, 13:00-16:50; Wednesday: 07:00-09:50"
  * ```
  */
 export const formatScheduleDisplay = (schedule: ScheduleModel): string => {
   const dayNames: Record<string, string> = {
-    monday: "Thứ 2",
-    tuesday: "Thứ 3",
-    wednesday: "Thứ 4",
-    thursday: "Thứ 5",
-    friday: "Thứ 6",
-    saturday: "Thứ 7",
-    sunday: "Chủ nhật",
+    monday: "Monday",
+    tuesday: "Tuesday",
+    wednesday: "Wednesday",
+    thursday: "Thursday",
+    friday: "Friday",
+    saturday: "Saturday",
+    sunday: "Sunday",
   };
 
   const timeSlots: Record<number, string> = {

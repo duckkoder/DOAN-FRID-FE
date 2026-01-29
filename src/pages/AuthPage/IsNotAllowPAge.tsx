@@ -9,11 +9,11 @@ const IsNotAllowPAge: React.FC = () => {
     <div style={{ minHeight: "100vh", background: "#f6f9fc", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <Result
         status="403"
-        title="Bạn không có quyền truy cập trang này"
-        subTitle="Vui lòng liên hệ quản trị viên nếu cần hỗ trợ."
+        title="You do not have permission to access this page"
+        subTitle="Please contact the administrator if you need support."
         extra={
           <Button type="primary" onClick={() => navigate("/")}>
-            Về trang chủ
+            Go to Home
           </Button>
         }
       />

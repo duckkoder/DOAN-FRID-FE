@@ -71,7 +71,7 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
   subjects,
   preSelectedSubject,
   initialValues,
-  title = "Tạo đơn xin nghỉ học"
+  title = "Create Leave Request"
 }) => {
   const [form] = Form.useForm();
   const [fileList, setFileList] = React.useState<UploadFile[]>([]);
@@ -87,13 +87,13 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
   // ✅ Get available days of week from schedule
   const availableDaysOfWeek = useMemo(() => {
     const dayMapping: Record<string, { value: string; label: string; sortOrder: number }> = {
-      monday: { value: 'Monday', label: 'Thứ 2', sortOrder: 1 },
-      tuesday: { value: 'Tuesday', label: 'Thứ 3', sortOrder: 2 },
-      wednesday: { value: 'Wednesday', label: 'Thứ 4', sortOrder: 3 },
-      thursday: { value: 'Thursday', label: 'Thứ 5', sortOrder: 4 },
-      friday: { value: 'Friday', label: 'Thứ 6', sortOrder: 5 },
-      saturday: { value: 'Saturday', label: 'Thứ 7', sortOrder: 6 },
-      sunday: { value: 'Sunday', label: 'Chủ nhật', sortOrder: 0 }
+      monday: { value: 'Monday', label: 'Monday', sortOrder: 1 },
+      tuesday: { value: 'Tuesday', label: 'Tuesday', sortOrder: 2 },
+      wednesday: { value: 'Wednesday', label: 'Wednesday', sortOrder: 3 },
+      thursday: { value: 'Thursday', label: 'Thursday', sortOrder: 4 },
+      friday: { value: 'Friday', label: 'Friday', sortOrder: 5 },
+      saturday: { value: 'Saturday', label: 'Saturday', sortOrder: 6 },
+      sunday: { value: 'Sunday', label: 'Sunday', sortOrder: 0 }
     };
 
     const days = Object.keys(currentSubjectSchedule)
@@ -130,8 +130,8 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
       return {
         value: periodRange,
         label: start === end 
-          ? `Tiết ${start} (${startSlot.start} - ${startSlot.end})`
-          : `Tiết ${start}-${end} (${startSlot.start} - ${endSlot.end})`,
+          ? `Period ${start} (${startSlot.start} - ${startSlot.end})`
+          : `Period ${start}-${end} (${startSlot.start} - ${endSlot.end})`,
         periods: periodRange
       };
     });
@@ -185,7 +185,7 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
     const isValidType = isJPG || isPNG || isGIF || isPDF;
 
     if (!isValidType) {
-      const errorMsg = `File "${file.name}" không hợp lệ. Chỉ chấp nhận file ảnh (JPG, PNG, GIF) hoặc PDF!`;
+      const errorMsg = `File "${file.name}" is invalid. Only images (JPG, PNG, GIF) or PDF are accepted!`;
       setUploadError(errorMsg);
       message.error({
         content: errorMsg,
@@ -198,7 +198,7 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
     const isLt5M = file.size / 1024 / 1024 < 5;
     if (!isLt5M) {
       const fileSize = (file.size / 1024 / 1024).toFixed(2);
-      const errorMsg = `File "${file.name}" quá lớn (${fileSize}MB). Vui lòng chọn file nhỏ hơn 5MB!`;
+      const errorMsg = `File "${file.name}" is too large (${fileSize}MB). Please select a file smaller than 5MB!`;
       setUploadError(errorMsg);
       message.error({
         content: errorMsg,
@@ -231,7 +231,7 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
     form.validateFields().then((values) => {
       // ✅ Check if there's an upload error
       if (uploadError) {
-        message.error('Vui lòng chọn file hợp lệ trước khi gửi đơn!');
+        message.error('Please select a valid file before submitting!');
         return;
       }
 
@@ -242,7 +242,7 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
       onSubmit(formData);
     }).catch((errorInfo) => {
       
-      message.error('Vui lòng điền đầy đủ thông tin bắt buộc!');
+      message.error('Please fill in all required fields!');
     });
   };
 
@@ -281,8 +281,8 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
       onCancel={handleCancel}
       width={600}
       confirmLoading={loading}
-      okText="Gửi đơn"
-      cancelText="Hủy"
+      okText="Submit"
+      cancelText="Cancel"
       maskClosable={!loading}
       keyboard={!loading}
       okButtonProps={{
@@ -303,12 +303,12 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
       >
         {/* Subject Selection */}
         <Form.Item
-          label="Môn học"
+          label="Subject"
           name="subject"
-          rules={[{ required: true, message: 'Vui lòng chọn môn học!' }]}
+          rules={[{ required: true, message: 'Please select a subject!' }]}
         >
           <Select
-            placeholder="Chọn môn học"
+            placeholder="Select subject"
             size="large"
             style={{ borderRadius: 8 }}
             disabled={!!preSelectedSubject}
@@ -339,7 +339,7 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
           }}>
             <Space direction="vertical" size={4} style={{ width: '100%' }}>
               <Text strong style={{ color: '#0369a1', fontSize: 13 }}>
-                📅 Lịch học của môn này:
+                📅 Class schedule:
               </Text>
               <Space size={8} wrap>
                 {availableDaysOfWeek.map(day => (
@@ -349,7 +349,7 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                 ))}
               </Space>
               <Text type="secondary" style={{ fontSize: 11 }}>
-                Bạn chỉ có thể chọn ngày thuộc các thứ trên
+                You can only select dates matching these days
               </Text>
             </Space>
           </div>
@@ -359,12 +359,12 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
           {/* Date Selection */}
           <Col xs={24} sm={12}>
             <Form.Item
-              label="Ngày nghỉ"
+              label="Leave Date"
               name="date"
-              rules={[{ required: true, message: 'Vui lòng chọn ngày nghỉ!' }]}
+              rules={[{ required: true, message: 'Please select a leave date!' }]}
             >
               <DatePicker
-                placeholder="Chọn ngày"
+                placeholder="Select date"
                 size="large"
                 style={{ width: '100%', borderRadius: 8 }}
                 format="DD/MM/YYYY"
@@ -378,12 +378,12 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
           {/* Day of Week (Auto-filled, read-only) */}
           <Col xs={24} sm={12}>
             <Form.Item
-              label="Thứ"
+              label="Day"
               name="dayOfWeek"
-              rules={[{ required: true, message: 'Vui lòng chọn ngày trước!' }]}
+              rules={[{ required: true, message: 'Please select a date first!' }]}
             >
               <Select
-                placeholder="Tự động điền"
+                placeholder="Auto-filled"
                 size="large"
                 style={{ borderRadius: 8 }}
                 disabled
@@ -402,20 +402,20 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
         <Form.Item
           label={
             <Space>
-              <span>Buổi học</span>
+              <span>Class Session</span>
               <Tag color="orange" style={{ fontSize: 11 }}>
-                Bắt buộc
+                Required
               </Tag>
             </Space>
           }
           name="timeSlot"
-          rules={[{ required: true, message: 'Vui lòng chọn buổi học!' }]}
+          rules={[{ required: true, message: 'Please select a class session!' }]}
         >
           <Select
             placeholder={
               selectedDayOfWeek 
-                ? "Chọn buổi học muốn nghỉ" 
-                : "Vui lòng chọn ngày nghỉ trước"
+                ? "Select the session you want to take leave from" 
+                : "Please select a leave date first"
             }
             size="large"
             style={{ borderRadius: 8 }}
@@ -442,7 +442,7 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
           }}>
             <Space direction="vertical" size={4} style={{ width: '100%' }}>
               <Text strong style={{ color: '#92400e', fontSize: 12 }}>
-                ⏰ Các buổi học trong ngày:
+                ⏰ Available sessions for this day:
               </Text>
               <Space size={4} wrap>
                 {availableTimeSlots.map(slot => (
@@ -457,16 +457,16 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
 
         {/* Reason */}
         <Form.Item
-          label="Lý do nghỉ học"
+          label="Reason for Leave"
           name="reason"
           rules={[
-            { required: true, message: 'Vui lòng nhập lý do nghỉ học!' },
-            { min: 10, message: 'Lý do phải có ít nhất 10 ký tự!' }
+            { required: true, message: 'Please enter a reason for leave!' },
+            { min: 10, message: 'Reason must be at least 10 characters!' }
           ]}
         >
           <TextArea
             rows={4}
-            placeholder="Mô tả chi tiết lý do nghỉ học của bạn..."
+            placeholder="Describe in detail the reason for your leave..."
             maxLength={500}
             showCount
             style={{ borderRadius: 8 }}
@@ -476,7 +476,7 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
         {/* ✅ Upload Error Alert */}
         {uploadError && (
           <Alert
-            message="Lỗi file minh chứng"
+            message="Evidence File Error"
             description={uploadError}
             type="error"
             showIcon
@@ -491,7 +491,7 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
         <Form.Item
           label={
             <Space>
-              <span>File minh chứng (không bắt buộc)</span>
+              <span>Evidence File (optional)</span>
               <Tag color="blue" style={{ fontSize: 11 }}>
                 JPG, PNG, GIF, PDF &lt; 5MB
               </Tag>
@@ -513,7 +513,7 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
               disabled={fileList.length >= 1}
               danger={!!uploadError}
             >
-              {fileList.length >= 1 ? 'Đã chọn file' : 'Chọn file minh chứng'}
+              {fileList.length >= 1 ? 'File Selected' : 'Select Evidence File'}
             </Button>
           </Upload>
         </Form.Item>
@@ -554,7 +554,7 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                   icon={<CloseCircleOutlined />}
                   onClick={handleRemoveFile}
                 >
-                  Xóa
+                  Remove
                 </Button>
               </Col>
             </Row>
@@ -570,8 +570,8 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
           border: '1px solid #fde68a'
         }}>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            💡 <strong>Lưu ý:</strong> Đơn xin nghỉ học sẽ được gửi đến giáo viên để xem xét. 
-            Bạn nên gửi đơn trước ít nhất 1 ngày và cung cấp file minh chứng nếu có thể.
+            💡 <strong>Note:</strong> Your leave request will be sent to the teacher for review. 
+            You should submit at least 1 day in advance and provide evidence file if possible.
           </Text>
         </div>
       </Form>

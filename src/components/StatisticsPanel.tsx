@@ -54,7 +54,7 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
       title={
         <Space>
           <BarChartOutlined />
-          <span>Thống kê điểm danh</span>
+          <span>Attendance Statistics</span>
         </Space>
       }
       placement="right"
@@ -68,15 +68,15 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
       {!sessionActive ? (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="Bắt đầu phiên điểm danh để xem thống kê"
+          description="Start attendance session to view statistics"
           imageStyle={{ height: 100, marginTop: 60 }}
         />
       ) : (
         <>
           {wsConnected && !hasData && (
             <Alert
-              message="Đang tải dữ liệu"
-              description="Đang kết nối với server để lấy thống kê điểm danh..."
+              message="Loading data"
+              description="Connecting to server to get attendance statistics..."
               type="info"
               showIcon
               style={{ marginBottom: 16 }}
@@ -87,7 +87,7 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
             <Col span={12}>
               <Card>
                 <Statistic
-                  title="Đã xác nhận"
+                  title="Confirmed"
                   value={confirmedCount}
                   valueStyle={{ color: '#52c41a', fontSize: 28 }}
                   prefix={<CheckCircleOutlined />}
@@ -97,7 +97,7 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
             <Col span={12}>
               <Card>
                 <Statistic
-                  title="Chờ xác nhận"
+                  title="Pending"
                   value={pendingCount}
                   valueStyle={{ color: '#faad14', fontSize: 28 }}
                   prefix={<ClockCircleOutlined />}
@@ -110,7 +110,7 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
             <Col span={12}>
               <Card>
                 <Statistic
-                  title="Tổng số"
+                  title="Total"
                   value={totalStudents}
                   valueStyle={{ fontSize: 28 }}
                   prefix={<UserOutlined />}
@@ -120,7 +120,7 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
             <Col span={12}>
               <Card>
                 <Statistic
-                  title="Tỷ lệ"
+                  title="Rate"
                   value={attendanceRate}
                   suffix="%"
                   valueStyle={{
@@ -139,7 +139,7 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
 
           <Card style={{ marginTop: 16 }}>
             <Text type="secondary" style={{ marginBottom: 8, display: 'block' }}>
-              Tỷ lệ điểm danh:
+              Attendance rate:
             </Text>
             <Progress
               percent={attendanceRate}
@@ -158,7 +158,7 @@ const StatisticsPanel: React.FC<StatisticsPanelProps> = ({
           {currentInterval && (
             <div style={{ marginTop: 16, textAlign: 'center' }}>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                Cập nhật mỗi {(currentInterval / 1000).toFixed(1)}s
+                Updates every {(currentInterval / 1000).toFixed(1)}s
               </Text>
             </div>
           )}

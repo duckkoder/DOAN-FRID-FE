@@ -57,11 +57,11 @@ const TeacherReportPage: React.FC = () => {
     { value: 'ai', label: 'Artificial Intelligence' }
   ];
 
-  // Dữ liệu mẫu học sinh
+  // Sample student data
   const studentsData: StudentAttendance[] = [
     {
       id: "1",
-      studentName: "Nguyễn Văn An",
+      studentName: "John Smith",
       studentId: "SV001",
       totalSessions: 20,
       presentCount: 19,
@@ -71,7 +71,7 @@ const TeacherReportPage: React.FC = () => {
     },
     {
       id: "2",
-      studentName: "Trần Thị Bình",
+      studentName: "Jane Doe",
       studentId: "SV002", 
       totalSessions: 20,
       presentCount: 17,
@@ -81,7 +81,7 @@ const TeacherReportPage: React.FC = () => {
     },
     {
       id: "3",
-      studentName: "Lê Văn Cường",
+      studentName: "Mike Johnson",
       studentId: "SV003",
       totalSessions: 20,
       presentCount: 18,
@@ -91,7 +91,7 @@ const TeacherReportPage: React.FC = () => {
     },
     {
       id: "4",
-      studentName: "Phạm Thị Dung",
+      studentName: "Emily Brown",
       studentId: "SV004",
       totalSessions: 20,
       presentCount: 16,
@@ -101,7 +101,7 @@ const TeacherReportPage: React.FC = () => {
     },
     {
       id: "5",
-      studentName: "Hoàng Văn Em",
+      studentName: "David Wilson",
       studentId: "SV005",
       totalSessions: 20,
       presentCount: 20,
@@ -111,7 +111,7 @@ const TeacherReportPage: React.FC = () => {
     }
   ];
 
-  // Dữ liệu mẫu báo cáo theo lớp
+  // Sample class reports data
   const classReports: ClassReport[] = [
     {
       subject: "Advanced Java Programming",
@@ -141,19 +141,19 @@ const TeacherReportPage: React.FC = () => {
 
   // Dữ liệu cho biểu đồ
   const attendanceDistribution = [
-    { name: 'Xuất sắc (95-100%)', value: 2, color: '#10b981' },
-    { name: 'Tốt (85-94%)', value: 2, color: '#3b82f6' },
-    { name: 'Trung bình (75-84%)', value: 1, color: '#f59e42' },
-    { name: 'Yếu (<75%)', value: 0, color: '#ef4444' }
+    { name: 'Excellent (95-100%)', value: 2, color: '#10b981' },
+    { name: 'Good (85-94%)', value: 2, color: '#3b82f6' },
+    { name: 'Average (75-84%)', value: 1, color: '#f59e42' },
+    { name: 'Poor (<75%)', value: 0, color: '#ef4444' }
   ];
 
   const weeklyTrend = [
-    { week: 'Tuần 1', attendance: 95 },
-    { week: 'Tuần 2', attendance: 88 },
-    { week: 'Tuần 3', attendance: 92 },
-    { week: 'Tuần 4', attendance: 87 },
-    { week: 'Tuần 5', attendance: 94 },
-    { week: 'Tuần 6', attendance: 89 }
+    { week: 'Week 1', attendance: 95 },
+    { week: 'Week 2', attendance: 88 },
+    { week: 'Week 3', attendance: 92 },
+    { week: 'Week 4', attendance: 87 },
+    { week: 'Week 5', attendance: 94 },
+    { week: 'Week 6', attendance: 89 }
   ];
 
   const breadcrumbItems = [
@@ -175,10 +175,10 @@ const TeacherReportPage: React.FC = () => {
   };
 
   const getAttendanceStatus = (rate: number) => {
-    if (rate >= 95) return 'Xuất sắc';
-    if (rate >= 85) return 'Tốt';
-    if (rate >= 75) return 'Trung bình';
-    return 'Yếu';
+    if (rate >= 95) return 'Excellent';
+    if (rate >= 85) return 'Good';
+    if (rate >= 75) return 'Average';
+    return 'Poor';
   };
 
   const handleExportExcel = () => {
@@ -193,7 +193,7 @@ const TeacherReportPage: React.FC = () => {
 
   const studentColumns = [
     {
-      title: 'Học sinh',
+      title: 'Student',
       key: 'student',
       render: (record: StudentAttendance) => (
         <div>
@@ -206,13 +206,13 @@ const TeacherReportPage: React.FC = () => {
       )
     },
     {
-      title: 'Tổng buổi',
+      title: 'Total Sessions',
       dataIndex: 'totalSessions',
       key: 'totalSessions',
       align: 'center' as const
     },
     {
-      title: 'Có mặt',
+      title: 'Present',
       dataIndex: 'presentCount',
       key: 'presentCount',
       align: 'center' as const,
@@ -221,7 +221,7 @@ const TeacherReportPage: React.FC = () => {
       )
     },
     {
-      title: 'Vắng',
+      title: 'Absent',
       dataIndex: 'absentCount',
       key: 'absentCount',
       align: 'center' as const,
@@ -230,7 +230,7 @@ const TeacherReportPage: React.FC = () => {
       )
     },
     {
-      title: 'Muộn',
+      title: 'Late',
       dataIndex: 'lateCount',
       key: 'lateCount',
       align: 'center' as const,
@@ -239,7 +239,7 @@ const TeacherReportPage: React.FC = () => {
       )
     },
     {
-      title: 'Tỷ lệ',
+      title: 'Rate',
       dataIndex: 'attendanceRate',
       key: 'attendanceRate',
       align: 'center' as const,
@@ -260,7 +260,7 @@ const TeacherReportPage: React.FC = () => {
       )
     },
     {
-      title: 'Xếp loại',
+      title: 'Classification',
       dataIndex: 'attendanceRate',
       key: 'status',
       render: (rate: number) => (
@@ -300,7 +300,7 @@ const TeacherReportPage: React.FC = () => {
             fontSize: 18, 
             color: "#64748b"
           }}>
-            Báo cáo tổng hợp và thống kê điểm danh của lớp học
+            Summary report and attendance statistics for classes
           </Text>
         </div>
         
@@ -331,14 +331,14 @@ const TeacherReportPage: React.FC = () => {
       }}>
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} sm={8}>
-            <Text strong style={{ marginBottom: 8, display: 'block' }}>Môn học:</Text>
+            <Text strong style={{ marginBottom: 8, display: 'block' }}>Subject:</Text>
             <Select
               value={selectedSubject}
               onChange={setSelectedSubject}
               style={{ width: '100%' }}
               size="large"
             >
-              <Select.Option value="all">Tất cả môn học</Select.Option>
+              <Select.Option value="all">All Subjects</Select.Option>
               {subjects.map(subject => (
                 <Select.Option key={subject.value} value={subject.value}>
                   {subject.label}
@@ -347,14 +347,14 @@ const TeacherReportPage: React.FC = () => {
             </Select>
           </Col>
           <Col xs={24} sm={10}>
-            <Text strong style={{ marginBottom: 8, display: 'block' }}>Thời gian:</Text>
+            <Text strong style={{ marginBottom: 8, display: 'block' }}>Time Period:</Text>
             <RangePicker 
               value={dateRange}
               onChange={setDateRange}
               style={{ width: '100%' }}
               size="large"
               format="DD/MM/YYYY"
-              placeholder={['Từ ngày', 'Đến ngày']}
+              placeholder={['From Date', 'To Date']}
             />
           </Col>
           <Col xs={24} sm={6}>
@@ -363,7 +363,7 @@ const TeacherReportPage: React.FC = () => {
               style={{ width: '100%', marginTop: 32 }}
               size="large"
             >
-              Lọc báo cáo
+              Filter Report
             </Button>
           </Col>
         </Row>
@@ -374,7 +374,7 @@ const TeacherReportPage: React.FC = () => {
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
-              title="Tổng học sinh"
+              title="Total Students"
               value={totalStudents}
               prefix={<UserOutlined />}
               valueStyle={{ color: '#2563eb', fontSize: 24 }}
@@ -384,7 +384,7 @@ const TeacherReportPage: React.FC = () => {
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
-              title="Điểm danh trung bình"
+              title="Average Attendance"
               value={avgAttendance}
               suffix="%"
               valueStyle={{ color: '#10b981', fontSize: 24 }}
@@ -394,7 +394,7 @@ const TeacherReportPage: React.FC = () => {
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
-              title="Học sinh xuất sắc"
+              title="Excellent Students"
               value={excellentStudents}
               valueStyle={{ color: '#f59e42', fontSize: 24 }}
             />
@@ -403,7 +403,7 @@ const TeacherReportPage: React.FC = () => {
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
-              title="Cần quan tâm"
+              title="Needs Attention"
               value={lowAttendanceStudents}
               valueStyle={{ color: '#ef4444', fontSize: 24 }}
             />
@@ -422,7 +422,7 @@ const TeacherReportPage: React.FC = () => {
             height: 400
           }}>
             <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
-              📈 Phân bố điểm danh
+              📈 Attendance Distribution
             </Title>
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
@@ -455,7 +455,7 @@ const TeacherReportPage: React.FC = () => {
             height: 400
           }}>
             <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
-              📉 Xu hướng theo tuần
+              📉 Weekly Trend
             </Title>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={weeklyTrend}>
@@ -463,7 +463,7 @@ const TeacherReportPage: React.FC = () => {
                 <XAxis dataKey="week" />
                 <YAxis domain={[70, 100]} />
                 <Tooltip />
-                <Bar dataKey="attendance" fill="#3b82f6" name="Tỷ lệ điểm danh (%)" />
+                <Bar dataKey="attendance" fill="#3b82f6" name="Attendance Rate (%)" />
               </BarChart>
             </ResponsiveContainer>
           </Card>
@@ -478,7 +478,7 @@ const TeacherReportPage: React.FC = () => {
         marginBottom: 24
       }}>
         <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
-          📚 Tổng quan theo môn học
+          📚 Subject Overview
         </Title>
         <Row gutter={[16, 16]}>
           {classReports.map((report, index) => (
@@ -489,10 +489,10 @@ const TeacherReportPage: React.FC = () => {
                 </Text>
                 <Space direction="vertical" size={4}>
                   <Text type="secondary">
-                    👥 {report.totalStudents} học sinh
+                    👥 {report.totalStudents} students
                   </Text>
                   <Text type="secondary">
-                    📅 {report.sessionsCount} buổi học
+                    📅 {report.sessionsCount} sessions
                   </Text>
                   <Progress 
                     percent={report.averageAttendance} 
@@ -513,7 +513,7 @@ const TeacherReportPage: React.FC = () => {
         border: "none"
       }}>
         <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
-          👥 Chi tiết điểm danh học sinh
+          👥 Student Attendance Details
         </Title>
         <Table
           dataSource={studentsData}
@@ -523,7 +523,7 @@ const TeacherReportPage: React.FC = () => {
             pageSize: 10,
             showSizeChanger: true,
             showTotal: (total, range) => 
-              `${range[0]}-${range[1]} của ${total} học sinh`
+              `${range[0]}-${range[1]} of ${total} students`
           }}
           scroll={{ x: 800 }}
         />

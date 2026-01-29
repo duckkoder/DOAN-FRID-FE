@@ -19,41 +19,41 @@ const HomePage: React.FC = () => {
   const features = [
     {
       icon: <RobotOutlined style={{ fontSize: 48, color: "#2563eb" }} />,
-      title: "Nhận diện khuôn mặt AI",
-      description: "Công nghệ AI tiên tiến với độ chính xác cao, nhận diện nhanh chóng và bảo mật"
+      title: "AI Face Recognition",
+      description: "Advanced AI technology with high accuracy, fast recognition and security"
     },
     {
       icon: <ClockCircleOutlined style={{ fontSize: 48, color: "#10b981" }} />,
-      title: "Điểm danh tự động",
-      description: "Tự động ghi nhận điểm danh theo thời gian thực, tiết kiệm thời gian"
+      title: "Automatic Attendance",
+      description: "Automatically record attendance in real-time, saving time"
     },
     {
       icon: <BarChartOutlined style={{ fontSize: 48, color: "#f59e42" }} />,
-      title: "Báo cáo chi tiết",
-      description: "Thống kê và báo cáo trực quan về tình hình điểm danh của từng lớp, môn học"
+      title: "Detailed Reports",
+      description: "Visual statistics and reports on attendance status for each class and subject"
     },
     {
       icon: <SafetyCertificateOutlined style={{ fontSize: 48, color: "#ef4444" }} />,
-      title: "An toàn & bảo mật",
-      description: "Dữ liệu được mã hóa và bảo vệ theo tiêu chuẩn quốc tế"
+      title: "Safe & Secure",
+      description: "Data is encrypted and protected according to international standards"
     }
   ];
 
   const roles = [
     {
       icon: <UserOutlined style={{ fontSize: 40, color: "#2563eb" }} />,
-      title: "Quản trị viên",
-      description: "Quản lý toàn bộ hệ thống, tài khoản, cấu hình AI và giám sát hoạt động"
+      title: "Administrator",
+      description: "Manage the entire system, accounts, AI configuration and monitor activities"
     },
     {
       icon: <TeamOutlined style={{ fontSize: 40, color: "#10b981" }} />,
-      title: "Giảng viên",
-      description: "Tạo lớp học, quản lý điểm danh, duyệt đơn xin nghỉ và xem báo cáo"
+      title: "Teacher",
+      description: "Create classes, manage attendance, approve leave requests and view reports"
     },
     {
       icon: <UserOutlined style={{ fontSize: 40, color: "#f59e42" }} />,
-      title: "Sinh viên",
-      description: "Đăng ký khuôn mặt, điểm danh, xem lịch học và theo dõi tình hình học tập"
+      title: "Student",
+      description: "Register face, take attendance, view schedule and track learning progress"
     }
   ];
 
@@ -112,7 +112,7 @@ const HomePage: React.FC = () => {
             size="large"
             onClick={() => navigate("/auth")}
           >
-            Đăng nhập
+            Sign In
           </Button>
         </div>
       </div>
@@ -145,7 +145,7 @@ const HomePage: React.FC = () => {
           marginBottom: 24,
           fontWeight: 700
         }}>
-          Hệ Thống Điểm Danh Thông Minh
+          Smart Attendance System
         </Title>
         <Title level={2} style={{ 
           color: "#e0e7ff", 
@@ -153,7 +153,7 @@ const HomePage: React.FC = () => {
           fontWeight: 400,
           marginBottom: 16
         }}>
-          Trường Đại học Bách Khoa - Đại học Đà Nẵng
+          Da Nang University of Science and Technology
         </Title>
         <Paragraph style={{ 
           fontSize: "clamp(14px, 2.5vw, 18px)", 
@@ -162,8 +162,8 @@ const HomePage: React.FC = () => {
           margin: "0 auto 32px",
           padding: "0 16px"
         }}>
-          Giải pháp điểm danh hiện đại với công nghệ nhận diện khuôn mặt AI, 
-          giúp tự động hóa quy trình điểm danh, tiết kiệm thời gian và nâng cao hiệu quả quản lý.
+          Modern attendance solution with AI face recognition technology, 
+          automating the attendance process, saving time and improving management efficiency.
         </Paragraph>
         <Button 
           type="primary" 
@@ -180,7 +180,7 @@ const HomePage: React.FC = () => {
           }}
           onClick={() => navigate("/auth")}
         >
-          Bắt đầu ngay →
+          Get Started →
         </Button>
       </div>
 
@@ -195,7 +195,7 @@ const HomePage: React.FC = () => {
           color: "#1f2937",
           fontSize: "clamp(24px, 5vw, 36px)"
         }}>
-          ✨ Tính năng nổi bật
+          ✨ Outstanding Features
         </Title>
         <Row gutter={[32, 32]} justify="center">
           {features.map((feature, index) => (
@@ -235,7 +235,7 @@ const HomePage: React.FC = () => {
           color: "#1f2937",
           fontSize: "clamp(24px, 5vw, 36px)"
         }}>
-          👥 Dành cho ai?
+          👥 Who is it for?
         </Title>
         <Row gutter={[32, 32]} justify="center">
           {roles.map((role, index) => (
@@ -271,7 +271,7 @@ const HomePage: React.FC = () => {
           color: "#1f2937",
           fontSize: "clamp(24px, 5vw, 36px)"
         }}>
-          Sẵn sàng trải nghiệm?
+          Ready to experience?
         </Title>
         <Paragraph style={{ 
           fontSize: "clamp(14px, 2.5vw, 18px)", 
@@ -281,7 +281,7 @@ const HomePage: React.FC = () => {
           margin: "0 auto 32px",
           padding: "0 16px"
         }}>
-          Đăng ký ngay để khám phá các tính năng tuyệt vời của hệ thống điểm danh thông minh DUT!
+          Sign up now to explore the amazing features of DUT smart attendance system!
         </Paragraph>
         <Button 
           type="primary" 
@@ -295,7 +295,7 @@ const HomePage: React.FC = () => {
           }}
           onClick={() => navigate("/auth")}
         >
-          Đăng ký miễn phí
+          Sign Up Free
         </Button>
       </div>
 

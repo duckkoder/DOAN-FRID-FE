@@ -111,7 +111,7 @@ export class AIWebSocketClient {
           if (event.code === 1008) {
             // Unauthorized/Session invalid
             console.error('[AIWebSocket] Unauthorized or session invalid');
-            this.onErrorCallback?.('Session không hợp lệ hoặc đã hết hạn');
+            this.onErrorCallback?.('Session is invalid or has expired');
             return;
           }
           

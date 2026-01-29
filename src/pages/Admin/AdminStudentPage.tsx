@@ -141,7 +141,7 @@ const AdminStudentPage: React.FC = () => {
     // Validate file
     const validation = validateImageFile(file);
     if (!validation.valid) {
-      toast.error(validation.error || "File không hợp lệ");
+      toast.error(validation.error || "Invalid file");
       return false;
     }
 
@@ -152,11 +152,11 @@ const AdminStudentPage: React.FC = () => {
       const response = await uploadAvatar(file);
       setAvatarUrl(response.data.url || "");
       
-      toast.success("Upload ảnh đại diện thành công!");
+      toast.success("Avatar uploaded successfully!");
       return true;
     } catch (error: any) {
       console.error("Error uploading avatar:", error);
-      toast.error(error?.response?.data?.detail || "Không thể upload ảnh");
+      toast.error(error?.response?.data?.detail || "Cannot upload image");
       return false;
     } finally {
       setAvatarUploading(false);
@@ -204,7 +204,7 @@ const AdminStudentPage: React.FC = () => {
     } catch (error: any) {
       console.error("Error fetching students:", error);
       toast.error(
-        error?.response?.data?.detail || "Không thể tải danh sách sinh viên"
+        error?.response?.data?.detail || "Cannot load students list"
       );
     } finally {
       setLoading(false);
@@ -321,7 +321,7 @@ const AdminStudentPage: React.FC = () => {
       };
 
       await createStudent(createData);
-      toast.success("Tạo tài khoản sinh viên thành công!");
+      toast.success("Student account created successfully!");
       handleModalCancel();
       fetchStudents();
     } catch (error: any) {
@@ -334,13 +334,13 @@ const AdminStudentPage: React.FC = () => {
         form.setFields([
           {
             name: "email",
-            errors: ["Email này đã được đăng ký. Vui lòng sử dụng mã sinh viên khác."],
+            errors: ["This email is already registered. Please use a different student ID."],
           },
         ]);
       } else {
         // Show general error message
         toast.error(
-          errorDetail || "Không thể tạo tài khoản sinh viên"
+          errorDetail || "Cannot create student account"
         );
       }
     } finally {
@@ -366,13 +366,13 @@ const AdminStudentPage: React.FC = () => {
       };
 
       await updateStudent(editingStudent.id, updateData);
-      toast.success("Cập nhật thông tin sinh viên thành công!");
+      toast.success("Student information updated successfully!");
       handleModalCancel();
       fetchStudents();
     } catch (error: any) {
       console.error("Error updating student:", error);
       toast.error(
-        error?.response?.data?.detail || "Không thể cập nhật thông tin sinh viên"
+        error?.response?.data?.detail || "Cannot update student information"
       );
     } finally {
       setLoading(false);
@@ -383,12 +383,12 @@ const AdminStudentPage: React.FC = () => {
     try {
       setLoading(true);
       await deleteStudent(studentId);
-      toast.success("Vô hiệu hóa tài khoản sinh viên thành công!");
+      toast.success("Student account deactivated successfully!");
       fetchStudents();
     } catch (error: any) {
       console.error("Error deleting student:", error);
       toast.error(
-        error?.response?.data?.detail || "Không thể vô hiệu hóa tài khoản"
+        error?.response?.data?.detail || "Cannot deactivate account"
       );
     } finally {
       setLoading(false);
@@ -458,7 +458,7 @@ const AdminStudentPage: React.FC = () => {
       fixed: "left",
     },
     {
-      title: "Ảnh",
+      title: "Photo",
       dataIndex: "avatar_url",
       key: "avatar_url",
       width: 70,
@@ -473,14 +473,14 @@ const AdminStudentPage: React.FC = () => {
       ),
     },
     {
-      title: "Mã SV",
+      title: "Student ID",
       dataIndex: "student_code",
       key: "student_code",
       width: 110,
       fixed: "left",
     },
     {
-      title: "Họ và tên",
+      title: "Full Name",
       dataIndex: "full_name",
       key: "full_name",
       width: 200,
@@ -494,7 +494,7 @@ const AdminStudentPage: React.FC = () => {
       ellipsis: true,
     },
     {
-      title: "Khoa",
+      title: "Department",
       dataIndex: "department",
       key: "department",
       width: 180,
@@ -502,14 +502,14 @@ const AdminStudentPage: React.FC = () => {
       render: (text) => text || "-",
     },
     {
-      title: "Khóa",
+      title: "Year",
       dataIndex: "academic_year",
       key: "academic_year",
       width: 90,
       render: (text) => text || "-",
     },
     {
-      title: "Xác thực",
+      title: "Verified",
       dataIndex: "is_verified",
       key: "is_verified",
       width: 120,
@@ -525,7 +525,7 @@ const AdminStudentPage: React.FC = () => {
       ),
     },
     {
-      title: "Trạng thái",
+      title: "Status",
       dataIndex: "is_active",
       key: "is_active",
       width: 130,
@@ -548,15 +548,15 @@ const AdminStudentPage: React.FC = () => {
       {/* Breadcrumb */}
       <Breadcrumb
         items={[
-          { title: "Trang chủ", href: "/admin" },
-          { title: "Quản lý sinh viên" },
+          { title: "Home", href: "/admin" },
+          { title: "Students Management" },
         ]}
       />
 
       {/* Page Title */}
       <Title level={2} style={{ marginTop: 16, marginBottom: 24 }}>
         <UserOutlined style={{ marginRight: 8 }} />
-        Quản lý sinh viên
+        Students Management
       </Title>
 
       {/* Statistics Cards */}
@@ -564,7 +564,7 @@ const AdminStudentPage: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Tổng số sinh viên"
+              title="Total Students"
               value={stats.total}
               valueStyle={{ color: "#1890ff" }}
               prefix={<UserOutlined />}
@@ -574,7 +574,7 @@ const AdminStudentPage: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Đang hoạt động"
+              title="Active"
               value={stats.active}
               valueStyle={{ color: "#52c41a" }}
               prefix={<CheckCircleOutlined />}
@@ -584,7 +584,7 @@ const AdminStudentPage: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Không hoạt động"
+              title="Inactive"
               value={stats.inactive}
               valueStyle={{ color: "#ff4d4f" }}
               prefix={<CloseCircleOutlined />}
@@ -594,7 +594,7 @@ const AdminStudentPage: React.FC = () => {
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Đã xác thực"
+              title="Verified"
               value={stats.verified}
               valueStyle={{ color: "#52c41a" }}
               prefix={<SafetyOutlined />}
@@ -614,7 +614,7 @@ const AdminStudentPage: React.FC = () => {
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           <Col xs={24} sm={24} md={6} lg={5}>
             <Input
-              placeholder="Tìm theo tên, email, mã SV"
+              placeholder="Search by name, email, student ID"
               prefix={<SearchOutlined />}
               allowClear
               value={searchText}
@@ -623,7 +623,7 @@ const AdminStudentPage: React.FC = () => {
           </Col>
           <Col xs={12} sm={8} md={4} lg={3}>
             <Select
-              placeholder="Lọc theo khoa"
+              placeholder="Filter by Department"
               style={{ width: "100%" }}
               allowClear
               value={selectedDepartment}
@@ -638,48 +638,48 @@ const AdminStudentPage: React.FC = () => {
           </Col>
           <Col xs={12} sm={8} md={4} lg={3}>
             <Select
-              placeholder="Lọc theo khóa"
+              placeholder="Filter by Year"
               style={{ width: "100%" }}
               allowClear
               value={selectedAcademicYear}
               onChange={handleAcademicYearFilterChange}
             >
-              <Option value="2021">Khóa 2021</Option>
-              <Option value="2022">Khóa 2022</Option>
-              <Option value="2023">Khóa 2023</Option>
-              <Option value="2024">Khóa 2024</Option>
-              <Option value="2025">Khóa 2025</Option>
+              <Option value="2021">Year 2021</Option>
+              <Option value="2022">Year 2022</Option>
+              <Option value="2023">Year 2023</Option>
+              <Option value="2024">Year 2024</Option>
+              <Option value="2025">Year 2025</Option>
             </Select>
           </Col>
           <Col xs={12} sm={8} md={4} lg={3}>
             <Select
-              placeholder="Trạng thái"
+              placeholder="Status"
               style={{ width: "100%" }}
               allowClear
               value={selectedStatus}
               onChange={handleStatusFilterChange}
             >
-              <Option value={true}>Hoạt động</Option>
-              <Option value={false}>Không hoạt động</Option>
+              <Option value={true}>Active</Option>
+              <Option value={false}>Inactive</Option>
             </Select>
           </Col>
           <Col xs={12} sm={8} md={4} lg={3}>
             <Select
-              placeholder="Xác thực"
+              placeholder="Verification"
               style={{ width: "100%" }}
               allowClear
               value={selectedVerified}
               onChange={handleVerifiedFilterChange}
             >
-              <Option value={true}>Đã xác thực</Option>
-              <Option value={false}>Chưa xác thực</Option>
+              <Option value={true}>Verified</Option>
+              <Option value={false}>Not Verified</Option>
             </Select>
           </Col>
           <Col xs={24} sm={16} md={6} lg={7}>
             <Row gutter={[8, 8]} justify={{ xs: 'start', sm: 'end', md: 'end' }}>
               <Col flex={isMobile ? "1" : "none"}>
                 <Button icon={<ReloadOutlined />} onClick={handleReset} style={{ width: isMobile ? '100%' : 'auto' }}>
-                  {!isMobile && "Đặt lại"}
+                  {!isMobile && "Reset"}
                 </Button>
               </Col>
               <Col flex={isMobile ? "1" : "none"}>
@@ -688,7 +688,7 @@ const AdminStudentPage: React.FC = () => {
                   onClick={() => setIsCSVImportModalOpen(true)}
                   style={{ width: isMobile ? '100%' : 'auto' }}
                 >
-                  {!isMobile && "Nhập CSV"}
+                  {!isMobile && "Import CSV"}
                 </Button>
               </Col>
               <Col flex={isMobile ? "1" : "none"}>
@@ -698,7 +698,7 @@ const AdminStudentPage: React.FC = () => {
                   onClick={showCreateModal}
                   style={{ width: isMobile ? '100%' : 'auto' }}
                 >
-                  {!isMobile && "Thêm"}
+                  {!isMobile && "Add"}
                 </Button>
               </Col>
             </Row>
@@ -740,15 +740,15 @@ const AdminStudentPage: React.FC = () => {
       {/* Create/Edit Modal */}
       <Modal
         title={
-          editingStudent ? "Chỉnh sửa sinh viên" : "Thêm sinh viên mới"
+          editingStudent ? "Edit Student" : "Add New Student"
         }
         open={isModalOpen}
         onOk={handleModalSubmit}
         onCancel={handleModalCancel}
         confirmLoading={loading}
         width={700}
-        okText={editingStudent ? "Cập nhật" : "Tạo mới"}
-        cancelText="Hủy"
+        okText={editingStudent ? "Update" : "Create"}
+        cancelText="Cancel"
       >
         <Form
           form={form}
@@ -757,15 +757,15 @@ const AdminStudentPage: React.FC = () => {
         >
           {/* Full Name */}
           <Form.Item
-            label="Họ và tên"
+            label="Full Name"
             name="full_name"
             rules={[
-              { required: true, message: "Vui lòng nhập họ và tên!" },
-              { min: 2, message: "Họ tên phải có ít nhất 2 ký tự" },
+              { required: true, message: "Please enter full name!" },
+              { min: 2, message: "Name must have at least 2 characters" },
             ]}
           >
             <Input
-              placeholder="Nguyễn Văn A"
+              placeholder="Nguyen Van A"
               disabled={!!editingStudent}
             />
           </Form.Item>
@@ -774,16 +774,16 @@ const AdminStudentPage: React.FC = () => {
             <Col xs={24} sm={12}>
               {/* Student Code - User input */}
               <Form.Item
-                label="Mã sinh viên"
+                label="Student ID"
                 name="student_code"
                 rules={[
-                  { required: true, message: "Vui lòng nhập mã sinh viên!" },
+                  { required: true, message: "Please enter student ID!" },
                   {
                     pattern: /^[0-9]{9}$/,
-                    message: "Mã sinh viên phải có đúng 9 chữ số!",
+                    message: "Student ID must be exactly 9 digits!",
                   },
                 ]}
-                tooltip="Nhập 9 chữ số mã sinh viên. Email sẽ tự động được tạo"
+                tooltip="Enter 9-digit student ID. Email will be auto-generated"
               >
                 <Input
                   placeholder="102220347"
@@ -809,15 +809,15 @@ const AdminStudentPage: React.FC = () => {
                 label="Email"
                 name="email"
                 rules={[
-                  { required: true, message: "Email được tạo từ mã sinh viên!" },
+                  { required: true, message: "Email is generated from student ID!" },
                   {
                     pattern: /^[0-9]{9}$/,
-                    message: "Email phải có 9 chữ số (từ mã SV)",
+                    message: "Email must have 9 digits (from student ID)",
                   },
                 ]}
                 tooltip={
                   !editingStudent
-                    ? "Email tự động được tạo từ mã sinh viên"
+                    ? "Email is auto-generated from student ID"
                     : undefined
                 }
               >
@@ -837,11 +837,11 @@ const AdminStudentPage: React.FC = () => {
           {/* Password (only for create) */}
           {!editingStudent && (
             <Form.Item
-              label="Mật khẩu"
+              label="Password"
               name="password"
               rules={[
-                { required: true, message: "Vui lòng nhập mật khẩu!" },
-                { min: 8, message: "Mật khẩu phải có ít nhất 8 ký tự" },
+                { required: true, message: "Please enter password!" },
+                { min: 8, message: "Password must have at least 8 characters" },
                 {
                   validator: (_, value) => {
                     if (!value) return Promise.resolve();
@@ -856,7 +856,7 @@ const AdminStudentPage: React.FC = () => {
               extra={<PasswordRequirements password={passwordValue} />}
             >
               <Input.Password 
-                placeholder="Nhập mật khẩu"
+                placeholder="Enter password"
                 onChange={(e) => setPasswordValue(e.target.value)}
               />
             </Form.Item>
@@ -866,25 +866,25 @@ const AdminStudentPage: React.FC = () => {
             <Col xs={24} sm={12}>
               {/* Date of Birth */}
               <Form.Item
-                label="Ngày sinh"
+                label="Date of Birth"
                 name="date_of_birth"
               >
                 <DatePicker
                   style={{ width: "100%" }}
                   format="DD/MM/YYYY"
-                  placeholder="Chọn ngày sinh"
+                  placeholder="Select date of birth"
                 />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
               {/* Phone */}
               <Form.Item
-                label="Số điện thoại"
+                label="Phone Number"
                 name="phone"
                 rules={[
                   {
                     pattern: /^[0-9]{10,11}$/,
-                    message: "SĐT phải có 10-11 chữ số",
+                    message: "Phone number must have 10-11 digits",
                   },
                 ]}
               >
@@ -897,12 +897,12 @@ const AdminStudentPage: React.FC = () => {
             <Col xs={24} sm={12}>
               {/* Department */}
               <Form.Item
-                label="Khoa"
+                label="Department"
                 name="department_id"
-                rules={[{ required: true, message: "Vui lòng chọn khoa!" }]}
+                rules={[{ required: true, message: "Please select department!" }]}
               >
                 <Select
-                  placeholder="Chọn khoa"
+                  placeholder="Select department"
                   showSearch
                   optionFilterProp="children"
                 >
@@ -917,12 +917,12 @@ const AdminStudentPage: React.FC = () => {
             <Col xs={24} sm={12}>
               {/* Academic Year */}
               <Form.Item
-                label="Khóa học"
+                label="Academic Year"
                 name="academic_year"
                 rules={[
                   {
                     pattern: /^\d{4}$/,
-                    message: "Khóa học phải là 4 chữ số (VD: 2021)",
+                    message: "Academic year must be 4 digits (e.g., 2021)",
                   },
                 ]}
               >
@@ -936,27 +936,27 @@ const AdminStudentPage: React.FC = () => {
               <Col xs={24} sm={12}>
                 {/* Active Status (only for edit) */}
                 <Form.Item
-                  label="Trạng thái"
+                  label="Status"
                   name="is_active"
                   valuePropName="checked"
                   initialValue={true}
                 >
                   <Select>
-                    <Option value={true}>Hoạt động</Option>
-                    <Option value={false}>Không hoạt động</Option>
+                    <Option value={true}>Active</Option>
+                    <Option value={false}>Inactive</Option>
                   </Select>
                 </Form.Item>
               </Col>
               <Col xs={24} sm={12}>
                 {/* Verification Status (only for edit) */}
                 <Form.Item
-                  label="Xác thực khuôn mặt"
+                  label="Face Verification"
                   name="is_verified"
                   valuePropName="checked"
                 >
                   <Select>
-                    <Option value={true}>Đã xác thực</Option>
-                    <Option value={false}>Chưa xác thực</Option>
+                    <Option value={true}>Verified</Option>
+                    <Option value={false}>Not Verified</Option>
                   </Select>
                 </Form.Item>
               </Col>
@@ -964,7 +964,7 @@ const AdminStudentPage: React.FC = () => {
           )}
 
           {/* Avatar Upload */}
-          <Form.Item label="Ảnh đại diện">
+          <Form.Item label="Profile Picture">
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               {avatarUrl ? (
                 <Avatar
@@ -994,7 +994,7 @@ const AdminStudentPage: React.FC = () => {
                   loading={avatarUploading}
                   disabled={avatarUploading}
                 >
-                  {avatarUrl ? "Thay đổi ảnh" : "Chọn ảnh đại diện"}
+                  {avatarUrl ? "Change Photo" : "Select Profile Picture"}
                 </Button>
               </Upload>
               {avatarUrl && (
@@ -1005,12 +1005,12 @@ const AdminStudentPage: React.FC = () => {
                     setAvatarUrl("");
                   }}
                 >
-                  Xóa ảnh
+                  Remove Photo
                 </Button>
               )}
             </div>
             <div style={{ marginTop: 8, fontSize: 12, color: "#888" }}>
-              Chấp nhận: JPG, PNG, GIF. Kích thước tối đa: 5MB
+              Accepted: JPG, PNG, GIF. Maximum size: 5MB
             </div>
           </Form.Item>
         </Form>
@@ -1021,7 +1021,7 @@ const AdminStudentPage: React.FC = () => {
         title={
           <Space>
             <UserOutlined />
-            <span>Thông tin chi tiết sinh viên</span>
+            <span>Student Details</span>
           </Space>
         }
         open={isDetailModalOpen}
@@ -1076,18 +1076,18 @@ const AdminStudentPage: React.FC = () => {
                 </Title>
                 <Space direction="vertical" size="middle" style={{ width: "100%" }}>
                   <div>
-                    <Text strong>Mã sinh viên:</Text>{" "}
+                    <Text strong>Student ID:</Text>{" "}
                     <Tag color="blue">{viewingStudent.student_code}</Tag>
                   </div>
                   <div>
                     <Text strong>Email:</Text> {viewingStudent.email}
                   </div>
                   <div>
-                    <Text strong>Số điện thoại:</Text>{" "}
+                    <Text strong>Phone Number:</Text>{" "}
                     {viewingStudent.phone || "-"}
                   </div>
                   <div>
-                    <Text strong>Ngày sinh:</Text>{" "}
+                    <Text strong>Date of Birth:</Text>{" "}
                     {viewingStudent.date_of_birth
                       ? dayjs(viewingStudent.date_of_birth).format("DD/MM/YYYY")
                       : "-"}
@@ -1101,12 +1101,12 @@ const AdminStudentPage: React.FC = () => {
             {/* Academic Info */}
             <Row gutter={[16, 16]}>
               <Col xs={24} sm={12}>
-                <Card size="small" title="Khoa">
+                <Card size="small" title="Department">
                   <Text>{viewingStudent.department || "-"}</Text>
                 </Card>
               </Col>
               <Col xs={24} sm={12}>
-                <Card size="small" title="Khóa học">
+                <Card size="small" title="Academic Year">
                   <Text>{viewingStudent.academic_year || "-"}</Text>
                 </Card>
               </Col>
@@ -1118,14 +1118,14 @@ const AdminStudentPage: React.FC = () => {
             <Row gutter={[16, 16]}>
               <Col xs={24} sm={12}>
                 <Text type="secondary">
-                  <strong>Ngày tạo:</strong>{" "}
-                  {new Date(viewingStudent.created_at).toLocaleString("vi-VN")}
+                  <strong>Created At:</strong>{" "}
+                  {new Date(viewingStudent.created_at).toLocaleString("en-US")}
                 </Text>
               </Col>
               <Col xs={24} sm={12}>
                 <Text type="secondary">
-                  <strong>Cập nhật:</strong>{" "}
-                  {new Date(viewingStudent.updated_at).toLocaleString("vi-VN")}
+                  <strong>Updated At:</strong>{" "}
+                  {new Date(viewingStudent.updated_at).toLocaleString("en-US")}
                 </Text>
               </Col>
             </Row>
@@ -1139,33 +1139,33 @@ const AdminStudentPage: React.FC = () => {
                 icon={<EditOutlined />}
                 onClick={() => showEditModal(viewingStudent)}
               >
-                Chỉnh sửa
+                Edit
               </Button>
               <Button
                 icon={<LockOutlined />}
                 onClick={() => showResetPasswordModal(viewingStudent)}
               >
-                Đặt lại mật khẩu
+                Reset Password
               </Button>
               <Popconfirm
-                title="Vô hiệu hóa sinh viên"
-                description="Bạn có chắc muốn vô hiệu hóa tài khoản này?"
+                title="Deactivate Student"
+                description="Are you sure you want to deactivate this account?"
                 onConfirm={() => {
                   handleDeleteStudent(viewingStudent.id);
                   handleDetailModalCancel();
                 }}
-                okText="Có"
-                cancelText="Không"
+                okText="Yes"
+                cancelText="No"
               >
                 <Button
                   danger
                   icon={<DeleteOutlined />}
                   disabled={!viewingStudent.is_active}
                 >
-                  Vô hiệu hóa
+                  Deactivate
                 </Button>
               </Popconfirm>
-              <Button onClick={handleDetailModalCancel}>Đóng</Button>
+              <Button onClick={handleDetailModalCancel}>Close</Button>
             </Space>
           </div>
         )}

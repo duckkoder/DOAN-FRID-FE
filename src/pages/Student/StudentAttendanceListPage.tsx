@@ -52,8 +52,8 @@ const StudentAttendanceListPage: React.FC = () => {
   const breadcrumbItems = [
     { title: "Dashboard", href: "/student" },
     { title: "Classes", href: "/student/classes" },
-    { title: "Chi tiết lớp", href: `/student/classes/${classId}` },
-    { title: "Điểm danh realtime" }
+    { title: "Class Details", href: `/student/classes/${classId}` },
+    { title: "Real-time Attendance" }
   ];
 
   // Fetch attendance session on mount
@@ -90,11 +90,11 @@ const StudentAttendanceListPage: React.FC = () => {
         connectWebSocket(response.session.id);
       } else {
         // No active session
-        message.info('Hiện tại không có phiên điểm danh nào đang diễn ra');
+        message.info('No active attendance session at the moment');
       }
     } catch (err: any) {
       console.error('❌ Failed to fetch attendance session:', err);
-      message.error('Không thể tải danh sách điểm danh');
+      message.error('Could not load attendance list');
     } finally {
       setLoading(false);
     }
@@ -161,13 +161,13 @@ const StudentAttendanceListPage: React.FC = () => {
             // Show notification if it's the current user
             if (data.student.student_id === myStudentId) {
               message.success({
-                content: `✅ Bạn đã được điểm danh lúc ${new Date(data.student.recorded_at).toLocaleTimeString('vi-VN')}`,
+                content: `✅ You were marked present at ${new Date(data.student.recorded_at).toLocaleTimeString('en-US')}`,
                 duration: 5
               });
             } else {
               // Show subtle notification for other students
               message.info({
-                content: `${data.student.full_name} vừa được điểm danh`,
+                content: `${data.student.full_name} was just marked present`,
                 duration: 2
               });
             }
@@ -196,7 +196,7 @@ const StudentAttendanceListPage: React.FC = () => {
   // Table columns
   const columns = [
     {
-      title: 'MSSV',
+      title: 'Student ID',
       dataIndex: 'student_code',
       key: 'student_code',
       width: 120,
@@ -204,7 +204,7 @@ const StudentAttendanceListPage: React.FC = () => {
       render: (code: string) => <strong>{code}</strong>
     },
     {
-      title: 'Họ và tên',
+      title: 'Full Name',
       dataIndex: 'full_name',
       key: 'full_name',
       width: 200,
@@ -213,19 +213,19 @@ const StudentAttendanceListPage: React.FC = () => {
         <span>
           {name}
           {record.student_id === myStudentId && (
-            <Tag color="blue" style={{ marginLeft: 8 }}>Bạn</Tag>
+            <Tag color="blue" style={{ marginLeft: 8 }}>You</Tag>
           )}
         </span>
       )
     },
     {
-      title: 'Trạng thái',
+      title: 'Status',
       dataIndex: 'is_present',
       key: 'status',
       width: 150,
       filters: [
-        { text: 'Đã điểm danh', value: true },
-        { text: 'Chưa điểm danh', value: false }
+        { text: 'Present', value: true },
+        { text: 'Not Present', value: false }
       ],
       onFilter: (value: any, record: StudentAttendanceInfo) => record.is_present === value,
       render: (_: boolean, record: StudentAttendanceInfo) => {
@@ -238,13 +238,13 @@ const StudentAttendanceListPage: React.FC = () => {
         }
         return (
           <Tag color="default" icon={<ClockCircleOutlined />}>
-            Chưa điểm danh
+            Not Present
           </Tag>
         );
       }
     },
     {
-      title: 'Thời gian',
+      title: 'Time',
       dataIndex: 'recorded_at',
       key: 'recorded_at',
       width: 120,
@@ -255,11 +255,11 @@ const StudentAttendanceListPage: React.FC = () => {
       },
       render: (time: string | null) => {
         if (!time) return <Text type="secondary">-</Text>;
-        return new Date(time).toLocaleTimeString('vi-VN');
+        return new Date(time).toLocaleTimeString('en-US');
       }
     },
     {
-      title: 'Độ tin cậy',
+      title: 'Confidence',
       dataIndex: 'confidence_score',
       key: 'confidence_score',
       width: 120,
@@ -290,7 +290,7 @@ const StudentAttendanceListPage: React.FC = () => {
         justifyContent: 'center',
         alignItems: 'center'
       }}>
-        <Spin size="large" tip="Đang tải danh sách điểm danh..." />
+        <Spin size="large" tip="Loading attendance list..." />
       </div>
     );
   }
@@ -309,11 +309,11 @@ const StudentAttendanceListPage: React.FC = () => {
           onClick={() => navigate(`/student/classes/${classId}`)}
           style={{ borderRadius: 8, marginBottom: 16 }}
         >
-          Quay lại lớp học
+          Back to Class
         </Button>
         <Alert
-          message="Không có phiên điểm danh nào đang diễn ra"
-          description="Hiện tại lớp học này chưa có phiên điểm danh nào. Vui lòng quay lại sau khi giáo viên bắt đầu điểm danh."
+          message="No active attendance session"
+          description="There is no attendance session for this class at the moment. Please come back after the teacher starts attendance."
           type="info"
           showIcon
         />
@@ -341,7 +341,7 @@ const StudentAttendanceListPage: React.FC = () => {
           onClick={() => navigate(`/student/classes/${classId}`)}
           style={{ borderRadius: 8, marginBottom: 16 }}
         >
-          Quay lại lớp học
+          Back to Class
         </Button>
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -355,7 +355,7 @@ const StudentAttendanceListPage: React.FC = () => {
               onClick={fetchAttendanceSession}
               disabled={loading}
             >
-              Làm mới
+              Refresh
             </Button>
           </Space>
         </div>
@@ -370,7 +370,7 @@ const StudentAttendanceListPage: React.FC = () => {
       }}>
         <Card style={{ borderRadius: 12 }}>
           <Statistic
-            title="Tổng số sinh viên"
+            title="Total Students"
             value={attendanceStats?.total_students || 0}
             prefix="👥"
             valueStyle={{ color: '#1890ff' }}
@@ -379,7 +379,7 @@ const StudentAttendanceListPage: React.FC = () => {
         
         <Card style={{ borderRadius: 12 }}>
           <Statistic
-            title="Đã điểm danh"
+            title="Present"
             value={attendanceStats?.present_count || 0}
             suffix={`/ ${attendanceStats?.total_students || 0}`}
             prefix="✅"
@@ -389,7 +389,7 @@ const StudentAttendanceListPage: React.FC = () => {
         
         <Card style={{ borderRadius: 12 }}>
           <Statistic
-            title="Chưa điểm danh"
+            title="Not Present"
             value={attendanceStats?.absent_count || 0}
             prefix="⏳"
             valueStyle={{ color: '#faad14' }}
@@ -398,7 +398,7 @@ const StudentAttendanceListPage: React.FC = () => {
         
         <Card style={{ borderRadius: 12 }}>
           <Statistic
-            title="Tỷ lệ"
+            title="Rate"
             value={attendancePercentage}
             suffix="%"
             prefix="📊"
@@ -418,19 +418,19 @@ const StudentAttendanceListPage: React.FC = () => {
       <Card 
         title={
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>Danh sách sinh viên</span>
+            <span>Student List</span>
             <Space>
               {wsConnected ? (
                 <Tag color="success" icon={<WifiOutlined />}>
-                  Đang cập nhật realtime
+                  Updating in real-time
                 </Tag>
               ) : (
                 <Tag color="default" icon={<DisconnectOutlined />}>
-                  Mất kết nối
+                  Disconnected
                 </Tag>
               )}
               <Text type="secondary">
-                Bắt đầu: {new Date(attendanceSession.start_time).toLocaleTimeString('vi-VN')}
+                Started: {new Date(attendanceSession.start_time).toLocaleTimeString('en-US')}
               </Text>
             </Space>
           </div>
@@ -444,7 +444,7 @@ const StudentAttendanceListPage: React.FC = () => {
           pagination={{
             pageSize: 20,
             showSizeChanger: true,
-            showTotal: (total) => `Tổng ${total} sinh viên`,
+            showTotal: (total) => `Total ${total} students`,
             pageSizeOptions: ['10', '20', '50', '100']
           }}
           size="middle"
@@ -457,7 +457,7 @@ const StudentAttendanceListPage: React.FC = () => {
         
         <div style={{ marginTop: 16, textAlign: 'center' }}>
           <Text type="secondary">
-            💡 Danh sách tự động cập nhật khi AI nhận diện sinh viên
+            💡 List automatically updates when AI recognizes students
           </Text>
         </div>
       </Card>
