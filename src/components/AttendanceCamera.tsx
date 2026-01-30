@@ -122,7 +122,6 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       console.error('[FrameCapture] Error:', error);
     },
     onFrameSkipped: () => {
-      // Optional: track skipped frames
     },
   });
 
@@ -191,12 +190,9 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         setLoading(true);
         setError(null);
         
-        console.log('[ResumeSession] Resuming session:', resumeSessionId);
-        
         // 1. Call resume API to get new WebSocket token
         const response = await resumeAttendanceSession(resumeSessionId);
         
-        console.log('[ResumeSession] Got response:', response);
         setSessionInfo(response);
 
         // 2. Start camera
@@ -208,10 +204,8 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         // 4. Start sending frames
         startFrameCapture();
         
-        console.log('[ResumeSession] Session resumed successfully');
 
       } catch (err: any) {
-        console.error('[ResumeSession] Error:', err);
         setError(err.response?.data?.detail || 'Unable to resume attendance session. Session may have ended.');
       } finally {
         setLoading(false);
@@ -258,7 +252,6 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         await startCamera(facingMode);
         ensureVideoPlaying();
       } catch (err) {
-        console.error('[Camera] Orientation restart failed:', err);
         setError('Unable to restart camera after rotating device');
       } finally {
         if (orientationRestartTimeoutRef.current) {
@@ -319,8 +312,6 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       setLoading(true);
       setError(null);
 
-      
-
       // 1. Create session với Backend → nhận WebSocket info
       // ✅ Fix: Generate session_name with Vietnam timezone (UTC+7)
       const now = new Date();
@@ -365,7 +356,6 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   const startCamera = async (mode: 'user' | 'environment' = facingMode) => {
     try {
       
-      
       // Stop existing stream if any
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
@@ -391,7 +381,6 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       
 
     } catch (err) {
-      console.error('[Camera] Error:', err);
       throw new Error('Unable to access camera');
     }
   };
@@ -408,7 +397,6 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       await startCamera(newMode);
       
     } catch (err) {
-      console.error('[Camera] Toggle error:', err);
       setError('Unable to toggle camera');
     }
   };
@@ -457,7 +445,6 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       });
 
       wsClient.onError((errorMsg) => {
-        console.error('[WebSocket] Error:', errorMsg);
         setError(errorMsg);
       });
 
@@ -465,7 +452,6 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       await wsClient.connect(sessionInfo.ai_ws_url, sessionInfo.ai_ws_token);
 
     } catch (err) {
-      console.error('[WebSocket] Connection error:', err);
       throw new Error('Unable to connect to AI-Service');
     }
   };
@@ -476,7 +462,6 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
    */
   const startFrameCapture = () => {
     if (videoRef.current) {
-      console.log('[FrameCapture] Starting with dynamic rate and Web Worker');
       startCapture(videoRef.current);
     }
   };
@@ -575,13 +560,11 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         const height = displayY2 - displayY1;
       
       // ✅ DETERMINE ANTI-SPOOFING STATUS - HIGHEST PRIORITY
-      // If anti-spoofing explicitly says not live (is_live === false) OR spoofing_type is 'spoof',
-      // treat as spoofed/fake and render in red with label "Fake".
-      const isSpoofed = (typeof detection.is_live === 'boolean' && detection.is_live === false)
-        || (detection.spoofing_type && detection.spoofing_type === 'spoof');
+      // Only use is_live which already has threshold applied from backend
+      // is_live = False means: model predicted 'spoof' AND confidence >= ANTISPOOFING_THRESHOLD
+      // is_live = True means: either 'real' OR 'spoof' with low confidence (below threshold)
+      const isSpoofed = typeof detection.is_live === 'boolean' && detection.is_live === false;
       
-      // ✅ OPTIMIZATION: Remove console.log in production for better performance
-
       // ✅ DETERMINE COLOR AND LABEL - ANTI-SPOOFING HAS HIGHEST PRIORITY
       let color: string;
       let lineWidth = 2;
