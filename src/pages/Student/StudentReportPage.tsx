@@ -80,20 +80,20 @@ const StudentReportPage: React.FC = () => {
   }));
 
   const breadcrumbItems = [
-    { title: "Home", href: "/student" },
-    { title: "Leave Requests" }
+    { title: "Trang chủ", href: "/student" },
+    { title: "Xin nghỉ" }
   ];
 
   // ✅ Convert English day to Vietnamese
   const convertDayToVietnamese = (englishDay: string): string => {
     const dayMap: { [key: string]: string } = {
-      'Monday': 'Monday',
-      'Tuesday': 'Tuesday', 
-      'Wednesday': 'Wednesday',
-      'Thursday': 'Thursday',
-      'Friday': 'Friday',
-      'Saturday': 'Saturday',
-      'Sunday': 'Sunday'
+      'Monday': 'Thứ Hai',
+      'Tuesday': 'Thứ Ba',
+      'Wednesday': 'Thứ Tư',
+      'Thursday': 'Thứ Năm',
+      'Friday': 'Thứ Sáu',
+      'Saturday': 'Thứ Bảy',
+      'Sunday': 'Chủ Nhật'
     };
     return dayMap[englishDay] || englishDay;
   };
@@ -114,7 +114,7 @@ const StudentReportPage: React.FC = () => {
       setClasses(response.data.classes);
     } catch (err: unknown) {
       console.error('Failed to fetch classes:', err);
-      const errorMsg = (err as Error).message || 'Could not load class list';
+      const errorMsg = (err as Error).message || 'Không thể tải danh sách lớp';
       setError(errorMsg);
       toast.error(errorMsg);
     } finally {
@@ -133,7 +133,7 @@ const StudentReportPage: React.FC = () => {
       setLeaveRequests(response.data.leaveRequests);
     } catch (err: unknown) {
       console.error('Failed to fetch leave requests:', err);
-      toast.error((err as Error).message || 'Could not load leave requests');
+      toast.error((err as Error).message || 'Không thể tải yêu cầu xin nghỉ');
     } finally {
       setLoadingRequests(false);
     }
@@ -175,9 +175,9 @@ const StudentReportPage: React.FC = () => {
 
             if (uploadResponse.success && uploadResponse.data.file_id) {
               evidenceFileId = uploadResponse.data.file_id;
-              toast.success('Evidence file uploaded successfully!');
+              toast.success('Đả tải lên tài liệu minh chứng thành công!');
             } else {
-              throw new Error(uploadResponse.message || 'File upload failed');
+              throw new Error(uploadResponse.message || 'Tại file thất bại');
             }
           } catch (uploadErr: unknown) {
             toast.error(`File upload error: ${(uploadErr as Error).message || 'Please try again'}`);
@@ -201,21 +201,21 @@ const StudentReportPage: React.FC = () => {
       const response = await createLeaveRequest(payload);
 
       if (response.success) {
-        toast.success('Leave request submitted successfully! The teacher will review it as soon as possible.');
+        toast.success('Đã gửi yêu cầu xin nghỉ thành công! Giáo viên sẽ xem xét sớm nhất có thể.');
         
         // Refresh leave requests list
         await fetchLeaveRequests();
         
         setIsCreateModalVisible(false);
       } else {
-        throw new Error(response.message || 'Submit request failed');
+        throw new Error(response.message || 'Gửi yêu cầu thất bại');
       }
 
     } catch (err: unknown) {
       console.error('Failed to create leave request:', err);
       
       // ✅ Better error message
-      let errorMessage = 'Could not submit leave request. Please try again!';
+      let errorMessage = 'Không thể gửi yêu cầu. Vui lòng thử lại!';
       
       const errorObj = err as Error;
       if (errorObj.message) {
@@ -261,9 +261,9 @@ const StudentReportPage: React.FC = () => {
 
             if (uploadResponse.success && uploadResponse.data.file_id) {
               evidenceFileId = uploadResponse.data.file_id;
-              toast.success('Evidence file uploaded successfully!');
+              toast.success('Đã tải lên tài liệu minh chứng thành công!');
             } else {
-              throw new Error(uploadResponse.message || 'File upload failed');
+              throw new Error(uploadResponse.message || 'Tải file thất bại');
             }
           } catch (uploadErr: unknown) {
             toast.error(`File upload error: ${(uploadErr as Error).message || 'Please try again'}`);
@@ -283,20 +283,20 @@ const StudentReportPage: React.FC = () => {
       const response = await updateLeaveRequest(editingRequest.id, payload);
 
       if (response.success) {
-        toast.success('Leave request updated successfully!');
+        toast.success('Đã cập nhật yêu cầu xin nghỉ thành công!');
         
         await fetchLeaveRequests();
         
         setIsEditModalVisible(false);
         setEditingRequest(null);
       } else {
-        throw new Error(response.message || 'Update failed');
+        throw new Error(response.message || 'Cập nhật thất bại');
       }
 
     } catch (err: unknown) {
       console.error('Failed to update leave request:', err);
       
-      let errorMessage = 'Could not update request. Please try again!';
+      let errorMessage = 'Không thể cập nhật yêu cầu. Vui lòng thử lại!';
       
       const errorObj = err as Error;
       if (errorObj.message) {
@@ -322,13 +322,13 @@ const StudentReportPage: React.FC = () => {
     try {
       await cancelLeaveRequest(parseInt(requestId));
       
-      toast.success('Leave request deleted successfully!');
+      toast.success('Đã hủy yêu cầu xin nghỉ thành công!');
       
       await fetchLeaveRequests();
     } catch (err: unknown) {
       console.error('Failed to delete leave request:', err);
       
-      let errorMessage = 'Could not delete request. Please try again!';
+      let errorMessage = 'Không thể hủy yêu cầu. Vui lòng thử lại!';
       
       const errorObj = err as Error;
       if (errorObj.message) {
@@ -398,22 +398,22 @@ const StudentReportPage: React.FC = () => {
   const getStatusConfig = (status: LeaveRequestStatus) => {
     switch(status) {
       case 'pending':
-        return { color: '#f59e42', text: 'Pending' };
+        return { color: '#f59e42', text: 'Chờ duyệt' };
       case 'approved':
-        return { color: '#10b981', text: 'Approved' };
+        return { color: '#10b981', text: 'Đã duyệt' };
       case 'rejected':
-        return { color: '#ef4444', text: 'Rejected' };
+        return { color: '#ef4444', text: 'Từ chối' };
       case 'cancelled':
-        return { color: '#64748b', text: 'Cancelled' };
+        return { color: '#64748b', text: 'Đã hủy' };
       default:
-        return { color: '#64748b', text: 'Unknown' };
+        return { color: '#64748b', text: 'Không rõ' };
     }
   };
 
   // ✅ UPDATED: Table columns to work with LeaveRequestDetail
   const columns = [
     {
-      title: 'Subject',
+      title: 'Môn học',
       key: 'subject',
       width: 140,
       fixed: 'left' as const,
@@ -428,7 +428,7 @@ const StudentReportPage: React.FC = () => {
       )
     },
     {
-      title: 'Leave Date',
+      title: 'Ngày nghỉ',
       key: 'date',
       width: 120,
       render: (record: LeaveRequestDetail) => (
@@ -442,7 +442,7 @@ const StudentReportPage: React.FC = () => {
       )
     },
     {
-      title: 'Reason',
+      title: 'Lý do',
       dataIndex: 'reason',
       key: 'reason',
       width: 160,
@@ -454,7 +454,7 @@ const StudentReportPage: React.FC = () => {
       )
     },
     {
-      title: 'Status',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 100,
@@ -464,7 +464,7 @@ const StudentReportPage: React.FC = () => {
       }
     },
     {
-      title: 'Submitted',
+      title: 'Ngày gửi',
       key: 'submittedDate',
       width: 100,
       render: (record: LeaveRequestDetail) => {
@@ -477,7 +477,7 @@ const StudentReportPage: React.FC = () => {
       }
     },
     {
-      title: 'Actions',
+      title: 'Hành động',
       key: 'actions',
       width: 130,
       fixed: 'right' as const,
@@ -501,11 +501,11 @@ const StudentReportPage: React.FC = () => {
                 style={{ padding: '0 4px' }}
               />
               <Popconfirm
-                title="Confirm Delete"
-                description="Are you sure you want to delete this request?"
+                title="Xác nhận xóa"
+                description="Bạn có chắc chắn muốn xóa yêu cầu này?"
                 onConfirm={() => handleDeleteRequest(record.id.toString())}
-                okText="Delete"
-                cancelText="Cancel"
+                okText="Xóa"
+                cancelText="Hủy"
                 okType="danger"
               >
                 <Button 
@@ -525,7 +525,7 @@ const StudentReportPage: React.FC = () => {
               icon={<EyeOutlined />}
               onClick={() => handleViewRequest(record)}
             >
-              Details
+              Chi tiết
             </Button>
           )}
         </Space>
@@ -551,7 +551,7 @@ const StudentReportPage: React.FC = () => {
       {/* ✅ Error Alert */}
       {error && (
         <Alert
-          message="Error Loading Data"
+          message="Lỗi khi tải dữ liệu"
           description={error}
           type="error"
           closable
@@ -564,7 +564,7 @@ const StudentReportPage: React.FC = () => {
       <Row gutter={[16, 12]} align="middle" style={{ marginBottom: 16, marginTop: 16 }}>
         <Col xs={24} md={12}>
           <Title level={2} style={{ marginBottom: 0 }}>
-            📝 Leave Requests
+            📝 Đơn Xin Nghỉ
           </Title>
         </Col>
         <Col xs={24} md={12}>
@@ -579,7 +579,7 @@ const StudentReportPage: React.FC = () => {
                 loading={loadingClasses || loadingRequests}
                 style={{ width: '100%' }}
               >
-                Refresh
+                Làm mới
               </Button>
             </Col>
             <Col xs={12} md={24} style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -590,7 +590,7 @@ const StudentReportPage: React.FC = () => {
                 disabled={classes.length === 0}
                 style={{ width: '100%' }}
               >
-                Create Leave Request
+                Tạo đơn xin nghỉ
               </Button>
             </Col>
           </Row>
@@ -602,7 +602,7 @@ const StudentReportPage: React.FC = () => {
         <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 12, textAlign: 'center' }}>
             <Statistic
-              title="Total Requests"
+              title="Tổng yêu cầu"
               value={totalRequests}
               valueStyle={{ color: '#2563eb' }}
             />
@@ -611,7 +611,7 @@ const StudentReportPage: React.FC = () => {
         <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 12, textAlign: 'center' }}>
             <Statistic
-              title="Pending"
+              title="Chờ duyệt"
               value={pendingCount}
               valueStyle={{ color: '#f59e42' }}
             />
@@ -620,7 +620,7 @@ const StudentReportPage: React.FC = () => {
         <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 12, textAlign: 'center' }}>
             <Statistic
-              title="Approved"
+              title="Được duyệt"
               value={approvedCount}
               valueStyle={{ color: '#10b981' }}
             />
@@ -629,7 +629,7 @@ const StudentReportPage: React.FC = () => {
         <Col xs={12} sm={12} md={6}>
           <Card style={{ borderRadius: 12, textAlign: 'center' }}>
             <Statistic
-              title="Rejected"
+              title="Từ chối"
               value={rejectedCount}
               valueStyle={{ color: '#ef4444' }}
             />
@@ -642,7 +642,7 @@ const StudentReportPage: React.FC = () => {
         borderRadius: 12
       }}>
         <Divider style={{ margin: '0 0 16px 0' }} orientation="left">
-          📋 Leave Request List
+          📋 Danh sách Xin nghỉ
         </Divider>
         <Table
           dataSource={leaveRequests}
@@ -653,7 +653,7 @@ const StudentReportPage: React.FC = () => {
             current: 1,
             pageSize: 10,
             showSizeChanger: true,
-            showTotal: (total) => `Total ${total} requests`,
+            showTotal: (total) => `Tổng ${total} yêu cầu`,
             pageSizeOptions: ["10", "20", "50"],
             responsive: true
           }}
@@ -684,7 +684,7 @@ const StudentReportPage: React.FC = () => {
         subjects={subjects}
         preSelectedSubject={editingRequest ? editingRequest.classId.toString() : ''}
         initialValues={editingRequest ? getEditInitialValues(editingRequest) : undefined}
-        title="Edit Leave Request"
+        title="Chỉnh sửa đơn xin nghỉ"
       />
 
       {/* ✅ ENHANCED: View Request Details Modal - Same as Teacher */}
@@ -692,7 +692,7 @@ const StudentReportPage: React.FC = () => {
         title={
           <Space>
             <FileTextOutlined style={{ color: '#2563eb', fontSize: 18 }} />
-            <span>Leave Request Details</span>
+            <span>Chi tiết Đơn Xin Nghỉ</span>
           </Space>
         }
         open={isViewModalVisible}
@@ -702,7 +702,7 @@ const StudentReportPage: React.FC = () => {
         }}
         footer={[
           <Button key="close" onClick={() => setIsViewModalVisible(false)}>
-            Close
+            Đóng
           </Button>
         ]}
         width={700}
@@ -717,23 +717,23 @@ const StudentReportPage: React.FC = () => {
               title={
                 <Space>
                   <UserOutlined style={{ color: '#2563eb' }} />
-                  <Text strong style={{ fontSize: 13 }}>Student Information</Text>
+                  <Text strong style={{ fontSize: 13 }}>Thông tin Sinh viên</Text>
                 </Space>
               }
             >
               <Row gutter={[12, 12]}>
                 <Col xs={24} sm={12}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Full Name:</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Họ tên:</Text>
                   <br />
                   <Text strong style={{ fontSize: 14 }}>{selectedRequest.studentName}</Text>
                 </Col>
                 <Col xs={24} sm={12}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Student ID:</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Mã SV:</Text>
                   <br />
                   <Text strong style={{ fontSize: 14 }}>{selectedRequest.studentCode || 'N/A'}</Text>
                 </Col>
                 <Col xs={24} sm={12}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Subject:</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Lớp:</Text>
                   <br />
                   <Space>
                     <BookOutlined style={{ color: '#3b82f6' }} />
@@ -741,11 +741,11 @@ const StudentReportPage: React.FC = () => {
                   </Space>
                 </Col>
                 <Col xs={24} sm={12}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Period:</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Tiết học:</Text>
                   <br />
                   <Space>
                     <ClockCircleOutlined style={{ color: '#f59e42' }} />
-                    <Text strong style={{ fontSize: 14 }}>Period {selectedRequest.timeSlot || 'N/A'}</Text>
+                    <Text strong style={{ fontSize: 14 }}>Tiết {selectedRequest.timeSlot || 'N/A'}</Text>
                   </Space>
                 </Col>
               </Row>
@@ -758,35 +758,35 @@ const StudentReportPage: React.FC = () => {
               title={
                 <Space>
                   <CalendarOutlined style={{ color: '#f59e42' }} />
-                  <Text strong style={{ fontSize: 13 }}>Leave Information</Text>
+                  <Text strong style={{ fontSize: 13 }}>Thông tin Nghỉ</Text>
                 </Space>
               }
             >
               <Row gutter={[12, 12]}>
                 <Col xs={12} sm={12}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Leave Date:</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Ngày nghỉ:</Text>
                   <br />
                   <Text strong style={{ fontSize: 14 }}>
                     {dayjs(selectedRequest.leaveDate).format('DD/MM/YYYY')}
                   </Text>
                 </Col>
                 <Col xs={12} sm={12}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Day:</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Thứ:</Text>
                   <br />
                   <Text strong style={{ fontSize: 14 }}>
                     {convertDayToVietnamese(selectedRequest.dayOfWeek)}
                   </Text>
                 </Col>
                 <Col xs={12} sm={12}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Period:</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Tiết:</Text>
                   <br />
                   <Space>
                     <ClockCircleOutlined style={{ color: '#f59e42' }} />
-                    <Text strong style={{ fontSize: 14 }}>Period {selectedRequest.timeSlot || 'N/A'}</Text>
+                    <Text strong style={{ fontSize: 14 }}>Tiết {selectedRequest.timeSlot || 'N/A'}</Text>
                   </Space>
                 </Col>
                 <Col xs={12} sm={12}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Submitted Date:</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Ngày gửi:</Text>
                   <br />
                   <Text strong style={{ fontSize: 14 }}>
                     {dayjs(selectedRequest.createdAt).format('DD/MM/YYYY HH:mm')}
@@ -794,7 +794,7 @@ const StudentReportPage: React.FC = () => {
                 </Col>
                 {selectedRequest.reviewedAt && (
                   <Col xs={12} sm={12}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Reviewed Date:</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>Ngày duyệt:</Text>
                     <br />
                     <Text strong style={{ fontSize: 14 }}>
                       {dayjs(selectedRequest.reviewedAt).format('DD/MM/YYYY HH:mm')}
@@ -802,7 +802,7 @@ const StudentReportPage: React.FC = () => {
                   </Col>
                 )}
                 <Col span={24}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Reason for Leave:</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Lý do nghỉ:</Text>
                   <br />
                   <Text style={{ 
                     fontSize: 13,
@@ -827,7 +827,7 @@ const StudentReportPage: React.FC = () => {
                 title={
                   <Space>
                     <FileImageOutlined style={{ color: '#10b981' }} />
-                    <Text strong style={{ fontSize: 13 }}>Evidence File</Text>
+                    <Text strong style={{ fontSize: 13 }}>Tài liệu minh chứng</Text>
                   </Space>
                 }
               >
@@ -841,7 +841,7 @@ const StudentReportPage: React.FC = () => {
                           icon={<EyeOutlined />}
                           onClick={() => window.open(selectedRequest.evidenceFileUrl, '_blank')}
                         >
-                          View PDF File
+                          Xem file PDF
                         </Button>
                       </div>
                     </div>
@@ -869,7 +869,7 @@ const StudentReportPage: React.FC = () => {
                 title={
                   <Space>
                     <FileTextOutlined style={{ color: '#6366f1' }} />
-                    <Text strong style={{ fontSize: 13 }}>Teacher's Notes</Text>
+                    <Text strong style={{ fontSize: 13 }}>Ghi chú của Giáo viên</Text>
                   </Space>
                 }
               >
@@ -886,7 +886,7 @@ const StudentReportPage: React.FC = () => {
                 {selectedRequest.reviewerName && (
                   <div style={{ marginTop: 10 }}>
                     <Text type="secondary" style={{ fontSize: 11 }}>
-                      Reviewed by: <Text strong>{selectedRequest.reviewerName}</Text>
+                      Đã duyệt bởi: <Text strong>{selectedRequest.reviewerName}</Text>
                     </Text>
                   </div>
                 )}
@@ -919,12 +919,12 @@ const StudentReportPage: React.FC = () => {
                 {/* ✅ Status-specific messages */}
                 {selectedRequest.status === 'pending' && (
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    Request is awaiting teacher review and approval
+                    Yêu cầu đang chờ giáo viên xem xét và phê duyệt
                   </Text>
                 )}
                 {selectedRequest.reviewedAt && (
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    Reviewed on {dayjs(selectedRequest.reviewedAt).format('DD/MM/YYYY HH:mm')}
+                    Đã duyệt vào {dayjs(selectedRequest.reviewedAt).format('DD/MM/YYYY HH:mm')}
                   </Text>
                 )}
               </Space>

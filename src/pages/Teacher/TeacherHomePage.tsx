@@ -99,7 +99,7 @@ const TeacherHomePage: React.FC = () => {
         }
       } catch (error: any) {
         console.error('❌ Error fetching data:', error);
-        message.error(error.message || 'Failed to load data');
+        message.error(error.message || 'Không thể tải dữ liệu');
       } finally {
         setLoading(false);
       }
@@ -111,22 +111,22 @@ const TeacherHomePage: React.FC = () => {
   const getStatusConfig = (status: string) => {
     switch(status?.toLowerCase()) {
       case 'active':
-        return { color: '#10b981', text: 'Active' };
+        return { color: '#10b981', text: 'Đang hoạt động' };
       case 'inactive':
-        return { color: '#64748b', text: 'Inactive' };
+        return { color: '#64748b', text: 'Không hoạt động' };
       case 'completed':
-        return { color: '#64748b', text: 'Completed' };
+        return { color: '#64748b', text: 'Đã kết thúc' };
       case 'cancelled':
-        return { color: '#ef4444', text: 'Cancelled' };
+        return { color: '#ef4444', text: 'Đã hủy' };
       default:
-        return { color: '#64748b', text: 'Unknown' };
+        return { color: '#64748b', text: 'Không rõ' };
     }
   };
 
   // ✅ Table columns for classes - REMOVED schedule column
   const classColumns = [
     {
-      title: 'Class Name',
+      title: 'Tên lớp',
       key: 'name',
       render: (record: ClassListItem) => (
         <div>
@@ -139,7 +139,7 @@ const TeacherHomePage: React.FC = () => {
       )
     },
     {
-      title: 'Location',
+      title: 'Địa điểm',
       dataIndex: 'location',
       key: 'location',
       render: (text: string) => (
@@ -147,7 +147,7 @@ const TeacherHomePage: React.FC = () => {
       )
     },
     {
-      title: 'Students',
+      title: 'Sinh viên',
       dataIndex: 'studentCount',
       key: 'studentCount',
       align: 'center' as const,
@@ -156,7 +156,7 @@ const TeacherHomePage: React.FC = () => {
       )
     },
     {
-      title: 'Status',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       align: 'center' as const,
@@ -166,7 +166,7 @@ const TeacherHomePage: React.FC = () => {
       }
     },
     {
-      title: 'Actions',
+      title: 'Hành động',
       key: 'actions',
       align: 'center' as const,
       render: (record: ClassListItem) => (
@@ -184,7 +184,7 @@ const TeacherHomePage: React.FC = () => {
   // ✅ Table columns for sessions - REMOVED location, navigate to session detail
   const sessionColumns = [
     {
-      title: 'Class',
+      title: 'Lớp',
       key: 'class',
       render: (record: SessionWithStats & { class_name?: string; subject?: string }) => (
         <div>
@@ -197,7 +197,7 @@ const TeacherHomePage: React.FC = () => {
       )
     },
     {
-      title: 'Time',
+      title: 'Thời gian',
       key: 'time',
       render: (record: SessionWithStats) => (
         <div>
@@ -210,7 +210,7 @@ const TeacherHomePage: React.FC = () => {
       )
     },
     {
-      title: 'Attendance',
+      title: 'Điểm danh',
       key: 'attendance',
       align: 'center' as const,
       render: (record: SessionWithStats) => {
@@ -231,7 +231,7 @@ const TeacherHomePage: React.FC = () => {
       }
     },
     {
-      title: 'Actions',
+      title: 'Hành động',
       key: 'actions',
       align: 'center' as const,
       render: (record: SessionWithStats) => (
@@ -240,7 +240,7 @@ const TeacherHomePage: React.FC = () => {
           icon={<EyeOutlined />}
           onClick={() => navigate(`/teacher/session/${record.id}`)} // ✅ Navigate to session detail
         >
-          Details
+          Chi tiết
         </Button>
       )
     }
@@ -254,7 +254,7 @@ const TeacherHomePage: React.FC = () => {
         alignItems: 'center', 
         minHeight: '100vh' 
       }}>
-        <Spin size="large" tip="Loading data..." />
+        <Spin size="large" tip="Đang tải dữ liệu..." />
       </div>
     );
   }
@@ -294,10 +294,10 @@ const TeacherHomePage: React.FC = () => {
           fontSize: 32,
           fontWeight: 700 
         }}>
-          🎓 Home
+          🎓 Trang chủ
         </Title>
         <Text type="secondary" className="teacher-page-subtitle" style={{ fontSize: 16 }}>
-          Welcome, Teacher! Overview of your classes and attendance.
+          Chào giáo viên! Tổng quan lớp học và điểm danh của bạn.
         </Text>
       </div>
 
@@ -310,9 +310,9 @@ const TeacherHomePage: React.FC = () => {
             border: "none"
           }}>
             <Statistic
-              title={<Text style={{ color: "#888", fontSize: 14 }}>Total Classes</Text>}
+              title={<Text style={{ color: "#888", fontSize: 14 }}>Tổng lớp học</Text>}
               value={stats.totalClasses}
-              suffix="classes"
+              suffix="lớp"
               prefix={<BookOutlined style={{ color: '#2563eb', fontSize: 20 }} />}
               valueStyle={{ 
                 color: '#2563eb', 
@@ -329,9 +329,9 @@ const TeacherHomePage: React.FC = () => {
             border: "none"
           }}>
             <Statistic
-              title={<Text style={{ color: "#888", fontSize: 14 }}>Active Classes</Text>}
+              title={<Text style={{ color: "#888", fontSize: 14 }}>Lớp đang hoạt động</Text>}
               value={stats.activeClasses}
-              suffix="classes"
+              suffix="lớp"
               prefix={<CheckCircleOutlined style={{ color: '#10b981', fontSize: 20 }} />}
               valueStyle={{ 
                 color: '#10b981', 
@@ -348,7 +348,7 @@ const TeacherHomePage: React.FC = () => {
             border: "none"
           }}>
             <Statistic
-              title={<Text style={{ color: "#888", fontSize: 14 }}>Average Attendance Rate</Text>}
+              title={<Text style={{ color: "#888", fontSize: 14 }}>Tỷ lệ điểm danh TB</Text>}
               value={stats.avgAttendanceRate.toFixed(1)}
               suffix="%"
               prefix={<UserOutlined style={{ color: '#9333ea', fontSize: 20 }} />}
@@ -368,7 +368,7 @@ const TeacherHomePage: React.FC = () => {
           title={
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <CheckCircleOutlined style={{ color: '#2563eb' }} />
-              <span>Attendance Rate by Class</span>
+              <span>Tỷ lệ điểm danh theo lớp</span>
             </div>
           }
           style={{ 
@@ -410,7 +410,7 @@ const TeacherHomePage: React.FC = () => {
                     />
                     <div style={{ marginTop: 8, textAlign: 'center' }}>
                       <Text type="secondary" style={{ fontSize: 11 }}>
-                        {classSessions.length} attendance sessions
+                        {classSessions.length} buổi điểm danh
                       </Text>
                     </div>
                   </Card>
@@ -429,7 +429,7 @@ const TeacherHomePage: React.FC = () => {
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <BookOutlined style={{ color: '#2563eb' }} />
-                <span>Classes List</span>
+                <span>Danh sách lớp học</span>
               </div>
             }
             extra={
@@ -437,7 +437,7 @@ const TeacherHomePage: React.FC = () => {
                 type="link" 
                 onClick={() => navigate('/teacher/classes')}
               >
-                View All
+                Xem tất cả
               </Button>
             }
             style={{ 
@@ -462,7 +462,7 @@ const TeacherHomePage: React.FC = () => {
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <CalendarOutlined style={{ color: '#2563eb' }} />
-                <span>Recent Attendance Sessions</span>
+                <span>Buổi điểm danh gần đây</span>
               </div>
             }
             style={{ 

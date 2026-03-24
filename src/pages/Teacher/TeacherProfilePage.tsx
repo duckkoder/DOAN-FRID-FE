@@ -77,7 +77,7 @@ const TeacherProfilePage: React.FC = () => {
       } catch (error) {
         console.error("Error fetching profile:", error);
         setNotificationType('error');
-        setNotificationMessage('Failed to load profile information!');
+        setNotificationMessage('Không thể tải thông tin hồ sơ!');
         setShowNotification(true);
         // Use context data as fallback
         const fallbackData = {
@@ -106,12 +106,12 @@ const TeacherProfilePage: React.FC = () => {
       }
       
       setNotificationType('success');
-      setNotificationMessage('Profile picture updated successfully!');
+      setNotificationMessage('Đã cập nhật ảnh đại diện thành công!');
       setShowNotification(true);
     } catch (error: unknown) {
       console.error("Error uploading avatar:", error);
       const axiosError = error as { response?: { data?: { detail?: string } }; message?: string };
-      const errorMsg = axiosError?.response?.data?.detail || axiosError?.message || "Failed to upload image!";
+      const errorMsg = axiosError?.response?.data?.detail || axiosError?.message || "Không thể tải ảnh lên!";
       
       setNotificationType('error');
       setNotificationMessage(errorMsg);
@@ -141,12 +141,12 @@ const TeacherProfilePage: React.FC = () => {
       }
       
       setNotificationType('success');
-      setNotificationMessage('Profile updated successfully!');
+      setNotificationMessage('Đã cập nhật hồ sơ thành công!');
       setShowNotification(true);
     } catch (error: unknown) {
       console.error("Error updating profile:", error);
       const axiosError = error as { response?: { data?: { detail?: string } }; message?: string };
-      const errorMsg = axiosError?.response?.data?.detail || axiosError?.message || "Failed to update profile!";
+      const errorMsg = axiosError?.response?.data?.detail || axiosError?.message || "Không thể cập nhật hồ sơ!";
       
       setNotificationType('error');
       setNotificationMessage(errorMsg);
@@ -160,7 +160,7 @@ const TeacherProfilePage: React.FC = () => {
     <div style={{ padding: "24px", maxWidth: "800px", margin: "0 auto" }}>
       {showNotification && (
         <Alert
-          message={notificationType === 'success' ? 'Success' : 'Error'}
+          message={notificationType === 'success' ? 'Thành công' : 'Lỗi'}
           description={notificationMessage}
           type={notificationType}
           showIcon
@@ -170,14 +170,14 @@ const TeacherProfilePage: React.FC = () => {
         />
       )}
       <Card 
-        title="Personal Information"
+        title="Thông tin cá nhân"
         extra={
           <Button 
             type="primary" 
             icon={<LockOutlined />}
             onClick={() => setPasswordModalVisible(true)}
           >
-            Change Password
+            Đổi Mật Khẩu
           </Button>
         }
       >
@@ -216,7 +216,7 @@ const TeacherProfilePage: React.FC = () => {
             </div>
           </Upload>
           <div style={{ marginTop: "12px", color: "#8c8c8c", fontSize: "14px" }}>
-            Click on the photo to change
+            Nhấp vào ảnh để thay đổi
           </div>
         </div>
 
@@ -226,11 +226,11 @@ const TeacherProfilePage: React.FC = () => {
           onFinish={handleSubmit}
         >
           <Form.Item
-            label="Full Name"
+            label="Họ và Tên"
             name="full_name"
-            rules={[{ required: true, message: "Please enter full name!" }]}
+            rules={[{ required: true, message: "Vui lòng nhập họ tên!" }]}
           >
-            <Input placeholder="Enter full name" disabled />
+            <Input placeholder="Nhập họ tên" disabled />
           </Form.Item>
 
           <Form.Item
@@ -241,11 +241,11 @@ const TeacherProfilePage: React.FC = () => {
           </Form.Item>
 
           <Form.Item
-            label="Department"
+            label="Khoa"
             name="department_id"
           >
             <Select 
-              placeholder="Select department" 
+              placeholder="Chọn khoa" 
               allowClear
               loading={departments.length === 0}
             >
@@ -258,11 +258,11 @@ const TeacherProfilePage: React.FC = () => {
           </Form.Item>
 
           <Form.Item
-            label="Specialization"
+            label="Chuyên ngành"
             name="specialization_id"
           >
             <Select 
-              placeholder="Select specialization" 
+              placeholder="Chọn chuyên ngành" 
               allowClear
               loading={specializations.length === 0}
             >
@@ -275,13 +275,13 @@ const TeacherProfilePage: React.FC = () => {
           </Form.Item>
 
           <Form.Item
-            label="Phone Number"
+            label="Số điện thoại"
             name="phone"
             rules={[
-              { pattern: /^[0-9]{10}$/, message: "Invalid phone number!" }
+              { pattern: /^[0-9]{10}$/, message: "Số điện thoại không hợp lệ!" }
             ]}
           >
-            <Input placeholder="Enter phone number" />
+            <Input placeholder="Nhập số điện thoại" />
           </Form.Item>
 
           <Form.Item>
@@ -293,7 +293,7 @@ const TeacherProfilePage: React.FC = () => {
               block
               size="large"
             >
-              Save Changes
+              Lưu thay đổi
             </Button>
           </Form.Item>
         </Form>

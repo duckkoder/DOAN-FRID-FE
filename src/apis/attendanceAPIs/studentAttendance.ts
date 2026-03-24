@@ -160,7 +160,7 @@ export const getCurrentSessionAttendance = async (
  */
 export const connectAttendanceWebSocket = (sessionId: number): WebSocket => {
   // Get WebSocket URL from environment variable
-  const wsURL = import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8000';
+  const wsURL = import.meta.env.VITE_WS_BASE_URL;
   
   const ws = new WebSocket(`${wsURL}${API_BASE}/ws/${sessionId}`);
   

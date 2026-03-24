@@ -238,7 +238,7 @@ const LeftBar: React.FC<LeftBarProps> = ({ sections, onLogout, isMobile = false,
               fontWeight: "bold", 
               color: "#2563eb" 
             }}>
-              Menu
+              Danh mục
             </span>
           </div>
           {menuContent}

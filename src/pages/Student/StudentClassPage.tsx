@@ -65,8 +65,8 @@ const StudentClassPage: React.FC = () => {
   const [joinError, setJoinError] = useState<string | null>(null);
 
   const breadcrumbItems = [
-    { title: "Dashboard", href: "/student" },
-    { title: "Classes" }
+    { title: "Trang chủ", href: "/student" },
+    { title: "Lớp học" }
   ];
 
   // ✅ Fetch student classes on mount
@@ -99,7 +99,7 @@ const StudentClassPage: React.FC = () => {
     } catch (err: any) {
       console.error('Failed to fetch classes:', err);
       const apiError = err as ApiError;
-      const errorMsg = apiError.message || 'Could not load class list';
+      const errorMsg = apiError.message || 'Không thể tải danh sách lớp';
       setError(errorMsg);
       message.error(errorMsg);
     } finally {
@@ -112,7 +112,7 @@ const StudentClassPage: React.FC = () => {
     const classCode = values.classCode.trim().toUpperCase();
 
     if (!validateClassCode(classCode)) {
-      message.error('Invalid class code! Code must be 9 characters (A-Z, 0-9)');
+      message.error('Mã lớp không hợp lệ! Mã phải gồm 9 ký tự (A-Z, 0-9)');
       return;
     }
 
@@ -123,7 +123,7 @@ const StudentClassPage: React.FC = () => {
       const response = await joinClass(classCode);
       
       message.success({
-        content: response.message || 'Successfully joined class!',
+        content: response.message || 'Đã tham gia lớp thành công!',
         duration: 3
       });
 
@@ -137,9 +137,9 @@ const StudentClassPage: React.FC = () => {
       let errorMsg = apiError.message || 'Could not join class';
       
       if (apiError.statusCode === 404) {
-        errorMsg = 'Class not found with this code!';
+        errorMsg = 'Không tìm thấy lớp với mã này!';
       } else if (apiError.statusCode === 400) {
-        errorMsg = apiError.message || 'You have already joined this class!';
+        errorMsg = apiError.message || 'Bạn đã tham gia lớp này rồi!';
       }
 
       setJoinError(errorMsg);
@@ -165,22 +165,22 @@ const StudentClassPage: React.FC = () => {
 
   const getStatusText = (status: string) => {
     switch(status) {
-      case 'active': return 'Active';
-      case 'inactive': return 'Inactive';
-      default: return 'Unknown';
+      case 'active': return 'Đang hoạt động';
+      case 'inactive': return 'Không hoạt động';
+      default: return 'Không rõ';
     }
   };
 
   // ✅ Format schedule to simple string
   const formatScheduleSimple = (schedule: Record<string, string[]>) => {
     const dayMapping: Record<string, string> = {
-      monday: 'Mon',
-      tuesday: 'Tue',
-      wednesday: 'Wed',
-      thursday: 'Thu',
-      friday: 'Fri',
-      saturday: 'Sat',
-      sunday: 'Sun'
+      monday: 'T2',
+      tuesday: 'T3',
+      wednesday: 'T4',
+      thursday: 'T5',
+      friday: 'T6',
+      saturday: 'T7',
+      sunday: 'CN'
     };
 
     const scheduleParts: string[] = [];
@@ -197,7 +197,7 @@ const StudentClassPage: React.FC = () => {
       scheduleParts.push(`${dayLabel}: ${periods}`);
     });
 
-    return scheduleParts.length > 0 ? scheduleParts.join(' • ') : 'No schedule yet';
+    return scheduleParts.length > 0 ? scheduleParts.join(' \u2022 ') : 'Chưa có lịch học';
   };
 
   // ✅ Handle modal close
@@ -261,14 +261,14 @@ const StudentClassPage: React.FC = () => {
             fontSize: 36,
             fontWeight: 700
           }}>
-            📚 My Classes
+            📚 Lớp học của tôi
           </Title>
           <Text className="student-class-subtitle" style={{ 
             fontSize: 18, 
             color: "#64748b",
             display: "block"
           }}>
-            Manage and track classes you have joined
+            Quản lý và theo dõi các lớp bạn đã tham gia
           </Text>
         </div>
         <div className="student-class-actions">
@@ -280,7 +280,7 @@ const StudentClassPage: React.FC = () => {
               loading={loading}
               style={{ borderRadius: 8, height: 48 }}
             >
-              Refresh
+              Làm mới
             </Button>
             <Button 
               type="primary" 
@@ -293,7 +293,7 @@ const StudentClassPage: React.FC = () => {
                 fontSize: 16
               }}
             >
-              Join
+              Tham gia
             </Button>
           </Space>
         </div>
@@ -302,7 +302,7 @@ const StudentClassPage: React.FC = () => {
       {/* Error Alert */}
       {error && (
         <Alert
-          message="Error Loading Data"
+          message="Lỗi khi tải dữ liệu"
           description={error}
           type="error"
           showIcon
@@ -320,7 +320,7 @@ const StudentClassPage: React.FC = () => {
           alignItems: 'center', 
           minHeight: 400 
         }}>
-          <Spin size="large" tip="Loading class list..." />
+          <Spin size="large" tip="Đang tải danh sách lớp..." />
         </div>
       ) : classes.length === 0 ? (
         /* Empty State */
@@ -335,11 +335,11 @@ const StudentClassPage: React.FC = () => {
             description={
               <div>
                 <Text style={{ fontSize: 16, color: '#64748b' }}>
-                  You haven't joined any classes yet
+                  Bạn chưa tham gia lớp nào
                 </Text>
                 <br />
                 <Text type="secondary">
-                  Click "Join Class" button to get started!
+                  Nhấp nút "Tham gia lớp" để bắt đầu!
                 </Text>
               </div>
             }
@@ -351,7 +351,7 @@ const StudentClassPage: React.FC = () => {
               onClick={() => setIsModalVisible(true)}
               style={{ marginTop: 16 }}
             >
-              Join Class Now
+              Tham gia lớp ngay
             </Button>
           </Empty>
         </Card>
@@ -434,7 +434,7 @@ const StudentClassPage: React.FC = () => {
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <EnvironmentOutlined style={{ color: "#10b981", fontSize: 16 }} />
                         <Text style={{ color: "#64748b", fontSize: 14 }}>
-                          Room {classItem.location}
+                          Phòng {classItem.location}
                         </Text>
                       </div>
                     )}
@@ -459,7 +459,7 @@ const StudentClassPage: React.FC = () => {
                         <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
                           <FileTextOutlined style={{ color: "#64748b", fontSize: 14, marginTop: 2 }} />
                           <Text strong style={{ color: "#64748b", fontSize: 13 }}>
-                            Description:
+                            Mô tả:
                           </Text>
                         </div>
                         <Paragraph 
@@ -492,7 +492,7 @@ const StudentClassPage: React.FC = () => {
                       marginTop: 'auto'
                     }}
                   >
-                    View Details
+                    Xem chi tiết
                   </Button>
                 </Card>
               </Col>
@@ -506,7 +506,7 @@ const StudentClassPage: React.FC = () => {
         title={
           <Space>
             <PlusOutlined style={{ color: '#1890ff' }} />
-            <Text strong>Join Class</Text>
+            <Text strong>Tham gia Lớp</Text>
           </Space>
         }
         open={isModalVisible}
@@ -517,7 +517,7 @@ const StudentClassPage: React.FC = () => {
       >
         {joinError && (
           <Alert
-            message="Could not join class"
+            message="Không thể tham gia lớp"
             description={joinError}
             type="error"
             icon={<ExclamationCircleOutlined />}
@@ -535,20 +535,20 @@ const StudentClassPage: React.FC = () => {
           style={{ marginTop: 16 }}
         >
           <Form.Item
-            label="Class Code"
+            label="Mã Lớp"
             name="classCode"
             rules={[
-              { required: true, message: "Please enter class code!" },
-              { len: 9, message: "Class code must be 9 characters!" },
-              { 
-                pattern: /^[A-Z0-9]+$/, 
-                message: "Class code can only contain uppercase letters and numbers!" 
+              { required: true, message: "Vui lòng nhập mã lớp!" },
+              { len: 9, message: "Mã lớp phải gồm 9 ký tự!" },
+              {
+                pattern: /^[A-Z0-9]+$/,
+                message: "Mã lớp chỉ chứa chữ in hoa và số!"
               }
             ]}
-            tooltip="Class code is 9 characters (A-Z, 0-9) provided by the teacher"
+            tooltip="Mã lớp gồm 9 ký tự (A-Z, 0-9) do giáo viên cung cấp"
           >
             <Input 
-              placeholder="Example: ABC123XYZ"
+              placeholder="Ví dụ: ABC123XYZ"
               size="large"
               maxLength={9}
               style={{ textTransform: 'uppercase' }}
@@ -556,8 +556,8 @@ const StudentClassPage: React.FC = () => {
           </Form.Item>
 
           <Alert
-            message="Note"
-            description="Enter the exact class code provided by your teacher. The code consists of 9 alphanumeric characters."
+            message="Lưu ý"
+            description="Nhập mã lớp chính xác do giáo viên cung cấp. Mã gồm 9 ký tự chữ và số."
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
@@ -570,7 +570,7 @@ const StudentClassPage: React.FC = () => {
                 size="large"
                 disabled={joinLoading}
               >
-                Cancel
+                Hủy
               </Button>
               <Button 
                 type="primary" 
@@ -579,7 +579,7 @@ const StudentClassPage: React.FC = () => {
                 loading={joinLoading}
                 icon={!joinLoading && <PlusOutlined />}
               >
-                {joinLoading ? 'Joining...' : 'Join'}
+                {joinLoading ? 'Đang tham gia...' : 'Tham gia'}
               </Button>
             </Space>
           </Form.Item>

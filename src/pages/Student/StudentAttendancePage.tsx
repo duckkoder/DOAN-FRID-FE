@@ -67,7 +67,7 @@ const StudentAttendancePage: React.FC = () => {
         setOverallReport(report);
       } catch (err: any) {
         console.error("Error fetching overall attendance report:", err);
-        setError(err.message || "Failed to load attendance report.");
+        setError(err.message || "Không thể tải báo cáo điểm danh.");
       } finally {
         setLoading(false);
       }
@@ -76,8 +76,8 @@ const StudentAttendancePage: React.FC = () => {
   }, []);
 
   const breadcrumbItems = [
-    { title: "Home", href: "/student" },
-    { title: "Attendance" }
+    { title: "Trang chủ", href: "/student" },
+    { title: "Điểm danh" }
   ];
 
   // Derive all individual attendance sessions from the overall report for display
@@ -123,24 +123,24 @@ const StudentAttendancePage: React.FC = () => {
     
     switch(status) {
       case 'present':
-        return { color: '#10b981', text: 'Present', icon: <CheckCircleOutlined /> };
+        return { color: '#10b981', text: 'Có mặt', icon: <CheckCircleOutlined /> };
       case 'absent':
-        return { color: '#ef4444', text: 'Absent', icon: <CloseCircleOutlined /> };
+        return { color: '#ef4444', text: 'Vắng', icon: <CloseCircleOutlined /> };
       case 'excused':
-        return { color: '#6366f1', text: 'Excused', icon: <CheckCircleOutlined /> };
+        return { color: '#6366f1', text: 'Có phép', icon: <CheckCircleOutlined /> };
       default:
-        return { color: '#ef4444', text: 'Absent', icon: <CloseCircleOutlined /> };
+        return { color: '#ef4444', text: 'Vắng', icon: <CloseCircleOutlined /> };
     }
   };
 
   const getAppealStatusConfig = (status: string | undefined) => {
     switch(status) {
       case 'pending':
-        return { color: '#f59e42', text: 'Pending' };
+        return { color: '#f59e42', text: 'Chờ duyệt' };
       case 'approved':
-        return { color: '#10b981', text: 'Approved' };
+        return { color: '#10b981', text: 'Đã duyệt' };
       case 'rejected':
-        return { color: '#ef4444', text: 'Rejected' };
+        return { color: '#ef4444', text: 'Từ chối' };
       default:
         return { color: '#64748b', text: '' };
     }
@@ -154,7 +154,7 @@ const StudentAttendancePage: React.FC = () => {
   const handleSubmitAppeal = (values: any) => {
     
     // Here you would integrate with an API to submit the appeal
-    message.success("Appeal submitted successfully! The teacher will review it as soon as possible.");
+    message.success("Đã gửi khiếu nại thành công! Giáo viên sẽ xem xét sớm nhất có thể.");
     setIsAppealModalVisible(false);
     form.resetFields();
     // Potentially re-fetch data or update local state to reflect pending appeal
@@ -168,18 +168,18 @@ const StudentAttendancePage: React.FC = () => {
 
   const columns = [
     {
-      title: 'Class Date',
+      title: 'Ngày học',
       dataIndex: 'start_time',
       key: 'start_time',
       render: (start_time: string) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <CalendarOutlined style={{ color: '#64748b' }} />
-          <Text>{new Date(start_time).toLocaleDateString('en-US')}</Text>
+          <Text>{new Date(start_time).toLocaleDateString('vi-VN')}</Text>
         </div>
       )
     },
     {
-      title: 'Session & Subject',
+      title: 'Buổi học & Môn',
       key: 'class_session_info',
       render: (record: LocalAttendanceRecord) => (
         <div>
@@ -193,7 +193,7 @@ const StudentAttendancePage: React.FC = () => {
       )
     },
     {
-      title: 'Status',
+      title: 'Trạng thái',
       dataIndex: 'student_attendance_status',
       key: 'student_attendance_status',
       render: (status: string) => {
@@ -210,7 +210,7 @@ const StudentAttendancePage: React.FC = () => {
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <Spin size="large" tip="Loading attendance data..." />
+        <Spin size="large" tip="Đang tải dữ liệu điểm danh..." />
       </div>
     );
   }
@@ -219,7 +219,7 @@ const StudentAttendancePage: React.FC = () => {
     return (
       <div style={{ padding: "32px 48px" }}>
         <Alert
-          message="Error"
+          message="Lỗi"
           description={error}
           type="error"
           showIcon
@@ -246,13 +246,13 @@ const StudentAttendancePage: React.FC = () => {
           fontSize: 36,
           fontWeight: 700
         }}>
-          📊 Attendance History
+          📊 Lịch sử Điểm danh
         </Title>
         <Text style={{
           fontSize: 18,
           color: "#64748b"
         }}>
-          Track your attendance status and submit appeals if needed
+          Theo dõi trạng thái điểm danh và gửi khiếu nại nếu cần
         </Text>
       </div>
 
@@ -266,7 +266,7 @@ const StudentAttendancePage: React.FC = () => {
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} sm={8}>
             <Input
-              placeholder="Search by subject or session..."
+              placeholder="Tìm kiếm theo môn hoặc buổi học..."
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
@@ -276,13 +276,13 @@ const StudentAttendancePage: React.FC = () => {
           </Col>
           <Col xs={12} sm={6}>
             <Select
-              placeholder="Filter by class"
+              placeholder="Lọc theo lớp"
               value={classFilter}
               onChange={setClassFilter}
               style={{ width: '100%' }}
               size="large"
             >
-              <Select.Option value="all">All Classes</Select.Option>
+              <Select.Option value="all">Tất cả lớp</Select.Option>
               {uniqueClasses.map(classItem => (
                 <Select.Option key={classItem.id} value={classItem.id}>
                   {classItem.name}
@@ -292,17 +292,17 @@ const StudentAttendancePage: React.FC = () => {
           </Col>
           <Col xs={12} sm={6}>
             <Select
-              placeholder="Filter by status"
+              placeholder="Lọc theo trạng thái"
               value={statusFilter}
               onChange={setStatusFilter}
               style={{ width: '100%' }}
               size="large"
             >
-              <Select.Option value="all">All Statuses</Select.Option>
-              <Select.Option value="present">Present</Select.Option>
-              <Select.Option value="absent">Absent</Select.Option>
-              <Select.Option value="late">Late</Select.Option>
-              <Select.Option value="excused">Excused</Select.Option>
+              <Select.Option value="all">Tất cả</Select.Option>
+              <Select.Option value="present">Có mặt</Select.Option>
+              <Select.Option value="absent">Vắng</Select.Option>
+              <Select.Option value="late">Trễ</Select.Option>
+              <Select.Option value="excused">Có phép</Select.Option>
             </Select>
           </Col>
           <Col xs={24} sm={4}>
@@ -311,7 +311,7 @@ const StudentAttendancePage: React.FC = () => {
               style={{ width: '100%' }}
               size="large"
             >
-              Clear Filters
+              Xóa bộ lọc
             </Button>
           </Col>
         </Row>
@@ -322,7 +322,7 @@ const StudentAttendancePage: React.FC = () => {
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
-              title="Total Sessions"
+              title="Tổng buổi học"
               value={totalSessions}
               valueStyle={{ color: '#2563eb', fontSize: 24 }}
             />
@@ -331,7 +331,7 @@ const StudentAttendancePage: React.FC = () => {
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
-              title="Present"
+              title="Có mặt"
               value={presentCount}
               valueStyle={{ color: '#10b981', fontSize: 24 }}
             />
@@ -340,7 +340,7 @@ const StudentAttendancePage: React.FC = () => {
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
-              title="Absent/Late"
+              title="Vắng/Trễ"
               value={absentCount + lateCount}
               valueStyle={{ color: '#ef4444', fontSize: 24 }}
             />
@@ -349,7 +349,7 @@ const StudentAttendancePage: React.FC = () => {
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
-              title="Attendance Rate"
+              title="Tỷ lệ điểm danh"
               value={attendanceRate}
               suffix="%"
               valueStyle={{ color: '#f59e42', fontSize: 24 }}
@@ -365,7 +365,7 @@ const StudentAttendancePage: React.FC = () => {
         border: "none"
       }}>
         <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
-          📋 Attendance Details {allAttendanceSessions.length > 0 && `(${filteredData.length}/${allAttendanceSessions.length} results)`}
+          📋 Chi tiết Điểm danh {allAttendanceSessions.length > 0 && `(${filteredData.length}/${allAttendanceSessions.length} kết quả)`}
         </Title>
         <Table
           dataSource={filteredData}
@@ -376,20 +376,20 @@ const StudentAttendancePage: React.FC = () => {
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) =>
-              `${range[0]}-${range[1]} of ${total} sessions`
+              `${range[0]}-${range[1]} trên ${total} buổi học`
           }}
           style={{ background: '#fff' }}
           locale={{
             emptyText: filteredData.length === 0 && allAttendanceSessions.length > 0
-              ? "No matching results found"
-              : "No attendance data available"
+              ? "Không tìm thấy kết quả phù hợp"
+              : "Không có dữ liệu điểm danh"
           }}
         />
       </Card>
 
       {/* Appeal Modal */}
       <Modal
-        title="Submit Attendance Appeal"
+        title="Gửi Khiếu nại Điểm danh"
         open={isAppealModalVisible}
         onCancel={() => setIsAppealModalVisible(false)}
         footer={null}
@@ -397,15 +397,15 @@ const StudentAttendancePage: React.FC = () => {
         style={{ borderRadius: 16 }}
       >
         <div style={{ marginBottom: 16, padding: 16, background: '#f8fafc', borderRadius: 8 }}>
-          <Text strong>Session Information:</Text>
+          <Text strong>Thông tin buổi học:</Text>
           <br />
-          <Text>📅 Date: {selectedRecord && new Date(selectedRecord.start_time).toLocaleDateString('en-US')}</Text>
+          <Text>📅 Ngày: {selectedRecord && new Date(selectedRecord.start_time).toLocaleDateString('vi-VN')}</Text>
           <br />
-          <Text>📚 Subject: {selectedRecord?.class_name}</Text>
+          <Text>📚 Môn: {selectedRecord?.class_name}</Text>
           <br />
           {/* If teacher name is not available in session summary, you might need to fetch it or pass it */}
           {/* <Text>👨‍🏫 Giáo viên: {selectedRecord?.teacher}</Text> */}
-          <Text>🕐 Session: {selectedRecord?.session_name}</Text>
+          <Text>🕐 Buổi: {selectedRecord?.session_name}</Text>
         </div>
 
         <Form
@@ -414,27 +414,27 @@ const StudentAttendancePage: React.FC = () => {
           onFinish={handleSubmitAppeal}
         >
           <Form.Item
-            label="Appeal Reason"
+            label="Lý do Khiếu nại"
             name="reason"
-            rules={[{ required: true, message: "Please select a reason!" }]}
+            rules={[{ required: true, message: "Vui lòng chọn lý do!" }]}
           >
-            <Select placeholder="Select appeal reason" size="large">
-              <Select.Option value="technical">System technical error</Select.Option>
-              <Select.Option value="present">I was present but not recorded</Select.Option>
-              <Select.Option value="late_valid">Late with valid reason</Select.Option>
-              <Select.Option value="excused">Excused absence</Select.Option>
-              <Select.Option value="other">Other reason</Select.Option>
+            <Select placeholder="Chọn lý do khiếu nại" size="large">
+              <Select.Option value="technical">Lỗi kỹ thuật hệ thống</Select.Option>
+              <Select.Option value="present">Tôi có mặt nhưng không được ghi nhận</Select.Option>
+              <Select.Option value="late_valid">Trễ có lý do hợp lý</Select.Option>
+              <Select.Option value="excused">Nghỉ có phép</Select.Option>
+              <Select.Option value="other">Lý do khác</Select.Option>
             </Select>
           </Form.Item>
 
           <Form.Item
-            label="Detailed Description"
+            label="Mô tả chi tiết"
             name="description"
-            rules={[{ required: true, message: "Please provide a detailed description!" }]}
+            rules={[{ required: true, message: "Vui lòng cung cấp mô tả chi tiết!" }]}
           >
             <TextArea
               rows={4}
-              placeholder="Please describe the situation in detail and provide evidence if available..."
+              placeholder="Vui lòng mô tả chi tiết tình huống và cung cấp bằng chứng nếu có..."
             />
           </Form.Item>
 
@@ -445,13 +445,13 @@ const StudentAttendancePage: React.FC = () => {
                 htmlType="submit"
                 size="large"
               >
-                Submit Appeal
+                Gửi Khiếu nại
               </Button>
               <Button
                 onClick={() => setIsAppealModalVisible(false)}
                 size="large"
               >
-                Cancel
+                Hủy
               </Button>
             </Space>
           </Form.Item>

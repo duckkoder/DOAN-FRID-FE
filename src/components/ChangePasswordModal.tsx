@@ -54,7 +54,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
 
       // Success notification
       setNotificationType('success');
-      setNotificationMessage('Password changed successfully!');
+      setNotificationMessage('Đổi mật khẩu thành công!');
       setShowNotification(true);
       
       // Tự động ẩn thông báo sau 3 giây
@@ -67,7 +67,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
     } catch (error: unknown) {
       console.error('Error changing password:', error);
       const axiosError = error as { response?: { data?: { detail?: string } }; message?: string };
-      const errorMsg = axiosError?.response?.data?.detail || axiosError?.message || 'Current password is incorrect or an error occurred!';
+      const errorMsg = axiosError?.response?.data?.detail || axiosError?.message || 'Mật khẩu hiện tại không đúng hoặc đã xảy ra lỗi!';
       
       // Hiển thị lỗi dưới ô mật khẩu hiện tại
       form.setFields([
@@ -95,7 +95,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
 
   return (
     <Modal
-      title="Change Password"
+      title="Đổi Mật Khẩu"
       open={visible}
       onCancel={handleCancel}
       footer={null}
@@ -104,7 +104,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
       {/* Notification Alert */}
       {showNotification && (
         <Alert
-          message={notificationType === 'success' ? 'Success' : 'Error'}
+          message={notificationType === 'success' ? 'Thành công' : 'Lỗi'}
           description={notificationMessage}
           type={notificationType}
           showIcon
@@ -126,24 +126,24 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
           rules={[
             {
               required: true,
-              message: 'Please enter current password!',
+              message: 'Vui lòng nhập mật khẩu hiện tại!',
             },
           ]}
         >
           <Input.Password
             prefix={<LockOutlined />}
-            placeholder="Enter current password"
+            placeholder="Nhập mật khẩu hiện tại"
             size="large"
           />
         </Form.Item>
 
         <Form.Item
-          label="New Password"
+          label="Mật khẩu mới"
           name="newPassword"
           rules={[
             {
               required: true,
-              message: 'Please enter new password!',
+              message: 'Vui lòng nhập mật khẩu mới!',
             },
             {
               validator: (_, value) => {
@@ -152,14 +152,14 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
                 if (validation.isValid) {
                   return Promise.resolve();
                 }
-                return Promise.reject(new Error('Password does not meet requirements'));
+                return Promise.reject(new Error('Mật khẩu không đáp ứng yêu cầu'));
               },
             },
           ]}
         >
           <Input.Password
             prefix={<LockOutlined />}
-            placeholder="Enter new password"
+            placeholder="Nhập mật khẩu mới"
             size="large"
             onChange={(e) => setNewPassword(e.target.value)}
           />
@@ -168,13 +168,13 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
         <PasswordRequirements password={newPassword} showTitle={true} />
 
         <Form.Item
-          label="Confirm New Password"
+          label="Xác nhận Mật khẩu Mới"
           name="confirmPassword"
           dependencies={['newPassword']}
           rules={[
             {
               required: true,
-              message: 'Please confirm new password!',
+              message: 'Vui lòng xác nhận mật khẩu mới!',
             },
             ({ getFieldValue }) => ({
               validator(_, value) {
@@ -182,7 +182,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
                   return Promise.resolve();
                 }
                 return Promise.reject(
-                  new Error('Passwords do not match!')
+                  new Error('Mật khẩu không khớp!')
                 );
               },
             }),
@@ -191,16 +191,16 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
         >
           <Input.Password
             prefix={<LockOutlined />}
-            placeholder="Confirm new password"
+            placeholder="Xác nhận mật khẩu mới"
             size="large"
           />
         </Form.Item>
 
         <Form.Item style={{ marginBottom: 0, marginTop: 24 }}>
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-            <Button onClick={handleCancel} size="large">Cancel</Button>
+            <Button onClick={handleCancel} size="large">Hủy</Button>
             <Button type="primary" htmlType="submit" loading={loading} size="large">
-              Change Password
+              Đổi Mật Khẩu
             </Button>
           </div>
         </Form.Item>

@@ -141,24 +141,24 @@ const TeacherReportPage: React.FC = () => {
 
   // Dữ liệu cho biểu đồ
   const attendanceDistribution = [
-    { name: 'Excellent (95-100%)', value: 2, color: '#10b981' },
-    { name: 'Good (85-94%)', value: 2, color: '#3b82f6' },
-    { name: 'Average (75-84%)', value: 1, color: '#f59e42' },
-    { name: 'Poor (<75%)', value: 0, color: '#ef4444' }
+    { name: 'Xuất sắc (95-100%)', value: 2, color: '#10b981' },
+    { name: 'Tốt (85-94%)', value: 2, color: '#3b82f6' },
+    { name: 'Trung bình (75-84%)', value: 1, color: '#f59e42' },
+    { name: 'Yếu (<75%)', value: 0, color: '#ef4444' }
   ];
 
   const weeklyTrend = [
-    { week: 'Week 1', attendance: 95 },
-    { week: 'Week 2', attendance: 88 },
-    { week: 'Week 3', attendance: 92 },
-    { week: 'Week 4', attendance: 87 },
-    { week: 'Week 5', attendance: 94 },
-    { week: 'Week 6', attendance: 89 }
+    { week: 'Tuần 1', attendance: 95 },
+    { week: 'Tuần 2', attendance: 88 },
+    { week: 'Tuần 3', attendance: 92 },
+    { week: 'Tuần 4', attendance: 87 },
+    { week: 'Tuần 5', attendance: 94 },
+    { week: 'Tuần 6', attendance: 89 }
   ];
 
   const breadcrumbItems = [
-    { title: "Dashboard", href: "/teacher" },
-    { title: "Attendance Report" }
+    { title: "Trang chủ", href: "/teacher" },
+    { title: "Báo cáo Điểm danh" }
   ];
 
   // Thống kê tổng quan
@@ -175,10 +175,10 @@ const TeacherReportPage: React.FC = () => {
   };
 
   const getAttendanceStatus = (rate: number) => {
-    if (rate >= 95) return 'Excellent';
-    if (rate >= 85) return 'Good';
-    if (rate >= 75) return 'Average';
-    return 'Poor';
+    if (rate >= 95) return 'Xuất sắc';
+    if (rate >= 85) return 'Tốt';
+    if (rate >= 75) return 'Trung bình';
+    return 'Yếu';
   };
 
   const handleExportExcel = () => {
@@ -193,7 +193,7 @@ const TeacherReportPage: React.FC = () => {
 
   const studentColumns = [
     {
-      title: 'Student',
+      title: 'Sinh viên',
       key: 'student',
       render: (record: StudentAttendance) => (
         <div>
@@ -206,13 +206,13 @@ const TeacherReportPage: React.FC = () => {
       )
     },
     {
-      title: 'Total Sessions',
+      title: 'Tổng buổi',
       dataIndex: 'totalSessions',
       key: 'totalSessions',
       align: 'center' as const
     },
     {
-      title: 'Present',
+      title: 'Có mặt',
       dataIndex: 'presentCount',
       key: 'presentCount',
       align: 'center' as const,
@@ -221,7 +221,7 @@ const TeacherReportPage: React.FC = () => {
       )
     },
     {
-      title: 'Absent',
+      title: 'Vắng',
       dataIndex: 'absentCount',
       key: 'absentCount',
       align: 'center' as const,
@@ -230,7 +230,7 @@ const TeacherReportPage: React.FC = () => {
       )
     },
     {
-      title: 'Late',
+      title: 'Mượn',
       dataIndex: 'lateCount',
       key: 'lateCount',
       align: 'center' as const,
@@ -239,7 +239,7 @@ const TeacherReportPage: React.FC = () => {
       )
     },
     {
-      title: 'Rate',
+      title: 'Tỷ lệ',
       dataIndex: 'attendanceRate',
       key: 'attendanceRate',
       align: 'center' as const,
@@ -260,7 +260,7 @@ const TeacherReportPage: React.FC = () => {
       )
     },
     {
-      title: 'Classification',
+      title: 'Xếp loại',
       dataIndex: 'attendanceRate',
       key: 'status',
       render: (rate: number) => (
@@ -294,13 +294,13 @@ const TeacherReportPage: React.FC = () => {
             fontSize: 36,
             fontWeight: 700
           }}>
-            📊 Attendance Report
+            📊 Báo cáo Điểm danh
           </Title>
           <Text style={{ 
             fontSize: 18, 
             color: "#64748b"
           }}>
-            Summary report and attendance statistics for classes
+            Tổng hợp báo cáo và thống kê điểm danh các lớp
           </Text>
         </div>
         
@@ -310,14 +310,14 @@ const TeacherReportPage: React.FC = () => {
             onClick={handleExportExcel}
             style={{ borderRadius: 8 }}
           >
-            Export Excel
+            Xuất Excel
           </Button>
           <Button 
             icon={<FilePdfOutlined />}
             onClick={handleExportPDF}
             style={{ borderRadius: 8 }}
           >
-            Export PDF
+            Xuất PDF
           </Button>
         </Space>
       </div>
@@ -331,14 +331,14 @@ const TeacherReportPage: React.FC = () => {
       }}>
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} sm={8}>
-            <Text strong style={{ marginBottom: 8, display: 'block' }}>Subject:</Text>
+            <Text strong style={{ marginBottom: 8, display: 'block' }}>Môn học:</Text>
             <Select
               value={selectedSubject}
               onChange={setSelectedSubject}
               style={{ width: '100%' }}
               size="large"
             >
-              <Select.Option value="all">All Subjects</Select.Option>
+              <Select.Option value="all">Tất cả môn</Select.Option>
               {subjects.map(subject => (
                 <Select.Option key={subject.value} value={subject.value}>
                   {subject.label}
@@ -347,14 +347,14 @@ const TeacherReportPage: React.FC = () => {
             </Select>
           </Col>
           <Col xs={24} sm={10}>
-            <Text strong style={{ marginBottom: 8, display: 'block' }}>Time Period:</Text>
+            <Text strong style={{ marginBottom: 8, display: 'block' }}>Khoảng thời gian:</Text>
             <RangePicker 
               value={dateRange}
               onChange={setDateRange}
               style={{ width: '100%' }}
               size="large"
               format="DD/MM/YYYY"
-              placeholder={['From Date', 'To Date']}
+              placeholder={['Từ ngày', 'Đến ngày']}
             />
           </Col>
           <Col xs={24} sm={6}>
@@ -363,7 +363,7 @@ const TeacherReportPage: React.FC = () => {
               style={{ width: '100%', marginTop: 32 }}
               size="large"
             >
-              Filter Report
+              Lọc báo cáo
             </Button>
           </Col>
         </Row>
@@ -374,7 +374,7 @@ const TeacherReportPage: React.FC = () => {
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
-              title="Total Students"
+              title="Tổng sinh viên"
               value={totalStudents}
               prefix={<UserOutlined />}
               valueStyle={{ color: '#2563eb', fontSize: 24 }}
@@ -384,7 +384,7 @@ const TeacherReportPage: React.FC = () => {
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
-              title="Average Attendance"
+              title="Tỷ lệ điểm danh TB"
               value={avgAttendance}
               suffix="%"
               valueStyle={{ color: '#10b981', fontSize: 24 }}
@@ -394,7 +394,7 @@ const TeacherReportPage: React.FC = () => {
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
-              title="Excellent Students"
+              title="Xuất sắc"
               value={excellentStudents}
               valueStyle={{ color: '#f59e42', fontSize: 24 }}
             />
@@ -403,7 +403,7 @@ const TeacherReportPage: React.FC = () => {
         <Col xs={12} md={6}>
           <Card style={{ borderRadius: 16, textAlign: 'center' }}>
             <Statistic
-              title="Needs Attention"
+              title="Cần chú ý"
               value={lowAttendanceStudents}
               valueStyle={{ color: '#ef4444', fontSize: 24 }}
             />
@@ -422,7 +422,7 @@ const TeacherReportPage: React.FC = () => {
             height: 400
           }}>
             <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
-              📈 Attendance Distribution
+              📈 Phân loại điểm danh
             </Title>
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
@@ -455,7 +455,7 @@ const TeacherReportPage: React.FC = () => {
             height: 400
           }}>
             <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
-              📉 Weekly Trend
+              📉 Xu hướng theo tuần
             </Title>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={weeklyTrend}>
@@ -463,7 +463,7 @@ const TeacherReportPage: React.FC = () => {
                 <XAxis dataKey="week" />
                 <YAxis domain={[70, 100]} />
                 <Tooltip />
-                <Bar dataKey="attendance" fill="#3b82f6" name="Attendance Rate (%)" />
+                <Bar dataKey="attendance" fill="#3b82f6" name="Tỷ lệ điểm danh (%)" />
               </BarChart>
             </ResponsiveContainer>
           </Card>
@@ -478,7 +478,7 @@ const TeacherReportPage: React.FC = () => {
         marginBottom: 24
       }}>
         <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
-          📚 Subject Overview
+          📚 Tổng quan môn học
         </Title>
         <Row gutter={[16, 16]}>
           {classReports.map((report, index) => (
@@ -489,10 +489,10 @@ const TeacherReportPage: React.FC = () => {
                 </Text>
                 <Space direction="vertical" size={4}>
                   <Text type="secondary">
-                    👥 {report.totalStudents} students
+                    👥 {report.totalStudents} sinh viên
                   </Text>
                   <Text type="secondary">
-                    📅 {report.sessionsCount} sessions
+                    📅 {report.sessionsCount} buổi học
                   </Text>
                   <Progress 
                     percent={report.averageAttendance} 
@@ -513,7 +513,7 @@ const TeacherReportPage: React.FC = () => {
         border: "none"
       }}>
         <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
-          👥 Student Attendance Details
+          👥 Chi tiết Điểm danh Sinh viên
         </Title>
         <Table
           dataSource={studentsData}
@@ -523,7 +523,7 @@ const TeacherReportPage: React.FC = () => {
             pageSize: 10,
             showSizeChanger: true,
             showTotal: (total, range) => 
-              `${range[0]}-${range[1]} of ${total} students`
+              `${range[0]}-${range[1]} trên ${total} sinh viên`
           }}
           scroll={{ x: 800 }}
         />

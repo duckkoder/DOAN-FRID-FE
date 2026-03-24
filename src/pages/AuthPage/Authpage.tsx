@@ -44,7 +44,7 @@ const AuthPage: React.FC = () => {
           },
         );
 
-        message.success("Login successful!");
+        message.success("Đăng nhập thành công!");
 
         // Điều hướng theo role
         const role = res.user.role;
@@ -59,7 +59,7 @@ const AuthPage: React.FC = () => {
         }
       } else {
         setErrorType("error");
-        setErrorMessage("Login failed. Please try again!");
+        setErrorMessage("Đăng nhập thất bại. Vui lòng thử lại!");
       }
     } catch (err) {
       console.error("Login error:", err);
@@ -73,40 +73,40 @@ const AuthPage: React.FC = () => {
         // Unauthorized - Wrong email or password
         setErrorType("error");
         setErrorMessage(
-          "Incorrect email or password. Please check again!"
+          "Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại!"
         );
-        message.error("Incorrect email or password!");
+        message.error("Email hoặc mật khẩu không đúng!");
       } else if (status === 403) {
         // Forbidden - Account locked
         setErrorType("warning");
         setErrorMessage(
-          "Your account has been locked. Please contact the administrator for support."
+          "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên để được hỗ trợ."
         );
-        message.warning("Account has been locked!");
+        message.warning("Tài khoản đã bị khóa!");
       } else if (status === 422) {
         // Validation Error
         setErrorType("error");
         setErrorMessage(
-          "Invalid data. Please check your information!"
+          "Dữ liệu không hợp lệ. Vui lòng kiểm tra thông tin!"
         );
-        message.error("Invalid data!");
+        message.error("Dữ liệu không hợp lệ!");
       } else if (status === 429) {
         // Too Many Requests
         setErrorType("warning");
-        setErrorMessage("You have tried to login too many times. Please try again later.");
-        message.warning("Please try again later!");
+        setErrorMessage("Bạn đã thử đăng nhập quá nhiều lần. Vui lòng thử lại sau.");
+        message.warning("Vui lòng thử lại sau!");
       } else if (status && status >= 500) {
         // Server Error
         setErrorType("error");
-        setErrorMessage("System error. Please try again later or contact the administrator.");
-        message.error("System error!");
+        setErrorMessage("Lỗi hệ thống. Vui lòng thử lại sau hoặc liên hệ quản trị viên.");
+        message.error("Lỗi hệ thống!");
       } else {
         // Unknown Error
         setErrorType("error");
         setErrorMessage(
-          "An error occurred. Please try again later!"
+          "Đã xảy ra lỗi. Vui lòng thử lại sau!"
         );
-        message.error("Login failed!");
+        message.error("Đăng nhập thất bại!");
       }
     } finally {
       setLoading(false);
@@ -145,13 +145,13 @@ const AuthPage: React.FC = () => {
                 padding: "32px 24px"
               }}>
                 <Title level={1} style={{ marginBottom: 8, fontWeight: 700, color: "#2563eb" }}>
-                  Welcome Back!
+                  Chào mừng trở lại!
                 </Title>
                 <Title level={4} style={{ marginBottom: 24, fontWeight: 400, color: "#333", lineHeight: 1.3 }}>
-                  Sign in to manage attendance, classes, and smart reports.
+                  Đăng nhập để quản lý điểm danh, lớp học và báo cáo thông minh.
                 </Title>
                 <Text type="secondary" style={{ fontSize: 16 }}>
-                  FRID system helps administrators, teachers, and students connect, manage, and track learning progress effectively.
+                  Hệ thống FRID giúp quản trị viên, giáo viên và sinh viên kết nối, quản lý và theo dõi tiến độ học tập hiệu quả.
                 </Text>
               </Col>
 
@@ -174,18 +174,18 @@ const AuthPage: React.FC = () => {
                   {/* Mobile welcome text */}
                   <div className="mobile-welcome" style={{ textAlign: "center", marginBottom: 16 }}>
                     <Title level={4} style={{ margin: 0, color: "#2563eb", display: "none" }}>
-                      Welcome back!
+                      Chào mừng trở lại!
                     </Title>
                   </div>
                   
                   <Title level={3} style={{ textAlign: "center", marginBottom: 24, color: "#2563eb" }}>
-                    Sign In
+                    Đăng Nhập
                   </Title>
 
                   {/* Error Alert */}
                   {errorMessage && errorType && (
                     <Alert
-                      message={errorType === "warning" ? "Warning" : "Error"}
+                      message={errorType === "warning" ? "Cảnh báo" : "Lỗi"}
                       description={errorMessage}
                       type={errorType}
                       showIcon
@@ -210,8 +210,8 @@ const AuthPage: React.FC = () => {
                       label="Email"
                       name="email"
                       rules={[
-                        { required: true, message: "Please enter your email!" },
-                        { type: "email", message: "Invalid email format!" }
+                        { required: true, message: "Vui lòng nhập email!" },
+                        { type: "email", message: "Định dạng email không hợp lệ!" }
                       ]}
                     >
                       <Input 
@@ -223,17 +223,17 @@ const AuthPage: React.FC = () => {
                     </Form.Item>
 
                     <Form.Item
-                      label="Password"
+                      label="Mật khẩu"
                       name="password"
                       rules={[
-                        { required: true, message: "Please enter your password!" },
-                        { min: 8, message: "Password must be at least 8 characters!" }
+                        { required: true, message: "Vui lòng nhập mật khẩu!" },
+                        { min: 8, message: "Mật khẩu phải có ít nhất 8 ký tự!" }
                       ]}
                     >
                       <Input.Password 
                         prefix={<LockOutlined style={{ color: "#bfbfbf" }} />}
                         size="large" 
-                        placeholder="Enter password" 
+                        placeholder="Nhập mật khẩu" 
                         disabled={loading}
                       />
                     </Form.Item>
@@ -246,13 +246,13 @@ const AuthPage: React.FC = () => {
                         size="large"
                         loading={loading}
                       >
-                        {loading ? "Signing in..." : "Sign In"}
+                        {loading ? "Đang đăng nhập..." : "Đăng Nhập"}
                       </Button>
                     </Form.Item>
 
                     <div style={{ textAlign: "center" }}>
                       <Link href="#" style={{ fontSize: 12 }}>
-                        Forgot password? Contact administrator.
+                        Quên mật khẩu? Liên hệ quản trị viên.
                       </Link>
                     </div>
                   </Form>
