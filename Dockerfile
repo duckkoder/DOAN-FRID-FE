@@ -4,8 +4,11 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-# Set API URL to relative path for reverse proxy
+# Production env - relative paths go through nginx reverse proxy
+# WebSocket URLs must be absolute (ws:// / wss://)
 ENV VITE_API_BASE_URL=/api/v1
+ENV VITE_WS_BASE_URL=wss://duckkoder.io.vn/ai-ws
+ENV VITE_WS_FaceRegister_URL=wss://duckkoder.io.vn/api/v1/ws
 RUN npm run build
 
 # Production Stage
