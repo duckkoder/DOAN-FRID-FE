@@ -26,10 +26,12 @@ import {
 } from "../../apis/userAPIs/profile";
 import { 
   getDepartments, 
-  getSpecializations,
   type DepartmentResponse,
-  type SpecializationResponse
 } from "../../apis/departmentAPIs/department";
+import {
+  getSpecializations,
+  type SpecializationResponse
+} from "../../apis/departmentAPIs/specialization";
 
 const TeacherProfilePage: React.FC = () => {
   const [form] = Form.useForm();

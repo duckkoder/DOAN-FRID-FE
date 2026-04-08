@@ -89,6 +89,46 @@ export interface GetStudentClassDetailsResponse {
   data: StudentClassDetailsData;
 }
 
+export interface StudentClassmateItem {
+  id: number;
+  studentId: string;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  avatar: string | null;
+  dateOfBirth: string | null;
+  department: string | null;
+  academicYear: string | null;
+  isVerified: boolean;
+  joinedAt: string;
+  attendanceStats: {
+    totalSessions: number;
+    presentCount: number;
+    absentCount: number;
+    excusedCount: number;
+    attendanceRate: number;
+  };
+}
+
+export interface GetStudentClassmatesResponse {
+  success: boolean;
+  data: {
+    class: {
+      id: number;
+      className: string;
+      classCode: string;
+      totalStudents: number;
+    };
+    students: StudentClassmateItem[];
+    summary: {
+      totalStudents: number;
+      verifiedStudents: number;
+      unverifiedStudents: number;
+      averageAttendanceRate: number;
+    };
+  };
+}
+
 export interface ApiError {
   message: string;
   errors?: Record<string, string[]> | string;
@@ -195,6 +235,29 @@ export const getStudentClassDetails = async (
       statusCode: error.response?.status
     };
     
+    throw apiError;
+  }
+};
+
+/**
+ * Get class members details for enrolled student
+ * GET /student/classes/{class_id}/students/details
+ */
+export const getStudentClassmates = async (
+  classId: number
+): Promise<GetStudentClassmatesResponse> => {
+  try {
+    const response = await api.get(`/student/classes/${classId}/students/details`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching student classmates:", error);
+
+    const apiError: ApiError = {
+      message: error.response?.data?.message || "Failed to fetch class members",
+      errors: error.response?.data?.errors,
+      statusCode: error.response?.status
+    };
+
     throw apiError;
   }
 };

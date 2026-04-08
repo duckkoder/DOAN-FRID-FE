@@ -13,6 +13,8 @@ export type UploadedFileInfo = {
   category?: string;
   is_public?: boolean;
   created_at?: string;
+  document_id?: string | null;
+  document_title?: string | null;
 };
 
 export type UploadResponse = {
@@ -25,6 +27,11 @@ export type MyFilesResponse = {
   success: boolean;
   data: UploadedFileInfo[];
   total: number;
+};
+
+type UploadDocumentOptions = {
+  courseId?: string;
+  title?: string;
 };
 
 // ==================== API Functions ====================
@@ -53,10 +60,17 @@ export async function uploadAvatar(
  */
 export async function uploadDocument(
   file: File,
+  options?: UploadDocumentOptions,
   onProgress?: (e: AxiosProgressEvent) => void
 ): Promise<UploadResponse> {
   const fd = new FormData();
   fd.append("file", file);
+  if (options?.courseId) {
+    fd.append("course_id", options.courseId);
+  }
+  if (options?.title) {
+    fd.append("title", options.title);
+  }
 
   const res = await api.post("/files/upload/document", fd, {
     headers: { "Content-Type": "multipart/form-data" },
@@ -104,6 +118,25 @@ export async function deleteFile(fileId: number): Promise<{ success: boolean; me
 export async function getMyFiles(): Promise<MyFilesResponse> {
   const res = await api.get("/files/my-files");
   return res.data;
+}
+
+/**
+ * Open class document content through backend stream endpoint (auth required).
+ */
+export async function openClassDocument(documentId: string): Promise<void> {
+  const res = await api.get(`/files/documents/${documentId}/content`, {
+    responseType: "blob",
+  });
+
+  const blob = new Blob([res.data], {
+    type: (res.headers["content-type"] as string) || "application/octet-stream",
+  });
+
+  const objectUrl = URL.createObjectURL(blob);
+  window.open(objectUrl, "_blank", "noopener,noreferrer");
+
+  // Delay revoke to avoid cutting off the new tab while loading large files.
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
 }
 
 // ==================== Helper Functions ====================

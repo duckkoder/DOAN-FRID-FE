@@ -37,7 +37,6 @@ import {
   EditOutlined,
   ExclamationCircleOutlined,
   PlayCircleOutlined,
-  SafetyCertificateOutlined, // ✅ Add this import
   TeamOutlined,
   ReloadOutlined, // ✅ Add this if missing
   DownOutlined,
@@ -65,7 +64,10 @@ import {
   type ApiError,
   type StudentDetailInClass // ✅ Import type
 } from "../../apis/classesAPIs/teacherClass";
+import { getClassPosts } from "../../apis/classesAPIs/classPosts";
+import { openClassDocument } from "../../apis/fileAPIs/file";
 import AttendanceCamera from "../../components/AttendanceCamera";
+import TeacherClassPostsPanel from "../../components/TeacherClassPostsPanel";
 import { 
   endAttendanceSession,
   type EndSessionResponse,
@@ -170,6 +172,14 @@ interface UpcomingSession {
   date: string; // Next occurrence date
 }
 
+interface ClassDocumentItem {
+  documentId: string;
+  title: string;
+  fileUrl: string | null;
+  postId: number;
+  createdAt: string;
+}
+
 const ClassDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -185,13 +195,13 @@ const ClassDetailPage: React.FC = () => {
 
   // ✅ FIXED: Get activeTab from URL query params or default to 'overview'
   const searchParams = new URLSearchParams(location.search);
-  const initialTab = searchParams.get('tab') || 'overview';
+  const initialTab = searchParams.get('tab') || 'posts';
   const [activeTab, setActiveTab] = useState(initialTab);
   
   // ✅ Sync activeTab with URL query params when location changes
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const tabFromUrl = params.get('tab') || 'overview';
+    const tabFromUrl = params.get('tab') || 'posts';
     if (tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl);
     }
@@ -227,6 +237,9 @@ const ClassDetailPage: React.FC = () => {
   const [studentsData, setStudentsData] = useState<StudentDetailInClass[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [classSummary, setClassSummary] = useState<any>(null); // ✅ Add summary state
+  const [documentsData, setDocumentsData] = useState<ClassDocumentItem[]>([]);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [activeDocumentPostId, setActiveDocumentPostId] = useState<number | null>(null);
   
   // ✅ Schedule collapse state
   const [isScheduleExpanded, setIsScheduleExpanded] = useState(false);
@@ -824,11 +837,49 @@ const ClassDetailPage: React.FC = () => {
     }
   };
 
-  // ✅ Lấy sinh viên khi classId thay đổi hoặc tab là tổng quan
+  // ✅ Lấy sinh viên khi classId thay đổi hoặc tab là thông tin lớp học
   useEffect(() => {
-    if (classId && activeTab === 'overview') {
+    if (classId && activeTab === 'class-info') {
       fetchStudentsDetails(classId);
     }
+  }, [classId, activeTab]);
+
+  // ✅ Lấy tài liệu thực từ attachment của posts khi vào tab tài liệu
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      if (!classId || activeTab !== 'documents') return;
+      setLoadingDocuments(true);
+      try {
+        const response = await getClassPosts(classId, { includeComments: false, limit: 100, offset: 0 });
+        const docMap = new Map<string, ClassDocumentItem>();
+
+        response.data.items.forEach((post) => {
+          post.attachments.forEach((attachment) => {
+            if (!docMap.has(attachment.documentId)) {
+              docMap.set(attachment.documentId, {
+                documentId: attachment.documentId,
+                title: attachment.title || attachment.documentId,
+                fileUrl: attachment.fileUrl,
+                postId: post.id,
+                createdAt: post.createdAt,
+              });
+            }
+          });
+        });
+
+        const docs = Array.from(docMap.values()).sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        setDocumentsData(docs);
+      } catch (error: any) {
+        console.error('Failed to load documents:', error);
+        message.error('Không thể tải tài liệu lớp học');
+      } finally {
+        setLoadingDocuments(false);
+      }
+    };
+
+    fetchDocuments();
   }, [classId, activeTab]);
 
   // Nếu đang tải, hiển thị trạng thái tải đơn giản
@@ -1393,103 +1444,6 @@ const ClassDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Schedule Display */}
-          <Card 
-            style={{ 
-              marginTop: 16, 
-              borderRadius: 12,
-              background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
-              border: '2px solid #bae6fd'
-            }}
-          >
-            <div 
-              className="schedule-toggle-header"
-              style={{ 
-                marginBottom: isScheduleExpanded ? 16 : 0
-              }}
-            >
-              <Space align="center">
-                <Title level={5} style={{ margin: 0, color: '#0369a1', fontSize: 16 }}>
-                  📅 Lịch dạy hàng tuần
-                </Title>
-                {!isScheduleExpanded && scheduleSessions.length > 0 && (
-                  <Badge 
-                    count={scheduleSessions.length} 
-                    style={{ backgroundColor: '#0369a1' }}
-                    title={`${scheduleSessions.length} ngày dạy`}
-                  />
-                )}
-              </Space>
-              <Button
-                type="text"
-                size="small"
-                icon={isScheduleExpanded ? <UpOutlined /> : <DownOutlined />}
-                onClick={() => setIsScheduleExpanded(!isScheduleExpanded)}
-                style={{ 
-                  color: '#0369a1',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  fontWeight: 500
-                }}
-              >
-                {isScheduleExpanded ? 'Thu gọn' : 'Mở rộng'}
-              </Button>
-            </div>
-            
-            <div 
-              className={`schedule-content ${isScheduleExpanded ? 'expanded' : 'collapsed'}`}
-              style={{
-                marginTop: isScheduleExpanded ? 16 : 0
-              }}
-            >
-              {scheduleSessions.length > 0 ? (
-                <div style={{ 
-                  display: 'flex', 
-                  flexWrap: 'wrap', 
-                  gap: '12px'
-                }}>
-                  {scheduleSessions.map((schedule) => (
-                    <div 
-                      key={schedule.day}
-                      style={{ 
-                        flex: '1 1 calc(20% - 12px)',
-                        minWidth: '180px',
-                        maxWidth: '250px'
-                      }}
-                    >
-                      <Card 
-                        size="small"
-                        style={{ 
-                          background: '#ffffff',
-                          border: '1px solid #e0f2fe',
-                          height: '100%'
-                        }}
-                      >
-                        <Text strong style={{ color: '#0369a1', fontSize: 14 }}>
-                          <CalendarOutlined /> {schedule.dayLabel}
-                        </Text>
-                        <Divider style={{ margin: '8px 0' }} />
-                        {schedule.sessions.map((session, idx) => (
-                          <div key={idx} style={{ marginBottom: 8 }}>
-                            <Tag color="blue" style={{ marginBottom: 4 }}>
-                              {session.periods}
-                            </Tag>
-                            <br />
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                              <ClockCircleOutlined /> {session.timeRange}
-                            </Text>
-                          </div>
-                        ))}
-                      </Card>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <Text type="secondary">Chưa có lịch</Text>
-              )}
-            </div>
-          </Card>
         </div>
 
         {/* ✅ Nút hành động */}
@@ -1523,60 +1477,6 @@ const ClassDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Statistics */}
-      {/* ✅ Cập nhật thẻ thống kê - Xóa thanh tiến trình */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={12} sm={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center' }}>
-            <Statistic
-              title="Tổng sinh viên"
-              value={totalStudents}
-              prefix={<TeamOutlined />}
-              valueStyle={{ color: '#2563eb', fontSize: 20 }}
-            />
-          </Card>
-        </Col>
-        
-        <Col xs={12} sm={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center' }}>
-            <Statistic
-              title="Phiên Điểm danh"
-              value={totalSessions}
-              prefix={<CalendarOutlined />}
-              valueStyle={{ color: '#10b981', fontSize: 20 }}
-            />
-          </Card>
-        </Col>
-        
-        <Col xs={12} sm={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center' }}>
-            <Statistic
-              title="Điểm danh TB"
-              value={avgAttendance}
-              suffix="%"
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ 
-                color: avgAttendance >= 80 ? '#10b981' : avgAttendance >= 60 ? '#f59e0b' : '#ef4444',
-                fontSize: 20 
-              }}
-            />
-            {/* ❌ ĐÃ XÓA Thanh tiến trình */}
-          </Card>
-        </Col>
-        
-        <Col xs={12} sm={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center' }}>
-            <Statistic
-              title="Đã xác thực"
-              value={verifiedCount}
-              suffix={`/${totalStudents}`}
-              valueStyle={{ color: '#8b5cf6', fontSize: 20 }}
-              prefix={<SafetyCertificateOutlined />}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       {/* Main Content */}
       <Card style={{
         borderRadius: 16,
@@ -1584,6 +1484,7 @@ const ClassDetailPage: React.FC = () => {
         border: "none"
       }}>
         <Tabs 
+          className="class-detail-tabs"
           activeKey={activeTab} 
           onChange={(key) => {
             setActiveTab(key);
@@ -1594,15 +1495,99 @@ const ClassDetailPage: React.FC = () => {
           }}
           size="large"
         >
-          {/* Overview Tab */}
+          <TabPane tab="📝 Bài đăng" key="posts">
+            {classId ? (
+              <TeacherClassPostsPanel classId={classId} />
+            ) : (
+              <Empty description="Không tìm thấy lớp học" />
+            )}
+          </TabPane>
+
+          <TabPane tab="📚 Tài liệu" key="documents">
+            <Card title="Tài liệu lớp học" style={{ borderRadius: 12 }}>
+              <Table
+                loading={loadingDocuments}
+                dataSource={documentsData}
+                rowKey="documentId"
+                pagination={{ pageSize: 10 }}
+                locale={{ emptyText: "Chưa có tài liệu nào" }}
+                columns={[
+                  {
+                    title: "Tên tài liệu",
+                    dataIndex: "title",
+                    key: "title",
+                    render: (value: string, record: ClassDocumentItem) => (
+                      <Button
+                        type="link"
+                        style={{ paddingInline: 0, height: "auto" }}
+                        onClick={async () => {
+                          try {
+                            await openClassDocument(record.documentId);
+                          } catch (error) {
+                            console.error("Failed to open document:", error);
+                            message.error("Không thể mở tài liệu");
+                          }
+                        }}
+                      >
+                        {value}
+                      </Button>
+                    ),
+                  },
+                  {
+                    title: "Bài đăng",
+                    dataIndex: "postId",
+                    key: "postId",
+                    render: (value: number) => (
+                      <Button
+                        type="link"
+                        style={{ paddingInline: 0 }}
+                        onClick={() => setActiveDocumentPostId(value)}
+                      >
+                        #{value}
+                      </Button>
+                    ),
+                    width: 120,
+                  },
+                  {
+                    title: "Thời gian",
+                    dataIndex: "createdAt",
+                    key: "createdAt",
+                    render: (value: string) => new Date(value).toLocaleString('vi-VN'),
+                    width: 220,
+                  },
+                ]}
+              />
+            </Card>
+          </TabPane>
+
+          {/* Attendance Tab - Keep existing */}
+          <TabPane tab="📅 Điểm danh" key="attendance">
+            <Card title="📊 Lịch sử Điểm danh" style={{ borderRadius: 12 }}>
+              <div style={{ overflowX: 'auto' }}>
+                <Table
+                  dataSource={attendanceSessions}
+                  columns={sessionColumns}
+                  rowKey="id"
+                  loading={loadingSessions}
+                  scroll={{ x: 1000 }}
+                  pagination={{
+                    pageSize: 10,
+                    showTotal: (total, range) => 
+                       `${range[0]}-${range[1]} trong ${total} phiên`
+                  }}
+                />
+              </div>
+            </Card>
+          </TabPane>
+
           <TabPane 
             tab={
               <span>
                 <TeamOutlined />
-                Tổng quan ({totalStudents})
+                Thông tin lớp học ({totalStudents})
               </span>
             } 
-            key="overview"
+            key="class-info"
           >
             <Row gutter={[24, 24]}>
               {/* ✅ Thẻ thống kê tóm tắt - Cũng xóa thanh tiến trình ở đây */}
@@ -1654,6 +1639,104 @@ const ClassDetailPage: React.FC = () => {
                       </div>
                     </Col>
                   </Row>
+                </Card>
+              </Col>
+
+              <Col span={24}>
+                <Card
+                  style={{
+                    borderRadius: 12,
+                    background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+                    border: '2px solid #bae6fd'
+                  }}
+                >
+                  <div
+                    className="schedule-toggle-header"
+                    style={{
+                      marginBottom: isScheduleExpanded ? 16 : 0
+                    }}
+                  >
+                    <Space align="center">
+                      <Title level={5} style={{ margin: 0, color: '#0369a1', fontSize: 16 }}>
+                        📅 Lịch dạy hàng tuần
+                      </Title>
+                      {!isScheduleExpanded && scheduleSessions.length > 0 && (
+                        <Badge
+                          count={scheduleSessions.length}
+                          style={{ backgroundColor: '#0369a1' }}
+                          title={`${scheduleSessions.length} ngày dạy`}
+                        />
+                      )}
+                    </Space>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={isScheduleExpanded ? <UpOutlined /> : <DownOutlined />}
+                      onClick={() => setIsScheduleExpanded(!isScheduleExpanded)}
+                      style={{
+                        color: '#0369a1',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontWeight: 500
+                      }}
+                    >
+                      {isScheduleExpanded ? 'Thu gọn' : 'Mở rộng'}
+                    </Button>
+                  </div>
+
+                  <div
+                    className={`schedule-content ${isScheduleExpanded ? 'expanded' : 'collapsed'}`}
+                    style={{
+                      marginTop: isScheduleExpanded ? 16 : 0
+                    }}
+                  >
+                    {scheduleSessions.length > 0 ? (
+                      <div style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '12px'
+                      }}>
+                        {scheduleSessions.map((schedule) => (
+                          <div
+                            key={schedule.day}
+                            style={{
+                              flex: '1 1 calc(20% - 12px)',
+                              minWidth: '180px',
+                              maxWidth: '250px'
+                            }}
+                          >
+                            <Card
+                              size="small"
+                              style={{
+                                background: '#ffffff',
+                                border: '1px solid #e0f2fe',
+                                height: '100%'
+                              }}
+                            >
+                              <Text strong style={{ color: '#0369a1', fontSize: 14 }}>
+                                <CalendarOutlined /> {schedule.dayLabel}
+                              </Text>
+                              <Divider style={{ margin: '8px 0' }} />
+                              {schedule.sessions.map((session, idx) => (
+                                <div key={idx} style={{ marginBottom: 8 }}>
+                                  <Tag color="blue" style={{ marginBottom: 4 }}>
+                                    {session.periods}
+                                  </Tag>
+                                  <br />
+                                  <Text type="secondary" style={{ fontSize: 12 }}>
+                                    <ClockCircleOutlined /> {session.timeRange}
+                                  </Text>
+                                </div>
+                              ))}
+                            </Card>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <Text type="secondary">Chưa có lịch</Text>
+                    )}
+                  </div>
                 </Card>
               </Col>
 
@@ -1720,29 +1803,22 @@ const ClassDetailPage: React.FC = () => {
             </Row>
           </TabPane>
 
-          {/* Attendance Tab - Keep existing */}
-          <TabPane tab="📅 Điểm danh" key="attendance">
-            <Card title="📊 Lịch sử Điểm danh" style={{ borderRadius: 12 }}>
-              <div style={{ overflowX: 'auto' }}>
-                <Table
-                  dataSource={attendanceSessions}
-                  columns={sessionColumns}
-                  rowKey="id"
-                  loading={loadingSessions}
-                  scroll={{ x: 1000 }}
-                  pagination={{
-                    pageSize: 10,
-                    showTotal: (total, range) => 
-                       `${range[0]}-${range[1]} trong ${total} phiên`
-                  }}
-                />
-              </div>
-            </Card>
-          </TabPane>
-
           {/* ❌ REMOVED: Leave Requests Tab */}
         </Tabs>
       </Card>
+
+      <Modal
+        title={activeDocumentPostId ? `Bài đăng #${activeDocumentPostId}` : "Bài đăng"}
+        open={!!activeDocumentPostId}
+        onCancel={() => setActiveDocumentPostId(null)}
+        footer={null}
+        width={920}
+        destroyOnHidden
+      >
+        {classId && activeDocumentPostId ? (
+          <TeacherClassPostsPanel classId={classId} allowCreatePost={false} focusPostId={activeDocumentPostId} />
+        ) : null}
+      </Modal>
 
       {/* Student Detail Modal */}
       <Modal

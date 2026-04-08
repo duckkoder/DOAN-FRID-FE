@@ -56,3 +56,25 @@
     display: none;
   }
 }
+
+.class-detail-tabs .ant-tabs-nav {
+  margin-bottom: 20px !important;
+}
+
+.class-detail-tabs .ant-tabs-tab {
+  border-radius: 10px;
+  padding: 10px 14px !important;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.class-detail-tabs .ant-tabs-tab:hover {
+  background: #eff6ff;
+}
+
+.class-detail-tabs .ant-tabs-tab-active {
+  background: #eaf1ff;
+}
+
+.class-detail-tabs .ant-tabs-tab-btn {
+  font-weight: 600;
+}

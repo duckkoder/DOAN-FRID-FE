@@ -20,6 +20,7 @@ const leftBarConfig = {
       items: [
         { key: "teachers", label: "Giáo viên", path: "/admin/teachers" },
         { key: "students", label: "Sinh viên", path: "/admin/students" },
+        { key: "departments", label: "Khoa & Chuyên ngành", path: "/admin/departments" },
       ]
     },
     {

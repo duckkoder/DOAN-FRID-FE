@@ -7,6 +7,7 @@ import AuthPage from "../pages/AuthPage/Authpage";
 import HomePage from "../pages/HomePage/HomePage";
 import AdminTeacherPage from "../pages/Admin/AdminTeacherPage";
 import AdminStudentPage from "../pages/Admin/AdminStudentPage";
+import AdminDepartmentPage from "../pages/Admin/AdminDepartmentPage";
 
 import TeacherClassPage from "../pages/Teacher/TeacherClassPage";
 import SessionDetailPage from "../pages/Teacher/SessionDetailPage";
@@ -43,6 +44,7 @@ const router = createBrowserRouter(
               <Route index element={<AdminHomePage />} />
               <Route path="teachers" element={<AdminTeacherPage />} />
               <Route path="students" element={<AdminStudentPage />} />
+              <Route path="departments" element={<AdminDepartmentPage />} />
             </Route>
 
             {/* Route cho Giáo viên */}

@@ -52,10 +52,12 @@ import {
 } from "@/apis/teacherAPIs/teacher";
 import {
   getDepartments,
-  getSpecializations,
   type DepartmentResponse,
-  type SpecializationResponse,
 } from "@/apis/departmentAPIs/department";
+import {
+  getSpecializations,
+  type SpecializationResponse,
+} from "@/apis/departmentAPIs/specialization";
 import {
   uploadAvatar,
   validateImageFile,
