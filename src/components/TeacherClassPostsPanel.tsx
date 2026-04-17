@@ -42,8 +42,9 @@ import {
   type CommentItem,
   type PersonProfile,
 } from "../apis/classesAPIs/classPosts";
-import { openClassDocument, uploadDocument } from "../apis/fileAPIs/file";
 import { useAuth } from "../hooks/useAuth";
+import { useNavigate } from "react-router-dom";
+import { openClassDocument, uploadDocument } from "../apis/fileAPIs/file";
 import "./TeacherClassPostsPanel.css";
 
 const { Text } = Typography;
@@ -71,6 +72,7 @@ const TeacherClassPostsPanel: React.FC<TeacherClassPostsPanelProps> = ({
   focusPostId = null,
 }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState<ClassPostItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);

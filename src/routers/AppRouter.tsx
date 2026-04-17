@@ -2,33 +2,35 @@ import { createBrowserRouter, createRoutesFromElements, Route } from "react-rout
 
 import AppLayout from "../layouts/AppLayout";
 import ProtectedRoute from "./ProtectedRoute";
+import RoleLayout from "../layouts/RoleLayout";
 
 import AuthPage from "../pages/AuthPage/Authpage";
 import HomePage from "../pages/HomePage/HomePage";
+
 import AdminTeacherPage from "../pages/Admin/AdminTeacherPage";
 import AdminStudentPage from "../pages/Admin/AdminStudentPage";
 import AdminDepartmentPage from "../pages/Admin/AdminDepartmentPage";
+import AdminHomePage from "../pages/Admin/AdminHomePage";
 
 import TeacherClassPage from "../pages/Teacher/TeacherClassPage";
 import SessionDetailPage from "../pages/Teacher/SessionDetailPage";
 import TeacherReportPage from "../pages/Teacher/TeacherReportPage";
+import TeacherHomePage from "../pages/Teacher/TeacherHomePage";
+import TeacherProfilePage from "../pages/Teacher/TeacherProfilePage";
+import TeacherLeaveRequestPage from "../pages/Teacher/TeacherLeaveRequestPage";
+import ClassDetailPage from "../pages/Teacher/ClassDetailPage";
 
 import StudentClassDetailPage from "../pages/Student/StudentClassDetailPage";
 import StudentClassPage from "../pages/Student/StudentClassPage";
 import StudentAttendancePage from "../pages/Student/StudentAttendancePage";
 import StudentAttendanceListPage from "../pages/Student/StudentAttendanceListPage";
 import StudentReportPage from "../pages/Student/StudentReportPage";
-import AdminHomePage from "../pages/Admin/AdminHomePage";
-import TeacherHomePage from "../pages/Teacher/TeacherHomePage";
 import StudentHomePage from "../pages/Student/StudentHomePage";
-import TeacherProfilePage from "../pages/Teacher/TeacherProfilePage";
 import StudentProfilePage from "../pages/Student/StudentProfilePage";
-import RoleLayout from "../layouts/RoleLayout";
-import TeacherLeaveRequestPage from "../pages/Teacher/TeacherLeaveRequestPage";
-import ClassDetailPage from "../pages/Teacher/ClassDetailPage";
-import ClassCreatePage from "../pages/Class/ClassCreatePage";
 import FaceRegisterPage from "../pages/Student/FaceRegisterPage";
 
+import ClassCreatePage from "../pages/Class/ClassCreatePage";
+import LearningWorkspacePage from "../pages/LearningWorkspacePage/LearningWorkspacePage";
 import NotFound from "../pages/NotFound/NotFound";
 
 const router = createBrowserRouter(
@@ -36,10 +38,17 @@ const router = createBrowserRouter(
     <>
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/" element={<HomePage />} />
+
       <Route element={<ProtectedRoute />}>
+        {/* ── Full-screen routes: NO AppLayout sidebar ── */}
+        <Route path="/teacher/classes/:classId/learning/:documentId" element={<LearningWorkspacePage />} />
+        <Route path="/student/classes/:classId/learning/:documentId" element={<LearningWorkspacePage />} />
+
+        {/* ── Standard routes: WITH AppLayout + sidebar ── */}
         <Route element={<AppLayout />}>
-          {/* Route cho Admin */}
           <Route element={<RoleLayout />}>
+
+            {/* Admin */}
             <Route path="/admin">
               <Route index element={<AdminHomePage />} />
               <Route path="teachers" element={<AdminTeacherPage />} />
@@ -47,8 +56,7 @@ const router = createBrowserRouter(
               <Route path="departments" element={<AdminDepartmentPage />} />
             </Route>
 
-            {/* Route cho Giáo viên */}
-
+            {/* Teacher */}
             <Route path="/teacher">
               <Route index element={<TeacherHomePage />} />
               <Route path="classes" element={<TeacherClassPage />} />
@@ -60,7 +68,7 @@ const router = createBrowserRouter(
               <Route path="profile" element={<TeacherProfilePage />} />
             </Route>
 
-            {/* Route cho Học sinh */}
+            {/* Student */}
             <Route path="/student">
               <Route index element={<StudentHomePage />} />
               <Route path="classes" element={<StudentClassPage />} />
@@ -71,10 +79,11 @@ const router = createBrowserRouter(
               <Route path="register-face" element={<FaceRegisterPage />} />
               <Route path="profile" element={<StudentProfilePage />} />
             </Route>
+
           </Route>
-          
         </Route>
       </Route>
+
       <Route path="*" element={<NotFound />} />
     </>,
   ),

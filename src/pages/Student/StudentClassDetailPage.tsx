@@ -528,7 +528,28 @@ const StudentClassDetailPage: React.FC = () => {
         </Tabs.TabPane>
 
         <Tabs.TabPane tab="📚 Tài liệu" key="documents">
-          <Card title="Tài liệu lớp học" style={{ borderRadius: 12 }}>
+          <Card
+            title={
+              <Space>
+                <FileTextOutlined />
+                Tài liệu lớp học
+              </Space>
+            }
+            extra={
+              <Button
+                type="primary"
+                icon={<BookOutlined />}
+                disabled={documentsData.length === 0}
+                onClick={() => {
+                  if (documentsData.length > 0) navigate(`/student/classes/${classId}/learning/${documentsData[0].documentId}`, { state: { className: classData?.class.className } });
+                }}
+                style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', border: 'none', borderRadius: 10, fontWeight: 600 }}
+              >
+                🤖 Mở với AI Trợ Giảng
+              </Button>
+            }
+            style={{ borderRadius: 12 }}
+          >
             <Table
               loading={loadingDocuments}
               dataSource={documentsData}
@@ -545,11 +566,8 @@ const StudentClassDetailPage: React.FC = () => {
                       type="link"
                       style={{ paddingInline: 0, height: "auto" }}
                       onClick={async () => {
-                        try {
-                          await openClassDocument(record.documentId);
-                        } catch {
-                          message.error("Không thể mở tài liệu");
-                        }
+                        try { await openClassDocument(record.documentId); }
+                        catch { message.error("Không thể mở tài liệu"); }
                       }}
                     >
                       {value}
@@ -562,21 +580,31 @@ const StudentClassDetailPage: React.FC = () => {
                   key: "postId",
                   width: 100,
                   render: (value: number) => (
-                    <Button
-                      type="link"
-                      style={{ paddingInline: 0 }}
-                      onClick={() => setActiveDocumentPostId(value)}
-                    >
-                      #{value}
-                    </Button>
+                    <Button type="link" style={{ paddingInline: 0 }} onClick={() => setActiveDocumentPostId(value)}>#{value}</Button>
                   ),
                 },
                 {
                   title: "Thời gian",
                   dataIndex: "createdAt",
                   key: "createdAt",
-                  width: 220,
+                  width: 200,
                   render: (value: string) => new Date(value).toLocaleString("vi-VN"),
+                },
+                {
+                  title: "",
+                  key: "aiAction",
+                  width: 160,
+                  render: (_: unknown, record: ClassDocumentItem) => (
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<BookOutlined />}
+                      onClick={() => navigate(`/student/classes/${classId}/learning/${record.documentId}`, { state: { className: classData?.class.className } })}
+                      style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', border: 'none', borderRadius: 8 }}
+                    >
+                      AI Trợ Giảng
+                    </Button>
+                  ),
                 },
               ]}
             />
