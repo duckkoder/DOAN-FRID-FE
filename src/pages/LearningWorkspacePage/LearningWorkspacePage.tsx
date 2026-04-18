@@ -22,6 +22,8 @@ import '@react-pdf-viewer/search/lib/styles/index.css';
 
 import { getClassPosts } from '../../apis/classesAPIs/classPosts';
 import { getStudentClassDetails } from '../../apis/classesAPIs/studentClass';
+import { getChatHistory, streamChat } from '../../apis/ragAPIs/rag';
+import type { SourcesPayload } from '../../apis/ragAPIs/rag';
 import api from '../../apis/axios';
 
 const { Text } = Typography;
@@ -62,6 +64,7 @@ const LearningWorkspacePage: React.FC = () => {
   const [typing, setTyping] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const blobRef = useRef<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Fetch class name (try student API first, teacher API as fallback)
   useEffect(() => {
@@ -103,10 +106,29 @@ const LearningWorkspacePage: React.FC = () => {
           if (!activeDocId) setActiveDocId(list[0].documentId);
         }
 
-        setMessages([{
-          id: 'welcome', role: 'ai', timestamp: new Date(),
-          content: `Xin chào! Tôi là **AI Trợ Giảng** 🎓\n\nTìm thấy **${list.length} tài liệu** trong lớp học. Hãy bấm nút **Tài liệu** góc trên phải để chọn tài liệu bạn muốn hỏi, sau đó gửi câu hỏi cho tôi nhé!`,
-        }]);
+        // Load chat history
+        const idNum = parseInt(classId ?? '', 10);
+        if (!isNaN(idNum)) {
+          const welcomeMsg = (len: number): ChatMsg => ({
+            id: 'welcome', role: 'ai', timestamp: new Date(),
+            content: `Xin chào! Tôi là **AI Trợ Giảng** 🎓\n\nTìm thấy **${len} tài liệu** trong lớp học. Hãy bấm nút **Tài liệu** góc trên phải để chọn tài liệu bạn muốn hỏi, sau đó gửi câu hỏi cho tôi nhé!`,
+          });
+
+          getChatHistory(idNum)
+            .then(hist => {
+              if (hist.length > 0) {
+                setMessages(hist.map(m => ({
+                  id: m.created_at,
+                  role: m.role,
+                  content: m.content,
+                  timestamp: new Date(m.created_at),
+                })));
+              } else {
+                setMessages([welcomeMsg(list.length)]);
+              }
+            })
+            .catch(() => setMessages([welcomeMsg(list.length)]));
+        }
       })
       .catch(() => message.error('Không thể tải danh sách tài liệu'))
       .finally(() => setLoadingDocs(false));
@@ -137,19 +159,46 @@ const LearningWorkspacePage: React.FC = () => {
   }, []);
 
   const handleSend = () => {
-    if (!input.trim() || typing) return;
-    const userMsg: ChatMsg = { id: `u${Date.now()}`, role: 'user', content: input, timestamp: new Date() };
+    if (!input.trim() || typing || selectedIds.size === 0) return;
+    const question = input.trim();
+
+    const userMsg: ChatMsg = { id: `u${Date.now()}`, role: 'user', content: question, timestamp: new Date() };
     setMessages(p => [...p, userMsg]);
     setInput('');
     setTyping(true);
-    setTimeout(() => {
-      setMessages(p => [...p, {
-        id: `a${Date.now()}`, role: 'ai', timestamp: new Date(),
-        content: `Dựa trên **${selectedIds.size} tài liệu** bạn đã chọn, đây là phân tích của tôi:\n\n> *Đây là phản hồi MOCK – AI Service LangChain sẽ được kết nối ở bước tiếp theo.*\n\nNội dung được trích xuất và tổng hợp bởi mô hình Gemini 1.5.`,
-        citations: [{ page: 1, textSnippet: '' }],
-      }]);
-      setTyping(false);
-    }, 1600);
+
+    const aiMsgId = `a${Date.now()}`;
+    setMessages(p => [...p, { id: aiMsgId, role: 'ai', content: '', timestamp: new Date() }]);
+
+    let fullText = '';
+
+    // Cancel any previous in-flight request
+    abortRef.current?.abort();
+
+    abortRef.current = streamChat(
+      parseInt(classId ?? '0', 10),
+      question,
+      [...selectedIds],
+      // onToken
+      (text) => {
+        fullText += text;
+        setMessages(p => p.map(m => m.id === aiMsgId ? { ...m, content: fullText } : m));
+      },
+      // onSources
+      (src: SourcesPayload) => {
+        const citations = src.pages.map(pg => ({ page: pg.page, textSnippet: pg.snippet ?? '' }));
+        setMessages(p => p.map(m => m.id === aiMsgId ? { ...m, citations } : m));
+      },
+      // onError
+      (err) => {
+        message.error(err || 'Lỗi kết nối AI Service');
+        setMessages(p => p.map(m =>
+          m.id === aiMsgId ? { ...m, content: fullText || '⚠️ Không thể kết nối AI Service. Vui lòng thử lại.' } : m
+        ));
+      },
+      // onDone
+      () => setTyping(false),
+    );
   };
 
   const handleCitation = (page: number, text: string) => {
