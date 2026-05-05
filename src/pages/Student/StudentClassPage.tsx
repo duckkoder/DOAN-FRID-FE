@@ -36,6 +36,7 @@ import {
   type StudentClassItem,
   type ApiError 
 } from "../../apis/classesAPIs/studentClass";
+import { formatScheduleDisplay } from "../../apis/classesAPIs/teacherClass";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -171,34 +172,7 @@ const StudentClassPage: React.FC = () => {
     }
   };
 
-  // ✅ Format schedule to simple string
-  const formatScheduleSimple = (schedule: Record<string, string[]>) => {
-    const dayMapping: Record<string, string> = {
-      monday: 'T2',
-      tuesday: 'T3',
-      wednesday: 'T4',
-      thursday: 'T5',
-      friday: 'T6',
-      saturday: 'T7',
-      sunday: 'CN'
-    };
-
-    const scheduleParts: string[] = [];
-
-    Object.entries(schedule).forEach(([day, periodRanges]) => {
-      if (!periodRanges || periodRanges.length === 0) return;
-
-      const dayLabel = dayMapping[day] || day;
-      const periods = periodRanges.map(range => {
-        const [start, end] = range.split('-').map(Number);
-        return start === end ? `${start}` : `${start}-${end}`;
-      }).join(', ');
-      
-      scheduleParts.push(`${dayLabel}: ${periods}`);
-    });
-
-    return scheduleParts.length > 0 ? scheduleParts.join(' \u2022 ') : 'Chưa có lịch học';
-  };
+  // Format schedule is now imported from teacherClass.ts
 
   // ✅ Handle modal close
   const handleModalClose = () => {
@@ -359,7 +333,7 @@ const StudentClassPage: React.FC = () => {
         /* Classes Grid */
         <Row gutter={[16, 16]}>
           {classes.map((classItem) => {
-            const scheduleText = formatScheduleSimple(classItem.schedule);
+            const scheduleText = formatScheduleDisplay(classItem.schedule) || "Chưa có lịch học";
             
             return (
               <Col xs={24} sm={24} md={12} lg={8} key={classItem.id}>

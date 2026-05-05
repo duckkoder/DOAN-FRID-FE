@@ -11,6 +11,7 @@ import {
   RobotOutlined,
   CameraOutlined,
   SettingOutlined,
+  EnvironmentOutlined,
 } from "@ant-design/icons";
 
 type LeftBarItem = {
@@ -45,6 +46,7 @@ const iconMap: Record<string, React.ReactNode> = {
   attendance: <CalendarOutlined />,
   registerFace: <CameraOutlined />,
   profile: <SettingOutlined />,
+  rooms: <EnvironmentOutlined />,
   logout: <LogoutOutlined />,
 };
 

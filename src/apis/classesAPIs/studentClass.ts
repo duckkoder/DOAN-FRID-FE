@@ -3,13 +3,10 @@ import api from "../axios";
 // ==================== INTERFACES ====================
 
 export interface ScheduleModel {
-  monday?: string[];
-  tuesday?: string[];
-  wednesday?: string[];
-  thursday?: string[];
-  friday?: string[];
-  saturday?: string[];
-  sunday?: string[];
+  schedules?: Array<{
+    day: number;
+    periods: number[];
+  }>;
 }
 
 export interface JoinClassRequest {
@@ -265,60 +262,8 @@ export const getStudentClassmates = async (
 // ==================== HELPER FUNCTIONS ====================
 
 /**
- * Convert schedule data to readable format
- */
-export const parseScheduleToReadable = (schedule: ScheduleModel): Record<string, string[]> => {
-  const result: Record<string, string[]> = {};
-  
-  const dayMapping: Record<string, string> = {
-    monday: 'Monday',
-    tuesday: 'Tuesday',
-    wednesday: 'Wednesday',
-    thursday: 'Thursday',
-    friday: 'Friday',
-    saturday: 'Saturday',
-    sunday: 'Sunday'
-  };
-
-  Object.entries(schedule).forEach(([day, periods]) => {
-    if (periods && periods.length > 0) {
-      const dayLabel = dayMapping[day] || day;
-      result[dayLabel] = periods;
-    }
-  });
-
-  return result;
-};
-
-/**
  * Validate class code format (9 characters)
  */
 export const validateClassCode = (code: string): boolean => {
   return /^[A-Z0-9]{9}$/.test(code);
-};
-
-/**
- * Format class schedule for display
- */
-export const formatScheduleDisplay = (schedule: ScheduleModel): string => {
-  const dayMapping: Record<string, string> = {
-    monday: 'T2',
-    tuesday: 'T3',
-    wednesday: 'T4',
-    thursday: 'T5',
-    friday: 'T6',
-    saturday: 'T7',
-    sunday: 'CN'
-  };
-
-  const scheduleParts: string[] = [];
-
-  Object.entries(schedule).forEach(([day, periods]) => {
-    if (periods && periods.length > 0) {
-      const dayLabel = dayMapping[day] || day;
-      scheduleParts.push(`${dayLabel}: ${periods.join(', ')}`);
-    }
-  });
-
-  return scheduleParts.join(' | ');
 };

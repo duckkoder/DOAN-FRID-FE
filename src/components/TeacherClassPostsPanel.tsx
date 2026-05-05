@@ -15,6 +15,7 @@ import {
   Typography,
   Upload,
   message,
+  Checkbox,
 } from "antd";
 import {
   MailOutlined,
@@ -50,16 +51,13 @@ import "./TeacherClassPostsPanel.css";
 const { Text } = Typography;
 const { TextArea } = Input;
 
-const toPseudoCourseId = (classId: number): string => {
-  const numeric = String(Math.max(0, classId));
-  const tail = numeric.padStart(12, "0").slice(-12);
-  return `00000000-0000-0000-0000-${tail}`;
-};
+
 
 interface TeacherClassPostsPanelProps {
   classId: number;
   allowCreatePost?: boolean;
   focusPostId?: number | null;
+  courseId?: string | null;
 }
 
 interface ProfileModalState {
@@ -70,6 +68,7 @@ const TeacherClassPostsPanel: React.FC<TeacherClassPostsPanelProps> = ({
   classId,
   allowCreatePost = true,
   focusPostId = null,
+  courseId = null,
 }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -88,8 +87,8 @@ const TeacherClassPostsPanel: React.FC<TeacherClassPostsPanelProps> = ({
   const [selectedProfile, setSelectedProfile] = useState<ProfileModalState | null>(null);
   const [content, setContent] = useState("");
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
-
-  const courseId = useMemo(() => toPseudoCourseId(classId), [classId]);
+  const [isPrivateToClass, setIsPrivateToClass] = useState(false);
+  const [isEmbeddingEnabled, setIsEmbeddingEnabled] = useState(true);
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -134,7 +133,9 @@ const TeacherClassPostsPanel: React.FC<TeacherClassPostsPanelProps> = ({
       for (const uploadFile of uploadFiles) {
         if (!uploadFile.originFileObj) continue;
         const uploaded = await uploadDocument(uploadFile.originFileObj, {
-          courseId,
+          courseId: (!isPrivateToClass && courseId) ? courseId : undefined,
+          onlyClassId: (isPrivateToClass || !courseId) ? String(classId) : undefined,
+          isEmbedding: isEmbeddingEnabled,
           title: uploadFile.name,
         });
         if (uploaded.data.document_id) {
@@ -612,6 +613,21 @@ const TeacherClassPostsPanel: React.FC<TeacherClassPostsPanelProps> = ({
             <Upload {...uploadProps}>
               <Button icon={<PaperClipOutlined />}>Đính kèm tài liệu</Button>
             </Upload>
+
+            <Space direction="vertical" size={4}>
+              <Checkbox 
+                checked={isPrivateToClass} 
+                onChange={(e) => setIsPrivateToClass(e.target.checked)}
+              >
+                Chỉ dành riêng cho lớp học này (Riêng tư)
+              </Checkbox>
+              <Checkbox 
+                checked={isEmbeddingEnabled} 
+                onChange={(e) => setIsEmbeddingEnabled(e.target.checked)}
+              >
+                Kích hoạt AI Embedding (Cho phép hỏi đáp RAG trên tài liệu này)
+              </Checkbox>
+            </Space>
 
             <Text type="secondary">Đính kèm file để hệ thống tự tạo tài liệu và gắn vào thông báo.</Text>
           </Space>

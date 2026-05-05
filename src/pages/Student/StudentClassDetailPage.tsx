@@ -45,6 +45,7 @@ import {
   type StudentClassDetailsData,
   type StudentClassmateItem,
 } from "../../apis/classesAPIs/studentClass";
+import { formatScheduleDisplay, getClassDocuments, type ClassDocumentItem } from "../../apis/classesAPIs/teacherClass";
 import {
   createLeaveRequest,
   getLeaveRequests,
@@ -56,112 +57,43 @@ import {
   type StudentAttendanceSessionSummarySchema,
   type StudentClassAttendanceSummary,
 } from "../../apis/attendanceAPIs/studentAttendance";
+import { DAY_NAMES, getTimeRangeForPeriods } from "../../constants/mappings";
 
 const { Title, Text, Paragraph } = Typography;
 
-const TIME_SLOTS: Record<number, { start: string; end: string }> = {
-  1: { start: "07:00", end: "07:50" },
-  2: { start: "08:00", end: "08:50" },
-  3: { start: "09:00", end: "09:50" },
-  4: { start: "10:00", end: "10:50" },
-  5: { start: "11:00", end: "11:50" },
-  6: { start: "13:00", end: "13:50" },
-  7: { start: "14:00", end: "14:50" },
-  8: { start: "15:00", end: "15:50" },
-  9: { start: "16:00", end: "16:50" },
-  10: { start: "17:00", end: "17:50" },
-};
+// Time slots mapping moved to src/constants/mappings.ts
 
-interface ClassDocumentItem {
-  documentId: string;
-  title: string;
-  postId: number;
-  createdAt: string;
-}
+// day_of_week from backend: 0=Sun, 1=Mon, ..., 6=Sat (JS standard)
+const getDayOfWeekText = (dayOfWeek: number): string => {
+  const map: Record<number, string> = {
+    0: "Chủ Nhật",
+    1: "Thứ Hai",
+    2: "Thứ Ba",
+    3: "Thứ Tư",
+    4: "Thứ Năm",
+    5: "Thứ Sáu",
+    6: "Thứ Bảy",
+  };
+  return map[dayOfWeek] ?? `Ngày ${dayOfWeek}`;
+};
 
 const getAttendanceStatusConfig = (status: string | null | undefined) => {
   switch (status) {
-    case "present":
-      return { color: "#10b981", text: "Có mặt" };
-    case "late":
-      return { color: "#f59e42", text: "Đi trễ" };
-    case "absent":
-      return { color: "#ef4444", text: "Vắng mặt" };
-    default:
-      return { color: "#64748b", text: "Không rõ" };
+    case "present": return { color: "#10b981", text: "Có mặt" };
+    case "late": return { color: "#f59e0b", text: "Đi trễ" };
+    case "absent": return { color: "#ef4444", text: "Vắng mặt" };
+    case "excused": return { color: "#8b5cf6", text: "Đã nghỉ phép" };
+    default: return { color: "#64748b", text: "Chưa có" };
   }
 };
 
 const getLeaveStatusConfig = (status: string) => {
   switch (status) {
-    case "pending":
-      return { color: "#f59e42", text: "Chờ duyệt" };
-    case "approved":
-      return { color: "#10b981", text: "Đã duyệt" };
-    case "rejected":
-      return { color: "#ef4444", text: "Từ chối" };
-    case "cancelled":
-      return { color: "#64748b", text: "Đã hủy" };
-    default:
-      return { color: "#64748b", text: "Không rõ" };
+    case "approved": return { color: "#10b981", text: "Đã duyệt" };
+    case "rejected": return { color: "#ef4444", text: "Từ chối" };
+    case "pending": return { color: "#f59e0b", text: "Chờ duyệt" };
+    default: return { color: "#64748b", text: "Không rõ" };
   }
-};
-
-const getDayOfWeekText = (dayNum: number | null | undefined): string => {
-  if (dayNum === null || dayNum === undefined) return "";
-  const days = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
-  return days[dayNum] || "";
-};
-
-const formatScheduleDetailed = (schedule?: Record<string, string[]>) => {
-  if (!schedule || Object.keys(schedule).length === 0) return [];
-
-  const dayMapping: Record<string, string> = {
-    monday: "Thứ Hai",
-    tuesday: "Thứ Ba",
-    wednesday: "Thứ Tư",
-    thursday: "Thứ Năm",
-    friday: "Thứ Sáu",
-    saturday: "Thứ Bảy",
-    sunday: "Chủ Nhật",
-  };
-
-  const toTime = (period: number): string => {
-    const slot = TIME_SLOTS[period];
-    return slot ? `${slot.start}-${slot.end}` : `Tiết ${period}`;
-  };
-
-  return Object.entries(schedule)
-    .filter(([, ranges]) => Array.isArray(ranges) && ranges.length > 0)
-    .map(([day, ranges]) => {
-      return {
-        day: dayMapping[day.toLowerCase()] || day,
-        periods: ranges.map((range) => {
-          const [start, end] = range.split("-").map(Number);
-          return {
-            range: start === end ? `Tiết ${start}` : `Tiết ${start}-${end}`,
-            time: start === end ? toTime(start) : `${TIME_SLOTS[start]?.start || ""}-${TIME_SLOTS[end]?.end || ""}`,
-          };
-        }),
-      };
-    });
-};
-
-const formatScheduleSimple = (schedule?: Record<string, string[]>): string => {
-  if (!schedule || Object.keys(schedule).length === 0) return "Không có lịch học";
-  const dayMapping: Record<string, string> = {
-    monday: "T2",
-    tuesday: "T3",
-    wednesday: "T4",
-    thursday: "T5",
-    friday: "T6",
-    saturday: "T7",
-    sunday: "CN",
-  };
-  return Object.entries(schedule)
-    .filter(([, ranges]) => Array.isArray(ranges) && ranges.length > 0)
-    .map(([day]) => dayMapping[day.toLowerCase()] || day)
-    .join(", ");
 };
 
 const resolveAvatarUrl = (avatar?: string | null): string | undefined => {
@@ -203,7 +135,6 @@ const StudentClassDetailPage: React.FC = () => {
 
   const [documentsData, setDocumentsData] = useState<ClassDocumentItem[]>([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
-  const [activeDocumentPostId, setActiveDocumentPostId] = useState<number | null>(null);
   const [classmates, setClassmates] = useState<StudentClassmateItem[]>([]);
   const [loadingClassmates, setLoadingClassmates] = useState(false);
   const [selectedClassmate, setSelectedClassmate] = useState<StudentClassmateItem | null>(null);
@@ -276,26 +207,8 @@ const StudentClassDetailPage: React.FC = () => {
     const fetchDocuments = async () => {
       setLoadingDocuments(true);
       try {
-        const response = await getClassPosts(classId, { includeComments: false, limit: 100, offset: 0 });
-        const docMap = new Map<string, ClassDocumentItem>();
-
-        response.data.items.forEach((post) => {
-          post.attachments.forEach((attachment) => {
-            if (!docMap.has(attachment.documentId)) {
-              docMap.set(attachment.documentId, {
-                documentId: attachment.documentId,
-                title: attachment.title || attachment.documentId,
-                postId: post.id,
-                createdAt: post.createdAt,
-              });
-            }
-          });
-        });
-
-        const docs = Array.from(docMap.values()).sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        setDocumentsData(docs);
+        const response = await getClassDocuments(classId);
+        setDocumentsData(response.data || []);
       } catch {
         message.error("Không thể tải tài liệu lớp học");
       } finally {
@@ -459,7 +372,7 @@ const StudentClassDetailPage: React.FC = () => {
   const attendanceRate = classAttendanceSummary?.attendance_rate
     ? Math.round(classAttendanceSummary.attendance_rate)
     : 0;
-  const scheduleDetails = formatScheduleDetailed(classInfo.schedule);
+  const scheduleDetails = classInfo.schedule;
 
   const handleTabChange = (key: string) => {
     const nextKey = validTabs.includes(key as TabKey) ? (key as TabKey) : "posts";
@@ -507,9 +420,6 @@ const StudentClassDetailPage: React.FC = () => {
             <Text>
               <TeamOutlined /> {classInfo.totalStudents} thành viên
             </Text>
-            <Text>
-              <CalendarOutlined /> {formatScheduleSimple(classInfo.schedule)}
-            </Text>
             <Tag color={statusConfig.color}>{statusConfig.text}</Tag>
           </Space>
         </Space>
@@ -522,313 +432,343 @@ const StudentClassDetailPage: React.FC = () => {
           boxShadow: "0 6px 18px rgba(15, 23, 42, 0.05)",
         }}
       >
-      <Tabs className="class-detail-tabs" activeKey={activeTab} onChange={handleTabChange} size="large">
-        <Tabs.TabPane tab="📝 Bài đăng" key="posts">
-          <TeacherClassPostsPanel classId={classInfo.id} allowCreatePost={false} />
-        </Tabs.TabPane>
+        <Tabs className="class-detail-tabs" activeKey={activeTab} onChange={handleTabChange} size="large">
+          <Tabs.TabPane tab="📝 Bài đăng" key="posts">
+            <TeacherClassPostsPanel classId={classInfo.id} allowCreatePost={false} />
+          </Tabs.TabPane>
 
-        <Tabs.TabPane tab="📚 Tài liệu" key="documents">
-          <Card
-            title={
-              <Space>
-                <FileTextOutlined />
-                Tài liệu lớp học
-              </Space>
-            }
-            extra={
-              <Button
-                type="primary"
-                icon={<BookOutlined />}
-                disabled={documentsData.length === 0}
-                onClick={() => {
-                  if (documentsData.length > 0) navigate(`/student/classes/${classId}/learning/${documentsData[0].documentId}`, { state: { className: classData?.class.className } });
-                }}
-                style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', border: 'none', borderRadius: 10, fontWeight: 600 }}
-              >
-                🤖 Mở với AI Trợ Giảng
-              </Button>
-            }
-            style={{ borderRadius: 12 }}
-          >
-            <Table
-              loading={loadingDocuments}
-              dataSource={documentsData}
-              rowKey="documentId"
-              pagination={{ pageSize: 10 }}
-              locale={{ emptyText: "Chưa có tài liệu nào" }}
-              columns={[
-                {
-                  title: "Tên tài liệu",
-                  dataIndex: "title",
-                  key: "title",
-                  render: (value: string, record: ClassDocumentItem) => (
-                    <Button
-                      type="link"
-                      style={{ paddingInline: 0, height: "auto" }}
-                      onClick={async () => {
-                        try { await openClassDocument(record.documentId); }
-                        catch { message.error("Không thể mở tài liệu"); }
-                      }}
-                    >
-                      {value}
-                    </Button>
-                  ),
-                },
-                {
-                  title: "Bài đăng",
-                  dataIndex: "postId",
-                  key: "postId",
-                  width: 100,
-                  render: (value: number) => (
-                    <Button type="link" style={{ paddingInline: 0 }} onClick={() => setActiveDocumentPostId(value)}>#{value}</Button>
-                  ),
-                },
-                {
-                  title: "Thời gian",
-                  dataIndex: "createdAt",
-                  key: "createdAt",
-                  width: 200,
-                  render: (value: string) => new Date(value).toLocaleString("vi-VN"),
-                },
-                {
-                  title: "",
-                  key: "aiAction",
-                  width: 160,
-                  render: (_: unknown, record: ClassDocumentItem) => (
+          <Tabs.TabPane tab="📚 Tài liệu" key="documents">
+            <Card
+              title={
+                <Space>
+                  <FileTextOutlined />
+                  Tài liệu lớp học
+                </Space>
+              }
+              extra={
+                <Button
+                  type="primary"
+                  icon={<BookOutlined />}
+                  disabled={documentsData.length === 0}
+                  onClick={() => {
+                    if (documentsData.length > 0) navigate(`/student/classes/${classId}/learning/${documentsData[0].documentId}`, { state: { className: classData?.class.className } });
+                  }}
+                  style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', border: 'none', borderRadius: 10, fontWeight: 600 }}
+                >
+                  🤖 Mở với AI Trợ Giảng
+                </Button>
+              }
+              style={{ borderRadius: 12 }}
+            >
+              <Table
+                loading={loadingDocuments}
+                dataSource={documentsData}
+                rowKey="documentId"
+                pagination={{ pageSize: 10 }}
+                locale={{ emptyText: "Chưa có tài liệu nào" }}
+                columns={[
+                  {
+                    title: "Tên tài liệu",
+                    dataIndex: "title",
+                    key: "title",
+                    render: (value: string, record: ClassDocumentItem) => (
+                      <Space direction="vertical" size={2}>
+                        <Button
+                          type="link"
+                          style={{ paddingInline: 0, height: "auto", textAlign: "left", whiteSpace: "normal" }}
+                          onClick={async () => {
+                            try { await openClassDocument(record.documentId, record.title); }
+                            catch { message.error("Không thể mở tài liệu"); }
+                          }}
+                        >
+                          {value}
+                        </Button>
+                        {record.isPrivate ? (
+                          <Tag color="volcano" style={{ margin: 0 }}>Chỉ dành cho Lớp</Tag>
+                        ) : (
+                          <Tag color="geekblue" style={{ margin: 0 }}>Học phần chung</Tag>
+                        )}
+                      </Space>
+                    ),
+                  },
+                  {
+                    title: "Thời gian",
+                    dataIndex: "createdAt",
+                    key: "createdAt",
+                    width: 200,
+                    render: (value: string) => new Date(value).toLocaleString("vi-VN"),
+                  },
+                  {
+                    title: "",
+                    key: "aiAction",
+                    width: 160,
+                    render: (_: unknown, record: ClassDocumentItem) => (
+                      <Button
+                        type="primary"
+                        size="small"
+                        icon={<BookOutlined />}
+                        onClick={() => navigate(`/student/classes/${classId}/learning/${record.documentId}`, { state: { className: classData?.class.className } })}
+                        style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', border: 'none', borderRadius: 8 }}
+                      >
+                        AI Trợ Giảng
+                      </Button>
+                    ),
+                  },
+                ]}
+              />
+            </Card>
+          </Tabs.TabPane>
+
+          <Tabs.TabPane tab="📅 Điểm danh" key="attendance">
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+              <Col xs={12} md={6}>
+                <Card style={{ borderRadius: 12 }}>
+                  <Statistic title="Tỷ lệ" value={attendanceRate} suffix="%" />
+                  <Progress percent={attendanceRate} size="small" showInfo={false} />
+                </Card>
+              </Col>
+              <Col xs={12} md={6}>
+                <Card style={{ borderRadius: 12 }}>
+                  <Statistic title="Có mặt" value={presentCount} suffix={`/${totalSessions}`} prefix={<CheckCircleOutlined />} />
+                </Card>
+              </Col>
+              <Col xs={12} md={6}>
+                <Card style={{ borderRadius: 12 }}>
+                  <Statistic title="Đi trễ" value={lateCount} suffix={`/${totalSessions}`} prefix={<ClockCircleOutlined />} />
+                </Card>
+              </Col>
+              <Col xs={12} md={6}>
+                <Card style={{ borderRadius: 12 }}>
+                  <Statistic title="Vắng mặt" value={absentCount} suffix={`/${totalSessions}`} prefix={<ExclamationCircleOutlined />} />
+                </Card>
+              </Col>
+            </Row>
+
+            <Row gutter={[16, 16]}>
+              <Col xs={24} lg={16}>
+                <Card
+                  title={
+                    <Space>
+                      <CalendarOutlined />
+                      Lịch sử điểm danh của bạn
+                    </Space>
+                  }
+                  loading={attendanceLoading}
+                  style={{ borderRadius: 12 }}
+                >
+                  {attendanceError ? (
+                    <Alert type="error" showIcon message="Lỗi tải điểm danh" description={attendanceError} />
+                  ) : (
+                    <Table
+                      dataSource={classAttendanceSummary?.sessions || []}
+                      columns={attendanceColumns}
+                      rowKey="session_id"
+                      pagination={{ pageSize: 8 }}
+                      locale={{ emptyText: <Empty description="Không có dữ liệu điểm danh" /> }}
+                    />
+                  )}
+                </Card>
+              </Col>
+
+              <Col xs={24} lg={8}>
+                <Card
+                  title={
+                    <Space>
+                      <FileTextOutlined />
+                      Đơn xin nghỉ
+                    </Space>
+                  }
+                  extra={
                     <Button
                       type="primary"
-                      size="small"
-                      icon={<BookOutlined />}
-                      onClick={() => navigate(`/student/classes/${classId}/learning/${record.documentId}`, { state: { className: classData?.class.className } })}
-                      style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', border: 'none', borderRadius: 8 }}
+                      icon={<PlusOutlined />}
+                      onClick={() => setIsLeaveModalVisible(true)}
+                      loading={submittingLeaveRequest}
                     >
-                      AI Trợ Giảng
+                      Xin nghỉ
                     </Button>
-                  ),
-                },
-              ]}
-            />
-          </Card>
-        </Tabs.TabPane>
-
-        <Tabs.TabPane tab="📅 Điểm danh" key="attendance">
-          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-            <Col xs={12} md={6}>
-              <Card style={{ borderRadius: 12 }}>
-                <Statistic title="Tỷ lệ" value={attendanceRate} suffix="%" />
-                <Progress percent={attendanceRate} size="small" showInfo={false} />
-              </Card>
-            </Col>
-            <Col xs={12} md={6}>
-              <Card style={{ borderRadius: 12 }}>
-                <Statistic title="Có mặt" value={presentCount} suffix={`/${totalSessions}`} prefix={<CheckCircleOutlined />} />
-              </Card>
-            </Col>
-            <Col xs={12} md={6}>
-              <Card style={{ borderRadius: 12 }}>
-                <Statistic title="Đi trễ" value={lateCount} suffix={`/${totalSessions}`} prefix={<ClockCircleOutlined />} />
-              </Card>
-            </Col>
-            <Col xs={12} md={6}>
-              <Card style={{ borderRadius: 12 }}>
-                <Statistic title="Vắng mặt" value={absentCount} suffix={`/${totalSessions}`} prefix={<ExclamationCircleOutlined />} />
-              </Card>
-            </Col>
-          </Row>
-
-          <Row gutter={[16, 16]}>
-            <Col xs={24} lg={16}>
-              <Card
-                title={
-                  <Space>
-                    <CalendarOutlined />
-                    Lịch sử điểm danh của bạn
-                  </Space>
-                }
-                loading={attendanceLoading}
-                style={{ borderRadius: 12 }}
-              >
-                {attendanceError ? (
-                  <Alert type="error" showIcon message="Lỗi tải điểm danh" description={attendanceError} />
-                ) : (
-                  <Table
-                    dataSource={classAttendanceSummary?.sessions || []}
-                    columns={attendanceColumns}
-                    rowKey="session_id"
-                    pagination={{ pageSize: 8 }}
-                    locale={{ emptyText: <Empty description="Không có dữ liệu điểm danh" /> }}
-                  />
-                )}
-              </Card>
-            </Col>
-
-            <Col xs={24} lg={8}>
-              <Card
-                title={
-                  <Space>
-                    <FileTextOutlined />
-                    Đơn xin nghỉ
-                  </Space>
-                }
-                extra={
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => setIsLeaveModalVisible(true)}
-                    loading={submittingLeaveRequest}
-                  >
-                    Xin nghỉ
-                  </Button>
-                }
-                loading={leaveRequestsLoading}
-                style={{ borderRadius: 12 }}
-              >
-                {leaveRequests.length > 0 ? (
-                  <Timeline>
-                    {leaveRequests.map((request) => {
-                      const config = getLeaveStatusConfig(request.status);
-                      return (
-                        <Timeline.Item key={request.id} color={config.color}>
-                          <Text strong>{dayjs(request.leaveDate).format("DD/MM/YYYY")}</Text>
-                          <br />
-                          <Tag color={config.color}>{config.text}</Tag>
-                          <br />
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            {request.reason}
-                          </Text>
-                        </Timeline.Item>
-                      );
-                    })}
-                  </Timeline>
-                ) : (
-                  <Empty description="Chưa có đơn xin nghỉ" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-                )}
-              </Card>
-            </Col>
-          </Row>
-        </Tabs.TabPane>
-
-        <Tabs.TabPane
-          tab={
-            <span>
-              <TeamOutlined />
-              Thông tin lớp học ({classInfo.totalStudents})
-            </span>
-          }
-          key="class-info"
-        >
-          <Row gutter={[16, 16]}>
-            <Col xs={24} md={12}>
-              <Card title="Thông tin cơ bản" style={{ borderRadius: 12 }}>
-                <Space direction="vertical" size={6}>
-                  <Text>
-                    <BookOutlined /> Mã lớp: <strong>{classInfo.classCode}</strong>
-                  </Text>
-                  <Text>
-                    <UserOutlined /> Giảng viên: {classInfo.teacherName}
-                  </Text>
-                  <Text>
-                    <TeamOutlined /> Thành viên: {classInfo.totalStudents}
-                  </Text>
-                  {classInfo.location && (
-                    <Text>
-                      <EnvironmentOutlined /> Phòng: {classInfo.location}
-                    </Text>
+                  }
+                  loading={leaveRequestsLoading}
+                  style={{ borderRadius: 12 }}
+                >
+                  {leaveRequests.length > 0 ? (
+                    <Timeline>
+                      {leaveRequests.map((request) => {
+                        const config = getLeaveStatusConfig(request.status);
+                        return (
+                          <Timeline.Item key={request.id} color={config.color}>
+                            <Text strong>{dayjs(request.leaveDate).format("DD/MM/YYYY")}</Text>
+                            <br />
+                            <Tag color={config.color}>{config.text}</Tag>
+                            <br />
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              {request.reason}
+                            </Text>
+                          </Timeline.Item>
+                        );
+                      })}
+                    </Timeline>
+                  ) : (
+                    <Empty description="Chưa có đơn xin nghỉ" image={Empty.PRESENTED_IMAGE_SIMPLE} />
                   )}
-                  <Text>
-                    <CalendarOutlined /> Tham gia từ: {dayjs(enrollment.joinedAt).format("DD/MM/YYYY HH:mm")}
-                  </Text>
-                </Space>
-              </Card>
-            </Col>
+                </Card>
+              </Col>
+            </Row>
+          </Tabs.TabPane>
 
-            <Col xs={24} md={12}>
-              <Card title="Lịch học" style={{ borderRadius: 12 }}>
-                {scheduleDetails.length > 0 ? (
-                  <Space direction="vertical" style={{ width: "100%" }}>
-                    {scheduleDetails.map((daySchedule) => (
-                      <Card key={daySchedule.day} size="small">
-                        <Text strong>{daySchedule.day}</Text>
-                        <div style={{ marginTop: 6 }}>
-                          {daySchedule.periods.map((period) => (
-                            <Tag key={`${daySchedule.day}-${period.range}`} color="blue" style={{ marginBottom: 6 }}>
-                              {period.range} ({period.time})
-                            </Tag>
-                          ))}
-                        </div>
-                      </Card>
-                    ))}
+          <Tabs.TabPane
+            tab={
+              <span>
+                <TeamOutlined />
+                Thông tin lớp học ({classInfo.totalStudents})
+              </span>
+            }
+            key="class-info"
+          >
+            <Row gutter={[16, 16]}>
+              <Col xs={24} md={12}>
+                <Card title="Thông tin cơ bản" style={{ borderRadius: 12 }}>
+                  <Space direction="vertical" size={6}>
+                    <Text>
+                      <BookOutlined /> Mã lớp: <strong>{classInfo.classCode}</strong>
+                    </Text>
+                    <Text>
+                      <UserOutlined /> Giảng viên: {classInfo.teacherName}
+                    </Text>
+                    <Text>
+                      <TeamOutlined /> Thành viên: {classInfo.totalStudents}
+                    </Text>
+                    {classInfo.location && (
+                      <Text>
+                        <EnvironmentOutlined /> Phòng: {classInfo.location}
+                      </Text>
+                    )}
+                    <Text>
+                      <CalendarOutlined /> Tham gia từ: {dayjs(enrollment.joinedAt).format("DD/MM/YYYY HH:mm")}
+                    </Text>
                   </Space>
-                ) : (
-                  <Empty description="Không có lịch học" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-                )}
-              </Card>
-            </Col>
-          </Row>
+                </Card>
+              </Col>
 
-          {classInfo.description && (
-            <Card title="Mô tả lớp" style={{ marginTop: 16, borderRadius: 12 }}>
-              <Paragraph style={{ marginBottom: 0 }}>{classInfo.description}</Paragraph>
-            </Card>
-          )}
-
-          <Card title="Danh sách học sinh" style={{ marginTop: 16, borderRadius: 12 }}>
-            <Table
-              loading={loadingClassmates}
-              dataSource={classmates}
-              rowKey="id"
-              pagination={{ pageSize: 8 }}
-              locale={{ emptyText: "Chưa có học sinh" }}
-              columns={[
-                {
-                  title: "Avatar",
-                  key: "avatar",
-                  width: 76,
-                  align: "center" as const,
-                  render: (record: StudentClassmateItem) => (
-                    <Avatar src={resolveAvatarUrl(record.avatar)} icon={<UserOutlined />}>
-                      {record.fullName?.slice(0, 1).toUpperCase()}
-                    </Avatar>
-                  ),
-                },
-                {
-                  title: "Học sinh",
-                  key: "student",
-                  render: (record: StudentClassmateItem) => (
-                    <Space>
-                      <Button
-                        type="link"
-                        style={{ padding: 0 }}
-                        onClick={() => setSelectedClassmate(record)}
-                      >
-                        {record.fullName}
-                      </Button>
-                      <Text type="secondary">({record.studentId})</Text>
+              <Col xs={24} md={12}>
+                <Card
+                  title={<Space><CalendarOutlined style={{ color: '#3b82f6' }} /><Text strong>Lịch học</Text></Space>}
+                  style={{ borderRadius: 12 }}
+                >
+                  {scheduleDetails?.schedules && scheduleDetails.schedules.length > 0 ? (
+                    <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                      {scheduleDetails.schedules.map((daySchedule, idx) => {
+                        const loc = (daySchedule as any).location as string | undefined;
+                        const periods: number[] = daySchedule.periods || [];
+                        const start = periods[0];
+                        const end = periods[periods.length - 1];
+                        const { start: startTime, end: endTime } = getTimeRangeForPeriods(start, end);
+                        const dayLabel = DAY_NAMES[daySchedule.day] ?? `Ngày ${daySchedule.day}`;
+                        const periodLabel = start === end ? `Tiết ${start}` : `Tiết ${start}-${end}`;
+                        return (
+                          <Card
+                            key={`${daySchedule.day}-${idx}`}
+                            size="small"
+                            style={{
+                              borderRadius: 10,
+                              borderLeft: '4px solid #3b82f6',
+                              background: 'linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%)'
+                            }}
+                          >
+                            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                              <Text strong style={{ color: '#1e40af', fontSize: 14 }}>
+                                <CalendarOutlined style={{ marginRight: 6 }} />{dayLabel}
+                              </Text>
+                              <Space wrap size={8}>
+                                <Tag color="blue" style={{ borderRadius: 6, fontWeight: 500 }}>
+                                  {periodLabel}
+                                </Tag>
+                                <Tag color="cyan" style={{ borderRadius: 6 }}>
+                                  <ClockCircleOutlined style={{ marginRight: 4 }} />
+                                  {startTime} – {endTime}
+                                </Tag>
+                                {loc && (
+                                  <Tag color="green" style={{ borderRadius: 6 }}>
+                                    <EnvironmentOutlined style={{ marginRight: 4 }} />
+                                    Phòng {loc}
+                                  </Tag>
+                                )}
+                              </Space>
+                            </Space>
+                          </Card>
+                        );
+                      })}
                     </Space>
-                  )
-                },
-                {
-                  title: "Email",
-                  dataIndex: "email",
-                  key: "email",
-                },
-                {
-                  title: "Khoa",
-                  dataIndex: "department",
-                  key: "department",
-                  render: (value: string | null) => value || "-",
-                },
-                {
-                  title: "Tỷ lệ",
-                  key: "attendanceRate",
-                  width: 120,
-                  render: (record: StudentClassmateItem) => `${record.attendanceStats.attendanceRate.toFixed(1)}%`,
-                },
-              ]}
-            />
-          </Card>
-        </Tabs.TabPane>
-      </Tabs>
+                  ) : (
+                    <Empty description="Không có lịch học" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                  )}
+                </Card>
+              </Col>
+            </Row>
+
+            {classInfo.description && (
+              <Card title="Mô tả lớp" style={{ marginTop: 16, borderRadius: 12 }}>
+                <Paragraph style={{ marginBottom: 0 }}>{classInfo.description}</Paragraph>
+              </Card>
+            )}
+
+            <Card title="Danh sách học sinh" style={{ marginTop: 16, borderRadius: 12 }}>
+              <Table
+                loading={loadingClassmates}
+                dataSource={classmates}
+                rowKey="id"
+                pagination={{ pageSize: 8 }}
+                locale={{ emptyText: "Chưa có học sinh" }}
+                columns={[
+                  {
+                    title: "Avatar",
+                    key: "avatar",
+                    width: 76,
+                    align: "center" as const,
+                    render: (record: StudentClassmateItem) => (
+                      <Avatar src={resolveAvatarUrl(record.avatar)} icon={<UserOutlined />}>
+                        {record.fullName?.slice(0, 1).toUpperCase()}
+                      </Avatar>
+                    ),
+                  },
+                  {
+                    title: "Học sinh",
+                    key: "student",
+                    render: (record: StudentClassmateItem) => (
+                      <Space>
+                        <Button
+                          type="link"
+                          style={{ padding: 0 }}
+                          onClick={() => setSelectedClassmate(record)}
+                        >
+                          {record.fullName}
+                        </Button>
+                        <Text type="secondary">({record.studentId})</Text>
+                      </Space>
+                    )
+                  },
+                  {
+                    title: "Email",
+                    dataIndex: "email",
+                    key: "email",
+                  },
+                  {
+                    title: "Khoa",
+                    dataIndex: "department",
+                    key: "department",
+                    render: (value: string | null) => value || "-",
+                  },
+                  {
+                    title: "Tỷ lệ",
+                    key: "attendanceRate",
+                    width: 120,
+                    render: (record: StudentClassmateItem) => `${record.attendanceStats.attendanceRate.toFixed(1)}%`,
+                  },
+                ]}
+              />
+            </Card>
+          </Tabs.TabPane>
+        </Tabs>
       </Card>
 
       <Modal
@@ -856,19 +796,6 @@ const StudentClassDetailPage: React.FC = () => {
             <Text><strong>Ngày tham gia lớp:</strong> {dayjs(selectedClassmate.joinedAt).format("DD/MM/YYYY HH:mm")}</Text>
           </Space>
         )}
-      </Modal>
-
-      <Modal
-        title={activeDocumentPostId ? `Bài đăng #${activeDocumentPostId}` : "Bài đăng"}
-        open={!!activeDocumentPostId}
-        onCancel={() => setActiveDocumentPostId(null)}
-        footer={null}
-        width={920}
-        destroyOnHidden
-      >
-        {classId && activeDocumentPostId ? (
-          <TeacherClassPostsPanel classId={classId} allowCreatePost={false} focusPostId={activeDocumentPostId} />
-        ) : null}
       </Modal>
 
       <LeaveRequestModal

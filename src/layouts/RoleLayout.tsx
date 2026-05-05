@@ -21,6 +21,7 @@ const leftBarConfig = {
         { key: "teachers", label: "Giáo viên", path: "/admin/teachers" },
         { key: "students", label: "Sinh viên", path: "/admin/students" },
         { key: "departments", label: "Khoa & Chuyên ngành", path: "/admin/departments" },
+        { key: "rooms", label: "Phòng học", path: "/admin/rooms" },
       ]
     },
     {
@@ -40,6 +41,7 @@ const leftBarConfig = {
     {
       label: "Quản lý",
       items: [
+        { key: "courses", label: "Học phần", path: "/teacher/courses" },
         { key: "class", label: "Lớp học", path: "/teacher/classes" },
         { key: "leave", label: "Đơn nghỉ phép", path: "/teacher/leave-requests" }
       ]

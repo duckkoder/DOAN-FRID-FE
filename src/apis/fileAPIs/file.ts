@@ -31,7 +31,9 @@ export type MyFilesResponse = {
 
 type UploadDocumentOptions = {
   courseId?: string;
+  onlyClassId?: string;
   title?: string;
+  isEmbedding?: boolean;
 };
 
 // ==================== API Functions ====================
@@ -68,8 +70,14 @@ export async function uploadDocument(
   if (options?.courseId) {
     fd.append("course_id", options.courseId);
   }
+  if (options?.onlyClassId) {
+    fd.append("only_class_id", options.onlyClassId);
+  }
   if (options?.title) {
     fd.append("title", options.title);
+  }
+  if (options?.isEmbedding !== undefined) {
+    fd.append("is_embedding", String(options.isEmbedding));
   }
 
   const res = await api.post("/files/upload/document", fd, {
@@ -123,21 +131,94 @@ export async function getMyFiles(): Promise<MyFilesResponse> {
 /**
  * Open class document content through backend stream endpoint (auth required).
  */
-export async function openClassDocument(documentId: string): Promise<void> {
+export async function openClassDocument(documentId: string, title?: string): Promise<void> {
   const res = await api.get(`/files/documents/${documentId}/content`, {
     responseType: "blob",
   });
 
-  const blob = new Blob([res.data], {
-    type: (res.headers["content-type"] as string) || "application/octet-stream",
-  });
-
+  const contentType = (res.headers["content-type"] as string) || "application/octet-stream";
+  const blob = new Blob([res.data], { type: contentType });
   const objectUrl = URL.createObjectURL(blob);
-  window.open(objectUrl, "_blank", "noopener,noreferrer");
 
-  // Delay revoke to avoid cutting off the new tab while loading large files.
+  // For PDF or Images, we can try to open in a new tab with a customized title
+  if (contentType === "application/pdf" || contentType.startsWith("image/")) {
+    const newWindow = window.open();
+    if (newWindow) {
+      newWindow.document.title = title || "Document";
+      newWindow.document.body.style.margin = "0";
+      newWindow.document.body.style.height = "100vh";
+      newWindow.document.body.style.overflow = "hidden";
+      
+      const iframe = newWindow.document.createElement("iframe");
+      iframe.src = objectUrl;
+      iframe.style.width = "100%";
+      iframe.style.height = "100%";
+      iframe.style.border = "none";
+      
+      newWindow.document.body.appendChild(iframe);
+      
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+      return;
+    }
+  }
+
+  // Fallback for other file types or if popup is blocked: force download with correct filename
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = title || "document";
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  // Delay revoke to avoid cutting off the download
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
 }
+
+/**
+ * Open any file content through backend stream endpoint (auth required).
+ */
+export async function openGeneralFile(fileId: number, title?: string): Promise<void> {
+  const res = await api.get(`/files/${fileId}/content`, {
+    responseType: "blob",
+  });
+
+  const contentType = (res.headers["content-type"] as string) || "application/octet-stream";
+  const blob = new Blob([res.data], { type: contentType });
+  const objectUrl = URL.createObjectURL(blob);
+
+  if (contentType === "application/pdf" || contentType.startsWith("image/")) {
+    const newWindow = window.open();
+    if (newWindow) {
+      newWindow.document.title = title || "File Content";
+      newWindow.document.body.style.margin = "0";
+      newWindow.document.body.style.height = "100vh";
+      newWindow.document.body.style.overflow = "hidden";
+      
+      const iframe = newWindow.document.createElement("iframe");
+      iframe.src = objectUrl;
+      iframe.style.width = "100%";
+      iframe.style.height = "100%";
+      iframe.style.border = "none";
+      
+      newWindow.document.body.appendChild(iframe);
+      
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+      return;
+    }
+  }
+
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = title || "file";
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+}
+
 
 // ==================== Helper Functions ====================
 

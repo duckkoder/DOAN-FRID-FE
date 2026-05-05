@@ -9,7 +9,6 @@ import {
   Space,
   Avatar,
   Statistic,
-  Select,
   Spin,
   Empty,
   message
@@ -29,8 +28,7 @@ import 'dayjs/locale/vi';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import weekday from 'dayjs/plugin/weekday';
 import { 
-  getClassesList, 
-  type ClassListItem
+  getClassesList
 } from "../../apis/classesAPIs/teacherClass";
 
 dayjs.extend(isoWeek);
@@ -45,7 +43,7 @@ interface ClassSession {
   name: string;
   time: string;
   endTime: string;
-  room: string;
+  location: string;
   studentCount: number;
   status: 'active' | 'inactive';
   day: number;
@@ -66,7 +64,6 @@ const TeacherClassPage: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(dayjs());
   const [classes, setClasses] = useState<ClassSession[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<'active' | 'inactive' | null>(null);
   const navigate = useNavigate();
 
   // Time slots mapping
@@ -87,13 +84,12 @@ const TeacherClassPage: React.FC = () => {
 
   useEffect(() => {
     fetchClasses();
-  }, [filterStatus]);
+  }, []);
 
   const fetchClasses = async () => {
     setLoading(true);
     try {
-      const response = await getClassesList(filterStatus || undefined);
-      
+      const response = await getClassesList('active');
       if (response.success && response.data.classes) {
         const transformedClasses = transformApiDataToSessions(response.data.classes);
         setClasses(transformedClasses);
@@ -106,6 +102,8 @@ const TeacherClassPage: React.FC = () => {
     }
   };
 
+
+
   const transformApiDataToSessions = (apiClasses: ClassListItem[]): ClassSession[] => {
     const sessions: ClassSession[] = [];
 
@@ -115,33 +113,33 @@ const TeacherClassPage: React.FC = () => {
     };
 
     apiClasses.forEach(cls => {
-      if (!cls.schedule) return;
+      if (!cls.schedule || !cls.schedule.schedules) return;
 
-      Object.entries(cls.schedule).forEach(([day, periods]) => {
-        if (!periods || !Array.isArray(periods) || periods.length === 0) return;
-        
-        const dayNumber = dayMapping[day];
-        if (!dayNumber) return;
+      cls.schedule.schedules.forEach((daySchedule, sessionIndex) => {
+        const { day, periods, location, room } = daySchedule as any;
+        if (!periods || periods.length === 0) return;
 
-        (periods as string[]).forEach((periodRange, sessionIndex) => {
-          const [start, end] = periodRange.split('-').map(Number);
-          
-          if (isNaN(start) || isNaN(end) || !TIME_SLOTS[start]) return;
-          
-          sessions.push({
-            id: cls.id,
-            subject: cls.subject || cls.name,
-            name: cls.name,
-            time: TIME_SLOTS[start],
-            endTime: END_TIME_SLOTS[end] || "18:00",
-            room: cls.location || 'N/A',
-            studentCount: cls.studentCount,
-            status: cls.status,
-            day: dayNumber,
-            classCode: cls.classCode,
-            periods: periodRange,
-            sessionIndex: sessionIndex
-          });
+        // day 0=Monday..6=Sunday → display as 1=Monday..7=Sunday
+        const dayNumber = day + 1;
+
+        const start = periods[0];
+        const end = periods[periods.length - 1];
+
+        if (!TIME_SLOTS[start]) return;
+
+        sessions.push({
+          id: cls.id,
+          subject: cls.subject || cls.name,
+          name: cls.name,
+          time: TIME_SLOTS[start],
+          endTime: END_TIME_SLOTS[end] || "18:00",
+          location: location || room || cls.location || 'N/A',
+          studentCount: cls.studentCount,
+          status: cls.status,
+          day: dayNumber,
+          classCode: cls.classCode,
+          periods: `${start}-${end}`,
+          sessionIndex: sessionIndex
         });
       });
     });
@@ -241,7 +239,7 @@ const TeacherClassPage: React.FC = () => {
 
     if (classes.length === 0) {
       return (
-        <Empty description="Chưa có lớp nào" image={Empty.PRESENTED_IMAGE_SIMPLE}>
+        <Empty description="Chưa có lớp nào đang hoạt động" image={Empty.PRESENTED_IMAGE_SIMPLE}>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/teacher/classes/create')}>
             Tạo lớp học đầu tiên
           </Button>
@@ -324,7 +322,7 @@ const TeacherClassPage: React.FC = () => {
                                       <BookOutlined /> {formatPeriod(cls.periods)}
                                     </Text>
                                     <Text type="secondary" style={{ fontSize: 11 }}>
-                                      <EnvironmentOutlined /> Phòng {cls.room}
+                                      <EnvironmentOutlined /> Địa điểm {cls.location}
                                     </Text>
                                     <Text type="secondary" style={{ fontSize: 11 }}>
                                       <UserOutlined /> {cls.studentCount} sinh viên
@@ -474,33 +472,20 @@ const TeacherClassPage: React.FC = () => {
         </div>
 
         <div className="class-page-actions">
-          <Space size={12}>
-            <Button 
-              type="primary" icon={<PlusOutlined />} size="large"
-              onClick={() => navigate('/teacher/classes/create')}
-              style={{ 
-                borderRadius: 8, 
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                border: 'none', 
-                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)', 
-                fontWeight: 600,
-                height: 44
-              }}
-            >
-              Tạo Lớp Mới
-            </Button>
-            
-            <Select
-              value={filterStatus || 'all'}
-              onChange={(value) => setFilterStatus(value === 'all' ? null : value as 'active' | 'inactive')}
-              style={{ width: 150 }} 
-              size="large"
-            >
-              <Select.Option value="all">Tất cả</Select.Option>
-              <Select.Option value="active">Đang hoạt động</Select.Option>
-              <Select.Option value="inactive">Không hoạt động</Select.Option>
-            </Select>
-          </Space>
+          <Button 
+            type="primary" icon={<PlusOutlined />} size="large"
+            onClick={() => navigate('/teacher/classes/create')}
+            style={{ 
+              borderRadius: 8, 
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              border: 'none', 
+              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)', 
+              fontWeight: 600,
+              height: 44
+            }}
+          >
+            Tạo Lớp Mới
+          </Button>
         </div>
       </div>
 

@@ -47,6 +47,7 @@ import {
   type TeacherClassLeaveRequestStats,
   type LeaveRequestStatus
 } from "../../apis/leaveRequestAPIs/leaveRequest";
+import { openGeneralFile } from "../../apis/fileAPIs/file";
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -819,11 +820,10 @@ const TeacherLeaveRequestPage: React.FC = () => {
               </Row>
             </Card>
 
-            {/* Evidence File */}
-            {selectedRequest.evidenceFileUrl && (
+            {selectedRequest.evidenceFileId && (
               <Card 
                 size="small" 
-                style={{ marginBottom: 16 }}
+                style={{ marginBottom: 16, border: '1px solid #d1fae5' }}
                 title={
                   <Space>
                     <FileImageOutlined style={{ color: '#10b981' }} />
@@ -832,31 +832,29 @@ const TeacherLeaveRequestPage: React.FC = () => {
                 }
               >
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
-                  {selectedRequest.evidenceFileUrl.toLowerCase().includes('.pdf') ? (
-                    <div>
-                      {getFileIcon(selectedRequest.evidenceFileUrl)}
-                      <div style={{ marginTop: 16 }}>
-                        <Button 
-                          type="primary"
-                          icon={<EyeOutlined />}
-                          onClick={() => window.open(selectedRequest.evidenceFileUrl, '_blank')}
-                        >
-                          Xem file PDF
-                        </Button>
-                      </div>
+                  <Space direction="vertical" size={12}>
+                    <div style={{ 
+                      padding: '16px', 
+                      background: '#f0fdf4', 
+                      borderRadius: 12,
+                      display: 'inline-block'
+                    }}>
+                      <FileTextOutlined style={{ fontSize: 48, color: '#10b981' }} />
                     </div>
-                  ) : (
-                    <Image
-                      src={selectedRequest.evidenceFileUrl}
-                      alt="Evidence file"
-                      style={{ 
-                        maxHeight: 300, 
-                        borderRadius: 8,
-                        border: '2px solid #e5e7eb'
-                      }}
-                      fallback="../assets/fallback.png"
-                    />
-                  )}
+                    <div>
+                      <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
+                        Tài liệu minh chứng đã được tải lên
+                      </Text>
+                      <Button 
+                        type="primary"
+                        icon={<EyeOutlined />}
+                        onClick={() => openGeneralFile(selectedRequest.evidenceFileId!, `Minh_chung_${selectedRequest.studentName}`)}
+                        style={{ borderRadius: 8, background: '#10b981', borderColor: '#10b981' }}
+                      >
+                        Xem minh chứng (PDF/Ảnh)
+                      </Button>
+                    </div>
+                  </Space>
                 </div>
               </Card>
             )}

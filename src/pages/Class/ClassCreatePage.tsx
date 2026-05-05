@@ -25,6 +25,7 @@ import {
   CheckCircleOutlined,
   PlusOutlined,
   DeleteOutlined,
+  EnvironmentOutlined,
   ExclamationCircleOutlined
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
@@ -35,7 +36,11 @@ import {
   type CreateClassRequest,
   type ApiError
 } from "../../apis/classesAPIs/teacherClass";
+import { getCoursesList, type CourseListItem } from "../../apis/coursesAPIs/course";
+import { getRoomsList, type Room } from "../../apis/roomsAPIs/room";
 import { useAuth } from "../../hooks/useAuth";
+import { useToast } from "../../context/ToastContext";
+import { WEEK_DAYS_OPTIONS, PERIOD_OPTIONS } from "../../constants/mappings";
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -63,23 +68,27 @@ interface TimeSession {
 interface ClassSchedule {
   day: number;
   sessions: TimeSession[];
+  location?: string;
 }
 
 interface ClassFormData {
   subject: string;
   description: string;
   room: string;
+  course_id: string;
   schedules: ClassSchedule[];
 }
 
 const ClassCreatePage: React.FC = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [form] = Form.useForm();
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<ClassFormData>({
     subject: '',
     description: '',
     room: '',
+    course_id: '',
     schedules: []
   });
   const [loading, setLoading] = useState(false);
@@ -90,8 +99,115 @@ const ClassCreatePage: React.FC = () => {
   
   // ✅ Temporary selected periods for each day (before splitting)
   const [dayPeriods, setDayPeriods] = useState<Record<number, number[]>>({});
+  // ✅ Room per day
+  const [dayRooms, setDayRooms] = useState<Record<number, string>>({});
+  
+  // ✅ Course List Data
+  const [courses, setCourses] = useState<CourseListItem[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState(false);
+  
+  // ✅ Room List Data
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [loadingRooms, setLoadingRooms] = useState(false);
   
   const userStr = useAuth().user;
+
+  const t = (key: string, params?: Record<string, string | number>) => {
+    const dict: Record<string, string> = {
+      "class.create_failed": "Có lỗi xảy ra khi tạo lớp học",
+      "class.create_success": "Tạo lớp học thành công",
+      "error.details": "Chi tiết lỗi",
+      "error.unknown": "Đã xảy ra lỗi không xác định",
+      "api.room_not_found": "Phòng '{location}' không tồn tại hoặc đang bị khóa",
+      "api.schedule_requires_location": "Mỗi buổi học phải có địa điểm",
+      "api.teacher_only_create": "Chỉ giảng viên mới có thể tạo lớp học",
+      "api.teacher_id_mismatch": "Bạn chỉ có thể tạo lớp cho chính mình",
+      "api.course_uuid_invalid": "course_id không đúng định dạng UUID",
+    };
+
+    let content = dict[key] || key;
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        content = content.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));
+      });
+    }
+    return content;
+  };
+
+  const dayToVietnamese = (day: string): string => {
+    const map: Record<string, string> = {
+      monday: "Thứ Hai",
+      tuesday: "Thứ Ba",
+      wednesday: "Thứ Tư",
+      thursday: "Thứ Năm",
+      friday: "Thứ Sáu",
+      saturday: "Thứ Bảy",
+      sunday: "Chủ Nhật",
+    };
+    return map[day.toLowerCase()] || day;
+  };
+
+  const translateBackendMessage = (rawMessage?: string): string => {
+    if (!rawMessage) return t("error.unknown");
+
+    const roomMissing = rawMessage.match(/^Room '(.+)' does not exist or is inactive$/i);
+    if (roomMissing) {
+      return t("api.room_not_found", { location: roomMissing[1] });
+    }
+
+    if (/^Each schedule entry must include a location$/i.test(rawMessage)) {
+      return t("api.schedule_requires_location");
+    }
+
+    if (/^Only teachers can create classes$/i.test(rawMessage)) {
+      return t("api.teacher_only_create");
+    }
+
+    if (/^You can only create classes for yourself$/i.test(rawMessage)) {
+      return t("api.teacher_id_mismatch");
+    }
+
+    if (/^course_id must be a valid UUID$/i.test(rawMessage)) {
+      return t("api.course_uuid_invalid");
+    }
+
+    const scheduleConflict = rawMessage.match(
+      /^Schedule conflict on (\w+) with class '(.+)' \(Code: (.+)\)\. Overlapping periods: \[(.*)\]$/i
+    );
+    if (scheduleConflict) {
+      const [, day, className, classCode, periods] = scheduleConflict;
+      return `Trùng lịch vào ${dayToVietnamese(day)} với lớp '${className}' (Mã: ${classCode}). Các tiết bị trùng: [${periods}]`;
+    }
+
+    const roomConflict = rawMessage.match(
+      /^Room '(.+)' is already occupied on (\w+) by class '(.+)' \(Code: (.+)\)\. Overlapping periods: \[(.*)\]$/i
+    );
+    if (roomConflict) {
+      const [, room, day, className, classCode, periods] = roomConflict;
+      return `Phòng '${room}' đã có lớp vào ${dayToVietnamese(day)}: '${className}' (Mã: ${classCode}). Các tiết bị trùng: [${periods}]`;
+    }
+
+    return rawMessage;
+  };
+
+  const translateErrorDetails = (details: any): any => {
+    if (!details) return details;
+    if (typeof details === "string") return translateBackendMessage(details);
+    if (Array.isArray(details)) return details.map((item) => translateErrorDetails(item));
+    if (typeof details === "object") {
+      const translated: Record<string, any> = {};
+      Object.entries(details).forEach(([k, v]) => {
+        translated[k] = translateErrorDetails(v);
+      });
+      return translated;
+    }
+    return details;
+  };
+  
+  // Watch course_id to get the selected course code
+  const selectedCourseId = Form.useWatch('course_id', form);
+  const selectedCourse = courses.find(c => c.id === selectedCourseId);
+  const courseCodePrefix = selectedCourse ? selectedCourse.code : '';
   
   
   useEffect(() => {
@@ -107,37 +223,63 @@ const ClassCreatePage: React.FC = () => {
     getUserInfo();
   }, [userStr]);
 
+  // ✅ Fetch Courses for Dropdown
+  useEffect(() => {
+    const fetchCourses = async () => {
+      setLoadingCourses(true);
+      try {
+        const res = await getCoursesList();
+        if (res.success) {
+          setCourses(res.data.courses);
+        }
+      } catch (err) {
+        console.error("Failed to load courses", err);
+      } finally {
+        setLoadingCourses(false);
+      }
+    };
+    fetchCourses();
+  }, []);
+
+  // ✅ Fetch Active Rooms for Dropdown
+  useEffect(() => {
+    const fetchRooms = async () => {
+      setLoadingRooms(true);
+      try {
+        const resRooms = await getRoomsList(true); // active_only = true
+        setRooms(resRooms);
+      } catch (err) {
+        console.error("Failed to load rooms", err);
+      } finally {
+        setLoadingRooms(false);
+      }
+    };
+    fetchRooms();
+  }, []);
+
   const breadcrumbItems = [
-    { title: "Home", href: "/teacher" },
-    { title: "Class Management", href: "/teacher/classes" },
-    { title: "Create New Class" }
+    { title: "Trang chủ", href: "/teacher" },
+    { title: "Quản lý Lớp học", href: "/teacher/classes" },
+    { title: "Tạo Lớp Mới" }
   ];
 
-  const weekDays = [
-    { value: 1, label: "Monday" },
-    { value: 2, label: "Tuesday" },
-    { value: 3, label: "Wednesday" },
-    { value: 4, label: "Thursday" },
-    { value: 5, label: "Friday" },
-    { value: 6, label: "Saturday" },
-    { value: 0, label: "Sunday" }
-  ];
+  const weekDays = WEEK_DAYS_OPTIONS;
 
   const steps = [
     {
-      title: 'Basic Information',
+      title: 'Thông tin cơ bản',
       icon: <BookOutlined />,
-      description: 'Subject name, description'
+      description: 'Tên lớp, mô tả'
     },
     {
-      title: 'Room & Schedule',
+      title: 'Phòng & Lịch học',
       icon: <CalendarOutlined />,
-      description: 'Room, day and time slots'
+      description: 'Phòng, ngày và ca học'
     },
     {
-      title: 'Confirmation',
+      title: 'Xác nhận',
       icon: <CheckCircleOutlined />,
-      description: 'Review and create class'
+      description: 'Xem lại và tạo lớp'
     }
   ];
 
@@ -178,16 +320,19 @@ const ClassCreatePage: React.FC = () => {
   const handleDayChange = (days: number[]) => {
     setSelectedDays(days);
     
-    // Remove periods for unselected days
+    // Remove periods and rooms for unselected days
     const newDayPeriods = { ...dayPeriods };
+    const newDayRooms = { ...dayRooms };
     Object.keys(newDayPeriods).forEach(dayStr => {
       const day = parseInt(dayStr);
       if (!days.includes(day)) {
         delete newDayPeriods[day];
+        delete newDayRooms[day];
       }
     });
     
     setDayPeriods(newDayPeriods);
+    setDayRooms(newDayRooms);
     
     // Update schedules
     updateSchedulesFromPeriods(newDayPeriods);
@@ -235,14 +380,14 @@ const ClassCreatePage: React.FC = () => {
     if (periods.length === 0) return "Not selected";
     
     const sortedPeriods = [...periods].sort((a, b) => a - b);
-    const firstSlot = TIME_SLOTS.find(t => t.period === sortedPeriods[0]);
-    const lastSlot = TIME_SLOTS.find(t => t.period === sortedPeriods[sortedPeriods.length - 1]);
+    const firstSlot = PERIOD_OPTIONS.find(t => t.period === sortedPeriods[0]);
+    const lastSlot = PERIOD_OPTIONS.find(t => t.period === sortedPeriods[sortedPeriods.length - 1]);
     
     if (sortedPeriods.length === 1) {
-      return `${firstSlot?.start} - ${firstSlot?.end} (Period ${sortedPeriods[0]})`;
+      return `${firstSlot?.start} - ${firstSlot?.end} (Tiết ${sortedPeriods[0]})`;
     }
     
-    return `${firstSlot?.start} - ${lastSlot?.end} (Period ${sortedPeriods.join(', ')})`;
+    return `${firstSlot?.start} - ${lastSlot?.end} (Tiết ${sortedPeriods.join(', ')})`;
   };
 
   const handleNext = async () => {
@@ -252,27 +397,21 @@ const ClassCreatePage: React.FC = () => {
       setErrorDetails(null);
 
       if (currentStep === 0) {
-        const values = await form.validateFields(['subject', 'description']);
+        const values = await form.validateFields(['subject', 'description', 'course_id']);
         setFormData(prev => ({ ...prev, ...values }));
       } else if (currentStep === 1) {
-        const values = await form.validateFields(['room']);
-        
         // Validate schedules
         if (formData.schedules.length === 0) {
-          message.error('Please select at least one class day!');
+          message.error('Vui lòng chọn ít nhất một ngày học!');
           return;
         }
-        
-        const hasEmptyPeriods = formData.schedules.some(schedule => 
-          schedule.sessions.some(session => session.periods.length === 0)
-        );
-        
-        if (hasEmptyPeriods) {
-          message.error('Please select time slots for all class sessions!');
+
+        const missingRoom = selectedDays.find(day => !dayRooms[day]);
+        if (missingRoom !== undefined) {
+          const dayLabel = weekDays.find(d => d.value === missingRoom)?.label || `Ngày ${missingRoom}`;
+          message.error(`Vui lòng chọn phòng học cho ${dayLabel}!`);
           return;
         }
-        
-        setFormData(prev => ({ ...prev, ...values }));
       }
       setCurrentStep(prev => prev + 1);
     } catch (error) {
@@ -288,8 +427,8 @@ const ClassCreatePage: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!teacherId) {
-      setErrorMessage('Teacher information not found. Please log in again!');
-      message.error('Teacher information not found!');
+      setErrorMessage('Không tìm thấy thông tin Giảng viên. Vui lòng đăng nhập lại!');
+      message.error('Không tìm thấy thông tin Giảng viên!');
       return;
     }
 
@@ -298,35 +437,37 @@ const ClassCreatePage: React.FC = () => {
     setErrorDetails(null);
 
     try {
-      // Convert frontend schedule format to backend format
-      const backendSchedule = convertFrontendScheduleToBackend(
-        formData.schedules,
-        formData.room
-      );
+      // Convert frontend schedule format to backend format with per-day rooms
+      const schedulesWithLocation = formData.schedules.map(s => ({
+        ...s,
+        location: dayRooms[s.day] || ''
+      }));
+      const backendSchedule = convertFrontendScheduleToBackend(schedulesWithLocation);
 
       
       
+
+      // Combine course code and subject
+      const submitCourse = courses.find(c => c.id === formData.course_id);
+      const submitPrefix = submitCourse ? submitCourse.code : '';
+      const finalClassName = submitPrefix 
+        ? `${submitPrefix} - ${formData.subject}`
+        : formData.subject;
 
       // Prepare request data
       const requestData: CreateClassRequest = {
-        class_name: formData.subject,
+        class_name: finalClassName,
         teacher_id: teacherId,
-        location: formData.room || null,
+        course_id: formData.course_id || null,
+        location: null,
         description: formData.description || null,
         schedule: backendSchedule
       };
 
-      
-
       // Call API
       const response = await createClass(requestData);
 
-      
-
-      message.success({
-        content: 'Class created successfully!',
-        duration: 2,
-      });
+      toast.success(t("class.create_success"));
 
       // Navigate to class details
       setTimeout(() => {
@@ -339,15 +480,15 @@ const ClassCreatePage: React.FC = () => {
       // ✅ Handle ApiError from createClass
       const apiError = error as ApiError;
       
-      let displayMessage = 'An error occurred while creating the class';
+      let displayMessage = t("class.create_failed");
       let details = null;
 
       if (apiError.message) {
-        displayMessage = apiError.message;
+        displayMessage = translateBackendMessage(apiError.message);
       }
 
       if (apiError.errors) {
-        details = apiError.errors;
+        details = translateErrorDetails(apiError.errors);
         console.error('Error details:', details);
       }
 
@@ -355,11 +496,7 @@ const ClassCreatePage: React.FC = () => {
       setErrorMessage(displayMessage);
       setErrorDetails(details);
 
-      // Show error toast
-      message.error({
-        content: displayMessage,
-        duration: 5,
-      });
+      toast.error(displayMessage);
 
       // Scroll to top to show error alert
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -376,7 +513,7 @@ const ClassCreatePage: React.FC = () => {
     if (typeof errorDetails === 'object' && !Array.isArray(errorDetails)) {
       return (
         <div style={{ marginTop: 12 }}>
-          <Text strong>Error details:</Text>
+          <Text strong>{t("error.details")}:</Text>
           <ul style={{ marginTop: 8, marginBottom: 0 }}>
             {Object.entries(errorDetails).map(([field, messages]) => (
               <li key={field}>
@@ -404,32 +541,55 @@ const ClassCreatePage: React.FC = () => {
           <Row gutter={24}>
             <Col span={24}>
               <Form.Item
-                label="Subject Name"
+                label="Học phần (Course)"
+                name="course_id"
+                rules={[{ required: true, message: 'Vui lòng chọn Học phần (Course)!' }]}
+              >
+                <Select 
+                  size="large" 
+                  placeholder="Chọn học phần để liên kết tài liệu RAG" 
+                  loading={loadingCourses}
+                  showSearch
+                  optionFilterProp="children"
+                >
+                  {courses.map(course => (
+                    <Option key={course.id} value={course.id}>
+                      <Text strong>{course.code}</Text> - {course.title}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={24}>
+              <Form.Item
+                label="Tên Lớp Học Phần"
                 name="subject"
                 rules={[
-                  { required: true, message: 'Please enter subject name!' },
-                  { min: 3, message: 'Subject name must have at least 3 characters!' }
+                  { required: true, message: 'Vui lòng nhập tên lớp học!' },
+                  { min: 3, message: 'Tên lớp phải có ít nhất 3 ký tự!' }
                 ]}
               >
                 <Input 
                   size="large" 
-                  placeholder="Example: Advanced Java Programming"
+                  placeholder={courseCodePrefix ? "VD: Nhóm 1, Lớp 2..." : "Vui lòng chọn Học phần trước"}
                   prefix={<BookOutlined />}
+                  addonBefore={courseCodePrefix ? `${courseCodePrefix} -` : undefined}
+                  disabled={!selectedCourseId}
                 />
               </Form.Item>
             </Col>
             <Col span={24}>
               <Form.Item
-                label="Subject Description"
+                label="Mô tả lớp học"
                 name="description"
                 rules={[
-                  { required: true, message: 'Please enter subject description!' },
-                  { min: 10, message: 'Description must have at least 10 characters!' }
+                  { required: true, message: 'Vui lòng nhập mô tả lớp học!' },
+                  { min: 10, message: 'Mô tả phải có ít nhất 10 ký tự!' }
                 ]}
               >
                 <TextArea 
                   rows={6} 
-                  placeholder="Detailed description of the subject, objectives and main content..."
+                  placeholder="Mô tả chi tiết về lớp học, mục tiêu và nội dung chính..."
                 />
               </Form.Item>
             </Col>
@@ -439,34 +599,17 @@ const ClassCreatePage: React.FC = () => {
       case 1:
         return (
           <div>
-            {/* Room Selection */}
-            <Row gutter={24} style={{ marginBottom: 24 }}>
-              <Col span={24}>
-                <Form.Item
-                  label="Classroom"
-                  name="room"
-                  rules={[{ required: true, message: 'Please enter classroom!' }]}
-                >
-                  <Input
-                    size="large"
-                    placeholder="Enter classroom name (e.g., A101, B205, LAB1...)"
-                    prefix={<CalendarOutlined />}
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Divider orientation="left">Select Schedule</Divider>
+                    <Divider orientation="left">Chọn Lịch học</Divider>
 
             {/* Day Selection */}
             <div style={{ marginBottom: 24 }}>
               <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                Select days of the week:
+                Chọn ngày trong tuần:
               </Text>
               <Select
                 mode="multiple"
                 size="large"
-                placeholder="Select class days in the week"
+                placeholder="Chọn các ngày học trong tuần"
                 style={{ width: '100%' }}
                 value={selectedDays}
                 onChange={handleDayChange}
@@ -499,22 +642,43 @@ const ClassCreatePage: React.FC = () => {
                     </Space>
                   }
                 >
+                  {/* Room per day */}
+                  <div style={{ marginBottom: 16 }}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>Phòng học:</Text>
+                    <Select
+                      size="large"
+                      placeholder="Chọn phòng học cho ngày này"
+                      style={{ width: '100%' }}
+                      value={dayRooms[day] || undefined}
+                      onChange={(val) => setDayRooms(prev => ({ ...prev, [day]: val }))}
+                      showSearch
+                      optionFilterProp="children"
+                      loading={loadingRooms}
+                    >
+                      {rooms.map(r => (
+                        <Option key={r.name} value={r.name}>
+                          {r.name}{r.capacity ? ` (Sức chứa: ${r.capacity})` : ''}
+                        </Option>
+                      ))}
+                    </Select>
+                  </div>
+
                   {/* ✅ Period Selector */}
                   <div style={{ marginBottom: 16 }}>
                     <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                      Select periods:
+                      Chọn tiết học:
                     </Text>
                     <Select
                       mode="multiple"
                       size="large"
-                      placeholder="Select periods (auto-split if not consecutive)"
+                      placeholder="Chọn các tiết học (tự động chia ca nếu không liên tiếp)"
                       style={{ width: '100%' }}
                       value={selectedPeriods}
                       onChange={(periods) => handlePeriodChange(day, periods)}
                     >
-                      {TIME_SLOTS.map(slot => (
+                      {PERIOD_OPTIONS.map(slot => (
                         <Option key={slot.period} value={slot.period}>
-                          Period {slot.period} ({slot.start} - {slot.end})
+                          Tiết {slot.period} ({slot.start} - {slot.end})
                         </Option>
                       ))}
                     </Select>
@@ -525,7 +689,7 @@ const ClassCreatePage: React.FC = () => {
                     <div>
                       <Divider orientation="left" style={{ margin: '12px 0' }}>
                         <Text type="secondary" style={{ fontSize: 12 }}>
-                          Class sessions (auto-split)
+                          Các buổi học (tự động chia)
                         </Text>
                       </Divider>
                       
@@ -541,7 +705,7 @@ const ClassCreatePage: React.FC = () => {
                           >
                             <Space direction="vertical" size={4} style={{ width: '100%' }}>
                               <Text strong style={{ color: '#0369a1' }}>
-                                Session {index + 1}
+                                Buổi {index + 1}
                               </Text>
                               <Tag color="blue" icon={<ClockCircleOutlined />}>
                                 {formatTimeRange(session.periods)}
@@ -553,8 +717,8 @@ const ClassCreatePage: React.FC = () => {
 
                       {daySchedule.sessions.length > 1 && (
                         <Alert
-                          message="Note"
-                          description={`The system has automatically split into ${daySchedule.sessions.length} sessions because the periods are not consecutive.`}
+                          message="Lưu ý"
+                          description={`Hệ thống đã tự động chia làm ${daySchedule.sessions.length} buổi học vì các tiết học bạn chọn không liên tiếp nhau.`}
                           type="info"
                           showIcon
                           style={{ marginTop: 12 }}
@@ -569,7 +733,7 @@ const ClassCreatePage: React.FC = () => {
             {selectedDays.length === 0 && (
               <Card style={{ textAlign: 'center', background: '#f8fafc' }}>
                 <Text type="secondary">
-                  Please select class days in the week to set up the schedule
+                  Vui lòng chọn ngày học trong tuần để thiết lập lịch học
                 </Text>
               </Card>
             )}
@@ -582,7 +746,7 @@ const ClassCreatePage: React.FC = () => {
             {/* ✅ Error Alert at top of review step */}
             {errorMessage && (
               <Alert
-                message="Error creating class"
+                message="Lỗi khi tạo lớp học"
                 description={
                   <div>
                     {renderErrorDetails()}
@@ -602,16 +766,25 @@ const ClassCreatePage: React.FC = () => {
 
             <Card style={{ marginBottom: 24 }}>
               <Title level={4} style={{ marginBottom: 16, color: '#2563eb' }}>
-                📚 Subject Information
+                📚 Thông tin cơ bản
               </Title>
               <Row gutter={[16, 16]}>
                 <Col span={24}>
-                  <Text strong>Subject Name:</Text>
+                  <Text strong>Học phần (Course):</Text>
                   <br />
-                  <Text style={{ fontSize: 16 }}>{formData.subject}</Text>
+                  <Text style={{ fontSize: 16 }}>
+                    {courses.find(c => c.id === formData.course_id)?.title || formData.course_id}
+                  </Text>
                 </Col>
                 <Col span={24}>
-                  <Text strong>Description:</Text>
+                  <Text strong>Tên lớp học:</Text>
+                  <br />
+                  <Text style={{ fontSize: 16 }}>
+                    {courseCodePrefix ? `${courseCodePrefix} - ` : ""}{formData.subject}
+                  </Text>
+                </Col>
+                <Col span={24}>
+                  <Text strong>Mô tả:</Text>
                   <br />
                   <Text>{formData.description}</Text>
                 </Col>
@@ -620,28 +793,37 @@ const ClassCreatePage: React.FC = () => {
 
             <Card style={{ marginBottom: 24 }}>
               <Title level={4} style={{ marginBottom: 16, color: '#10b981' }}>
-                📍 Classroom
+                📍 Phòng học
               </Title>
-              <Text style={{ fontSize: 16 }}>Room {formData.room}</Text>
+              <Text style={{ fontSize: 16 }}>Phòng {formData.room}</Text>
             </Card>
 
             <Card style={{ marginBottom: 24 }}>
               <Title level={4} style={{ marginBottom: 16, color: '#f59e0b' }}>
-                📅 Schedule
+                📅 Lịch học
               </Title>
               {formData.schedules.map(schedule => {
                 const dayLabel = weekDays.find(d => d.value === schedule.day)?.label;
+                const roomForDay = dayRooms[schedule.day];
                 return (
                   <div key={schedule.day} style={{ marginBottom: 16 }}>
                     <Text strong style={{ fontSize: 16, color: '#1890ff' }}>
                       {dayLabel}
                     </Text>
+                    {roomForDay && (
+                      <div style={{ marginLeft: 24, marginTop: 4 }}>
+                        <Space>
+                          <EnvironmentOutlined style={{ color: '#10b981' }} />
+                          <Text type="secondary">Phòng: {roomForDay}</Text>
+                        </Space>
+                      </div>
+                    )}
                     {schedule.sessions.map((session, index) => (
                       <div key={session.id} style={{ marginLeft: 24, marginTop: 8 }}>
                         <Space>
                           <ClockCircleOutlined style={{ color: '#10b981' }} />
                           <Text>
-                            <Text strong>Session {index + 1}:</Text> {formatTimeRange(session.periods)}
+                            <Text strong>Buổi {index + 1}:</Text> {formatTimeRange(session.periods)}
                           </Text>
                         </Space>
                       </div>
@@ -653,10 +835,10 @@ const ClassCreatePage: React.FC = () => {
 
             <Card style={{ textAlign: 'center', backgroundColor: '#f0f9ff', borderColor: '#3b82f6' }}>
               <Title level={5} style={{ color: '#1e40af', marginBottom: 8 }}>
-                ℹ️ Note
+                ℹ️ Lưu ý
               </Title>
               <Text>
-                After creating the class, you will be redirected to the class details page to add students.
+                Sau khi tạo lớp học thành công, bạn sẽ được chuyển đến trang chi tiết để có thể thêm danh sách sinh viên.
               </Text>
             </Card>
           </div>
@@ -689,7 +871,7 @@ const ClassCreatePage: React.FC = () => {
             onClick={() => navigate(-1)}
             style={{ borderRadius: 8, marginBottom: 16 }}
           >
-            Go Back
+            Quay lại
           </Button>
           <Title level={1} style={{ 
             marginBottom: 4, 
@@ -697,10 +879,10 @@ const ClassCreatePage: React.FC = () => {
             fontSize: 32,
             fontWeight: 700
           }}>
-            ➕ Create New Class
+            ➕ Tạo Lớp Học Mới
           </Title>
           <Text style={{ color: "#64748b", fontSize: 16 }}>
-            Create a class with detailed information and flexible schedule
+            Thiết lập lớp học mới với đầy đủ thông tin và lịch học chi tiết
           </Text>
         </div>
       </div>
@@ -734,7 +916,7 @@ const ClassCreatePage: React.FC = () => {
             <div>
               {currentStep > 0 && (
                 <Button size="large" onClick={handlePrev}>
-                  Back
+                  Quay lại
                 </Button>
               )}
             </div>
@@ -746,7 +928,7 @@ const ClassCreatePage: React.FC = () => {
                   onClick={handleNext}
                   style={{ borderRadius: 8 }}
                 >
-                  Next
+                  Tiếp theo
                 </Button>
               ) : (
                 <Button 
@@ -762,7 +944,7 @@ const ClassCreatePage: React.FC = () => {
                     border: 'none'
                   }}
                 >
-                  {loading ? 'Creating class...' : 'Create Class'}
+                  {loading ? 'Đang tạo...' : 'Tạo Lớp Học'}
                 </Button>
               )}
             </div>

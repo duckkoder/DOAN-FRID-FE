@@ -33,19 +33,8 @@ dayjs.extend(isSameOrBefore);
 const { TextArea } = Input;
 const { Text } = Typography;
 
-// ✅ Time slots mapping - chuẩn hóa với các trang khác
-const TIME_SLOTS: Record<number, { start: string; end: string }> = {
-  1: { start: "07:00", end: "07:50" },
-  2: { start: "08:00", end: "08:50" },
-  3: { start: "09:00", end: "09:50" },
-  4: { start: "10:00", end: "10:50" },
-  5: { start: "11:00", end: "11:50" },
-  6: { start: "13:00", end: "13:50" },
-  7: { start: "14:00", end: "14:50" },
-  8: { start: "15:00", end: "15:50" },
-  9: { start: "16:00", end: "16:50" },
-  10: { start: "17:00", end: "17:50" },
-};
+import { WEEK_DAYS_OPTIONS, PERIOD_OPTIONS } from "../constants/mappings";
+import type { ScheduleModel } from "../apis/classesAPIs/studentClass";
 
 interface LeaveRequestModalProps {
   visible: boolean;
@@ -55,8 +44,7 @@ interface LeaveRequestModalProps {
   subjects: Array<{
     value: string;
     label: string;
-    teacher?: string;
-    schedule?: Record<string, string[]>;
+    schedule?: ScheduleModel;
   }>;
   preSelectedSubject?: string;
   initialValues?: any;
@@ -86,53 +74,73 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
 
   // ✅ Get available days of week from schedule
   const availableDaysOfWeek = useMemo(() => {
-    const dayMapping: Record<string, { value: string; label: string; sortOrder: number }> = {
-      monday: { value: 'Monday', label: 'Thứ Hai', sortOrder: 1 },
-      tuesday: { value: 'Tuesday', label: 'Thứ Ba', sortOrder: 2 },
-      wednesday: { value: 'Wednesday', label: 'Thứ Tư', sortOrder: 3 },
-      thursday: { value: 'Thursday', label: 'Thứ Năm', sortOrder: 4 },
-      friday: { value: 'Friday', label: 'Thứ Sáu', sortOrder: 5 },
-      saturday: { value: 'Saturday', label: 'Thứ Bảy', sortOrder: 6 },
-      sunday: { value: 'Sunday', label: 'Chủ Nhật', sortOrder: 0 }
-    };
+    if (!currentSubjectSchedule.schedules) return [];
 
-    const days = Object.keys(currentSubjectSchedule)
-      .filter(day => currentSubjectSchedule[day] && currentSubjectSchedule[day].length > 0)
-      .map(day => dayMapping[day.toLowerCase()])
-      .filter(Boolean)
+    return currentSubjectSchedule.schedules
+      .filter(s => s.periods && s.periods.length > 0)
+      .map(s => {
+        const option = WEEK_DAYS_OPTIONS.find(opt => opt.value === s.day);
+        return {
+          value: s.day,
+          label: option?.label || `Day ${s.day}`,
+          sortOrder: s.day === 0 ? 7 : s.day // Sunday is 0 but we want it at end or match sortOrder. Wait, Dayjs day() 0 is Sunday.
+        };
+      })
       .sort((a, b) => a.sortOrder - b.sortOrder);
-
-    return days;
   }, [currentSubjectSchedule]);
 
   // ✅ Get available time slots for selected day
   const selectedDayOfWeek = Form.useWatch('dayOfWeek', form);
   const availableTimeSlots = useMemo(() => {
-    if (!selectedDayOfWeek || !currentSubjectSchedule) {
+    if (selectedDayOfWeek === undefined || selectedDayOfWeek === null || !currentSubjectSchedule.schedules) {
       return [];
     }
 
-    const dayKey = selectedDayOfWeek.toLowerCase();
-    const periods = currentSubjectSchedule[dayKey as keyof typeof currentSubjectSchedule] || [];
+    const daySchedules = currentSubjectSchedule.schedules.filter((s: any) => s.day === selectedDayOfWeek);
+    if (daySchedules.length === 0) return [];
 
-    return periods.map(periodRange => {
-      const [start, end] = periodRange.split('-').map(Number);
-      
-      // ✅ Sử dụng TIME_SLOTS chuẩn thay vì tính toán sai
-      const getTimeFromPeriod = (period: number): { start: string; end: string } => {
-        return TIME_SLOTS[period] || { start: "00:00", end: "00:00" };
-      };
+    const allPeriods = new Set<number>();
+    daySchedules.forEach((schedule: any) => {
+      if (Array.isArray(schedule.periods)) {
+        schedule.periods.forEach((p: number) => allPeriods.add(p));
+      }
+    });
 
-      const startSlot = getTimeFromPeriod(start);
-      const endPeriod = end || start;
-      const endSlot = getTimeFromPeriod(endPeriod);
+    const periods = Array.from(allPeriods).sort((a, b) => a - b);
+    if (periods.length === 0) return [];
+    const groups: number[][] = [];
+    let currentGroup: number[] = [];
+
+    periods.forEach((p, idx) => {
+      if (currentGroup.length === 0) {
+        currentGroup.push(p);
+      } else if (p === currentGroup[currentGroup.length - 1] + 1) {
+        currentGroup.push(p);
+      } else {
+        groups.push([...currentGroup]);
+        currentGroup = [p];
+      }
+
+      if (idx === periods.length - 1) {
+        groups.push([...currentGroup]);
+      }
+    });
+
+    return groups.map(group => {
+      const start = group[0];
+      const end = group[group.length - 1];
+      const startSlot = PERIOD_OPTIONS.find(p => p.period === start);
+      const endSlot = PERIOD_OPTIONS.find(p => p.period === end);
+
+      const value = `${start}-${end}`; // always "x-y" format, single period = "x-x"
+      const label = start === end
+        ? `Tiết ${start} (${startSlot?.start} - ${startSlot?.end})`
+        : `Tiết ${start}-${end} (${startSlot?.start} - ${endSlot?.end})`;
 
       return {
-        value: periodRange,
-        label: start === end 
-          ? `Tiết ${start} (${startSlot.start} - ${startSlot.end})`
-          : `Tiết ${start}-${end} (${startSlot.start} - ${endSlot.end})`,
-        periods: periodRange
+        value,
+        label,
+        periods: value
       };
     });
   }, [selectedDayOfWeek, currentSubjectSchedule]);
@@ -149,22 +157,24 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
       return true;
     }
 
-    const dayOfWeek = current.day();
-    const isAvailable = availableDaysOfWeek.some(d => d.sortOrder === dayOfWeek);
-    
+    const dayjsDay = current.day();
+    const backendDay = dayjsDay === 0 ? 6 : dayjsDay - 1;
+    const isAvailable = availableDaysOfWeek.some(d => (d.value === backendDay));
+
     return !isAvailable;
   };
 
   // ✅ Auto-set dayOfWeek when date is selected
   const handleDateChange = (date: Dayjs | null) => {
     if (date) {
-      const dayOfWeek = date.day();
-      const matchingDay = availableDaysOfWeek.find(d => d.sortOrder === dayOfWeek);
-      
+      const dayjsDay = date.day();
+      const backendDay = dayjsDay === 0 ? 6 : dayjsDay - 1;
+      const matchingDay = availableDaysOfWeek.find(d => d.value === backendDay);
+
       if (matchingDay) {
         form.setFieldValue('dayOfWeek', matchingDay.value);
       }
-      
+
       form.setFieldValue('timeSlot', undefined);
     } else {
       form.setFieldValue('dayOfWeek', undefined);
@@ -181,7 +191,7 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
     const isPNG = file.type === 'image/png';
     const isGIF = file.type === 'image/gif';
     const isPDF = file.type === 'application/pdf';
-    
+
     const isValidType = isJPG || isPNG || isGIF || isPDF;
 
     if (!isValidType) {
@@ -217,7 +227,7 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
     if (newFileList.length === 0) {
       setUploadError(null);
     }
-    
+
     // Only keep the last file
     setFileList(newFileList.slice(-1));
   };
@@ -241,7 +251,7 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
       };
       onSubmit(formData);
     }).catch((errorInfo) => {
-      
+
       message.error('Vui lòng điền đủ các trường bắt buộc!');
     });
   };
@@ -260,7 +270,7 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
     } else if (visible && preSelectedSubject) {
       form.setFieldValue('subject', preSelectedSubject);
     }
-    
+
     // Reset states when modal closes
     if (!visible) {
       setFileList([]);
@@ -413,13 +423,13 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
         >
           <Select
             placeholder={
-              selectedDayOfWeek 
-                ? "Chọn buổi bạn muốn nghỉ" 
+              selectedDayOfWeek !== undefined
+                ? "Chọn buổi bạn muốn nghỉ"
                 : "Vui lòng chọn ngày nghỉ trước"
             }
             size="large"
             style={{ borderRadius: 8 }}
-            disabled={!selectedDayOfWeek || availableTimeSlots.length === 0}
+            disabled={selectedDayOfWeek === undefined || availableTimeSlots.length === 0}
             allowClear
           >
             {availableTimeSlots.map(slot => (
@@ -431,7 +441,7 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
         </Form.Item>
 
         {/* Time Slots Info Display */}
-        {selectedDayOfWeek && availableTimeSlots.length > 0 && (
+        {selectedDayOfWeek !== undefined && availableTimeSlots.length > 0 && (
           <div style={{
             padding: '12px 16px',
             background: '#fef3c7',
@@ -570,7 +580,7 @@ const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
           border: '1px solid #fde68a'
         }}>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            💡 <strong>Lưu ý:</strong> Đơn xin nghỉ sẽ được gửi cho giáo viên để xem xét. 
+            💡 <strong>Lưu ý:</strong> Đơn xin nghỉ sẽ được gửi cho giáo viên để xem xét.
             Bạn nên gửi trước ít nhất 1 ngày và đính kèm minh chứng nếu có.
           </Text>
         </div>

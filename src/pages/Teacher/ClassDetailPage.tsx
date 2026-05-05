@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Typography,
   Card,
@@ -22,7 +22,8 @@ import {
   Divider,
   Alert,
   Empty,
-  Spin
+  Spin,
+  Steps
 } from "antd";
 import {
   UserOutlined,
@@ -38,12 +39,14 @@ import {
   ExclamationCircleOutlined,
   PlayCircleOutlined,
   TeamOutlined,
-  ReloadOutlined, // ✅ Add this if missing
-  DownOutlined,
-  UpOutlined,
-  StopOutlined,
+  ReloadOutlined,
+  SaveOutlined,
   FileTextOutlined,
+  UpOutlined,
+  DownOutlined,
+  StopOutlined,
 } from "@ant-design/icons";
+import EditClassModal from './components/EditClassModal';
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Breadcrumb from "../../components/Breadcrumb";
 import dayjs from 'dayjs';
@@ -57,21 +60,19 @@ dayjs.extend(timezone);
 
 import {
   getClassDetails,
-  updateClass,
-  convertFrontendScheduleToBackend,
   getClassStudentsDetails, // ✅ Import API
+  getClassDocuments,
+  type ClassDocumentItem,
   type GetClassDetailsResponse,
-  type UpdateClassRequest,
-  type ApiError,
   type StudentDetailInClass // ✅ Import type
 } from "../../apis/classesAPIs/teacherClass";
-import { getClassPosts } from "../../apis/classesAPIs/classPosts";
+import { getRoomsList, type Room } from "../../apis/roomsAPIs/room";
+import { getCoursesList, type CourseListItem } from "../../apis/coursesAPIs/course";
 import { openClassDocument } from "../../apis/fileAPIs/file";
 import AttendanceCamera from "../../components/AttendanceCamera";
 import TeacherClassPostsPanel from "../../components/TeacherClassPostsPanel";
 import {
   endAttendanceSession,
-  type EndSessionResponse,
   type SessionWithStats,
   getClassSessions as getClassSessionsAPI
 } from "../../apis/attendanceAPIs/attendanceAPIs";
@@ -79,8 +80,6 @@ import {
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
-const { TextArea } = Input;
-const { Option } = Select;
 
 // ✅ Time slots mapping
 const TIME_SLOTS: Record<number, { start: string; end: string }> = {
@@ -96,11 +95,6 @@ const TIME_SLOTS: Record<number, { start: string; end: string }> = {
   10: { start: "17:00", end: "17:50" },
 };
 
-const TIME_SLOT_OPTIONS = Object.entries(TIME_SLOTS).map(([period, time]) => ({
-  period: Number(period),
-  label: `Period ${period} (${time.start} - ${time.end})`,
-  ...time
-}));
 
 interface ClassData {
   id: number;
@@ -113,7 +107,8 @@ interface ClassData {
   teacherId: number;
   maxStudents: number;
   studentCount: number;
-  schedule: Record<string, string[]>; // { monday: ["1-3", "6-7"], tuesday: ["1-1"] }
+  courseId: string | null;
+  schedule: any; // ScheduleModel: { schedules: [{ day: number, periods: number[], room?: string }] }
   attendanceStats?: {
     totalSessions: number;
     averageAttendance: number;
@@ -151,17 +146,11 @@ interface ScheduleSession {
   sessions: {
     periods: string;
     timeRange: string;
+    location?: string;
   }[];
 }
 
-// ✅ Edit form schedule interface
-interface EditClassSchedule {
-  day: number;
-  sessions: {
-    id: string;
-    periods: number[];
-  }[];
-}
+
 
 // ✅ Add interface for upcoming sessions
 interface UpcomingSession {
@@ -171,14 +160,6 @@ interface UpcomingSession {
   periods: string;
   timeRange: string;
   date: string; // Next occurrence date
-}
-
-interface ClassDocumentItem {
-  documentId: string;
-  title: string;
-  fileUrl: string | null;
-  postId: number;
-  createdAt: string;
 }
 
 const ClassDetailPage: React.FC = () => {
@@ -211,13 +192,9 @@ const ClassDetailPage: React.FC = () => {
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isStudentDetailVisible, setIsStudentDetailVisible] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [editForm] = Form.useForm();
-  const [editLoading, setEditLoading] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
-  const [editErrorDetails, setEditErrorDetails] = useState<any>(null);
-  const [selectedDays, setSelectedDays] = useState<number[]>([]);
-  const [dayPeriods, setDayPeriods] = useState<Record<number, number[]>>({});
-  const [editSchedules, setEditSchedules] = useState<EditClassSchedule[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [courses, setCourses] = useState<CourseListItem[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState(false);
   const [isAttendanceModalVisible, setIsAttendanceModalVisible] = useState(false);
   const [selectedAttendanceSession, setSelectedAttendanceSession] = useState<UpcomingSession | null>(null);
   const [upcomingSessions, setUpcomingSessions] = useState<UpcomingSession[]>([]);
@@ -246,13 +223,13 @@ const ClassDetailPage: React.FC = () => {
   const [isScheduleExpanded, setIsScheduleExpanded] = useState(false);
 
   const weekDays = [
-    { value: 1, label: "Monday" },
-    { value: 2, label: "Tuesday" },
-    { value: 3, label: "Wednesday" },
-    { value: 4, label: "Thursday" },
-    { value: 5, label: "Friday" },
-    { value: 6, label: "Saturday" },
-    { value: 0, label: "Sunday" }
+    { value: 0, label: "Thứ Hai" },
+    { value: 1, label: "Thứ Ba" },
+    { value: 2, label: "Thứ Tư" },
+    { value: 3, label: "Thứ Năm" },
+    { value: 4, label: "Thứ Sáu" },
+    { value: 5, label: "Thứ Bảy" },
+    { value: 6, label: "Chủ Nhật" }
   ];
 
   // ✅ Split periods into consecutive groups
@@ -276,347 +253,112 @@ const ClassDetailPage: React.FC = () => {
     return sessions;
   };
 
-  // ✅ Parse backend schedule to frontend format
-  const parseBackendScheduleToFrontend = (schedule: Record<string, string[]>): {
-    selectedDays: number[];
-    dayPeriods: Record<number, number[]>;
-  } => {
-    const dayMapping: Record<string, number> = {
-      sunday: 0,
-      monday: 1,
-      tuesday: 2,
-      wednesday: 3,
-      thursday: 4,
-      friday: 5,
-      saturday: 6
-    };
 
-    const days: number[] = [];
-    const periods: Record<number, number[]> = {};
 
-    Object.entries(schedule).forEach(([dayName, periodRanges]) => {
-      const dayNum = dayMapping[dayName.toLowerCase()];
-      if (dayNum === undefined || !periodRanges || periodRanges.length === 0) return;
-
-      days.push(dayNum);
-
-      // Merge all period ranges into single array
-      const allPeriods: number[] = [];
-      periodRanges.forEach(range => {
-        const [start, end] = range.split('-').map(Number);
-        for (let i = start; i <= end; i++) {
-          if (!allPeriods.includes(i)) {
-            allPeriods.push(i);
-          }
-        }
-      });
-
-      periods[dayNum] = allPeriods.sort((a, b) => a - b);
-    });
-
-    return { selectedDays: days, dayPeriods: periods };
-  };
-
-  // ✅ Parse schedule to readable format
-  const parseSchedule = (schedule: Record<string, string[]>): ScheduleSession[] => {
-    const dayMapping: Record<string, string> = {
-      monday: 'Monday',
-      tuesday: 'Tuesday',
-      wednesday: 'Wednesday',
-      thursday: 'Thursday',
-      friday: 'Friday',
-      saturday: 'Saturday',
-      sunday: 'Sunday'
+  // Parse new ScheduleModel to readable display format
+  const parseSchedule = (schedule: any): ScheduleSession[] => {
+    const dayLabelMapping: Record<number, string> = {
+      0: 'Thứ Hai', 1: 'Thứ Ba', 2: 'Thứ Tư', 3: 'Thứ Năm',
+      4: 'Thứ Sáu', 5: 'Thứ Bảy', 6: 'Chủ Nhật'
     };
 
     const result: ScheduleSession[] = [];
 
-    Object.entries(schedule).forEach(([day, periodRanges]) => {
-      if (!periodRanges || periodRanges.length === 0) return;
+    const scheduleList = schedule?.schedules;
+    if (!Array.isArray(scheduleList)) return result;
 
-      const sessions = periodRanges.map(range => {
-        const [start, end] = range.split('-').map(Number);
-        const startTime = TIME_SLOTS[start]?.start || '??:??';
-        const endTime = TIME_SLOTS[end]?.end || '??:??';
+    scheduleList.forEach((entry: any) => {
+      const { day, periods, location, room } = entry;
+      if (!periods || periods.length === 0) return;
 
-        return {
-          periods: start === end ? `Period ${start}` : `Period ${start}-${end}`,
-          timeRange: `${startTime} - ${endTime}`
-        };
-      });
+      const start = periods[0];
+      const end = periods[periods.length - 1];
+      const startTime = TIME_SLOTS[start]?.start || '??:??';
+      const endTime = TIME_SLOTS[end]?.end || '??:??';
 
       result.push({
-        day,
-        dayLabel: dayMapping[day] || day,
-        sessions
+        day: String(day),
+        dayLabel: dayLabelMapping[day] || `Day ${day}`,
+        sessions: [{
+          periods: start === end ? `Tiết ${start}` : `Tiết ${start}-${end}`,
+          timeRange: `${startTime} - ${endTime}`,
+          location: location || room
+        } as any]
       });
     });
 
     return result;
   };
 
-  // ✅ Handle day selection in edit form
-  const handleEditDayChange = (days: number[]) => {
-    setSelectedDays(days);
-
-    const newDayPeriods = { ...dayPeriods };
-    Object.keys(newDayPeriods).forEach(dayStr => {
-      const day = parseInt(dayStr);
-      if (!days.includes(day)) {
-        delete newDayPeriods[day];
+  // ✅ Handle open edit modal
+  const handleOpenEditModal = async () => {
+    // Fetch courses list if not already loaded
+    if (courses.length === 0) {
+      setLoadingCourses(true);
+      try {
+        const res = await getCoursesList();
+        if (res.success) {
+          setCourses(res.data.courses);
+        }
+      } catch (err) {
+        console.error("Failed to load courses", err);
+      } finally {
+        setLoadingCourses(false);
       }
-    });
-
-    setDayPeriods(newDayPeriods);
-    updateEditSchedulesFromPeriods(newDayPeriods);
-  };
-
-  // ✅ Handle period selection for a day in edit form
-  const handleEditPeriodChange = (day: number, periods: number[]) => {
-    const newDayPeriods = {
-      ...dayPeriods,
-      [day]: periods
-    };
-
-    setDayPeriods(newDayPeriods);
-    updateEditSchedulesFromPeriods(newDayPeriods);
-  };
-
-  // ✅ Update schedules based on selected periods
-  const updateEditSchedulesFromPeriods = (periods: Record<number, number[]>) => {
-    const newSchedules: EditClassSchedule[] = [];
-
-    Object.entries(periods).forEach(([dayStr, selectedPeriods]) => {
-      const day = parseInt(dayStr);
-
-      if (selectedPeriods.length === 0) return;
-
-      const sessionGroups = splitPeriodsIntoSessions(selectedPeriods);
-
-      const sessions = sessionGroups.map((group, index) => ({
-        id: `${day}-${index}-${Date.now()}`,
-        periods: group
-      }));
-
-      newSchedules.push({
-        day,
-        sessions
-      });
-    });
-
-    setEditSchedules(newSchedules);
-  };
-
-  // Format time display
-  const formatTimeRange = (periods: number[]) => {
-    if (periods.length === 0) return "Not selected";
-
-    const sortedPeriods = [...periods].sort((a, b) => a - b);
-    const firstSlot = TIME_SLOTS[sortedPeriods[0]];
-    const lastSlot = TIME_SLOTS[sortedPeriods[sortedPeriods.length - 1]];
-
-    if (sortedPeriods.length === 1) {
-      return `${firstSlot?.start} - ${firstSlot?.end} (Period ${sortedPeriods[0]})`;
     }
 
-    return `${firstSlot?.start} - ${lastSlot?.end} (Period ${sortedPeriods.join(', ')})`;
-  };
+    // Fetch rooms if not already loaded
+    if (rooms.length === 0) {
+      try {
+        const roomsData = await getRoomsList(true);
+        setRooms(roomsData);
+      } catch {
+        console.error('Failed to load rooms');
+      }
+    }
 
-  // ✅ Open edit modal
-  const handleOpenEditModal = () => {
-    if (!classData) return;
-
-    // Parse current schedule to frontend format
-    const { selectedDays: days, dayPeriods: periods } = parseBackendScheduleToFrontend(classData.schedule);
-
-    setSelectedDays(days);
-    setDayPeriods(periods);
-    updateEditSchedulesFromPeriods(periods);
-
-    // Set form values
-    editForm.setFieldsValue({
-      subject: classData.subject,
-      description: classData.description,
-      room: classData.room,
-      maxStudents: classData.maxStudents
-    });
-
-    setEditError(null);
-    setEditErrorDetails(null);
     setIsEditModalVisible(true);
   };
 
-  // ✅ Handle update class
-  const handleUpdateClass = async () => {
-    try {
-      setEditError(null);
-      setEditErrorDetails(null);
 
-      // Validate form
-      const values = await editForm.validateFields();
-
-      // Validate schedules
-      if (editSchedules.length === 0) {
-        message.error('Please select at least one class day!');
-        return;
-      }
-
-      const hasEmptyPeriods = editSchedules.some(schedule =>
-        schedule.sessions.some(session => session.periods.length === 0)
-      );
-
-      if (hasEmptyPeriods) {
-        message.error('Please select time slots for all sessions!');
-        return;
-      }
-
-      setEditLoading(true);
-
-      // Convert schedule to backend format
-      const backendSchedule = convertFrontendScheduleToBackend(editSchedules, values.room);
-
-      // Prepare update request
-      const updateData: UpdateClassRequest = {
-        class_name: values.subject,
-        location: values.room || null,
-        description: values.description || null,
-        schedule: backendSchedule
-      };
-
-
-
-      // Call API
-      const response = await updateClass(Number(classId), updateData);
-
-
-
-      message.success('Class updated successfully!');
-
-      // Refresh class data
-      const refreshedData = await getClassDetails(Number(classId));
-      const cls = refreshedData?.data?.class;
-
-      if (cls) {
-        const mapped: ClassData = {
-          id: cls.id,
-          subject: cls.subject || "Unnamed",
-          classCode: cls.classCode || "",
-          description: cls.description || "",
-          room: cls.room || "N/A",
-          status: cls.status === "inactive" ? "inactive" : "active",
-          teacher: cls.teacher || "N/A",
-          teacherId: cls.teacherId || 0,
-          maxStudents: 30, // Default value
-          studentCount: cls.students || 0,
-          schedule: cls.schedule as Record<string, string[]> || {},
-          attendanceStats: refreshedData.data.attendance
-        };
-        setClassData(mapped);
-      }
-
-      setIsEditModalVisible(false);
-    } catch (error: any) {
-      console.error('Failed to update class:', error);
-
-      const apiError = error as ApiError;
-      let displayMessage = 'An error occurred while updating the class';
-      let details = null;
-
-      if (apiError.message) {
-        displayMessage = apiError.message;
-      }
-
-      if (apiError.errors) {
-        details = apiError.errors;
-      }
-
-      setEditError(displayMessage);
-      setEditErrorDetails(details);
-
-      message.error({
-        content: displayMessage,
-        duration: 5,
-      });
-    } finally {
-      setEditLoading(false);
-    }
-  };
-
-  // ✅ Render error details
-  const renderEditErrorDetails = () => {
-    if (!editErrorDetails) return null;
-
-    if (typeof editErrorDetails === 'object' && !Array.isArray(editErrorDetails)) {
-      return (
-        <div style={{ marginTop: 12 }}>
-          <Text strong>Error details:</Text>
-          <ul style={{ marginTop: 8, marginBottom: 0 }}>
-            {Object.entries(editErrorDetails).map(([field, messages]) => (
-              <li key={field}>
-                {Array.isArray(messages) ? messages.join(', ') : String(messages)}
-              </li>
-            ))}
-          </ul>
-        </div>
-      );
-    }
-
-    return (
-      <div style={{ marginTop: 12 }}>
-        <Text strong>Details: </Text>
-        <Text>{String(editErrorDetails)}</Text>
-      </div>
-    );
-  };
 
   // ✅ Calculate current sessions (only sessions that are happening NOW)
   const calculateUpcomingSessions = (): UpcomingSession[] => {
     if (!classData || !classData.schedule) return [];
 
     const now = dayjs();
-    const currentDayOfWeek = now.day(); // 0 = Sunday, 1 = Monday, ...
-
-    const dayMapping: Record<string, number> = {
-      sunday: 0,
-      monday: 1,
-      tuesday: 2,
-      wednesday: 3,
-      thursday: 4,
-      friday: 5,
-      saturday: 6
-    };
-
     const dayLabelMapping: Record<number, string> = {
-      0: 'Sunday',
-      1: 'Monday',
-      2: 'Tuesday',
-      3: 'Wednesday',
-      4: 'Thursday',
-      5: 'Friday',
-      6: 'Saturday'
+      0: 'Thứ Hai',
+      1: 'Thứ Ba',
+      2: 'Thứ Tư',
+      3: 'Thứ Năm',
+      4: 'Thứ Sáu',
+      5: 'Thứ Bảy',
+      6: 'Chủ Nhật'
     };
 
     const sessions: UpcomingSession[] = [];
 
-    // ✅ DEV/TEST MODE: Show all sessions regardless of current time
-    // Allow starting attendance at any time for testing purposes
-    Object.entries(classData.schedule).forEach(([dayName, periodRanges]) => {
-      const dayNum = dayMapping[dayName.toLowerCase()];
-      if (dayNum === undefined || !periodRanges || periodRanges.length === 0) return;
+    // New ScheduleModel format: { schedules: [{ day, periods, location }] }
+    const scheduleList = (classData.schedule as any)?.schedules;
+    if (!Array.isArray(scheduleList)) return [];
 
-      periodRanges.forEach((range, index) => {
-        const [start, end] = range.split('-').map(Number);
-        const startTime = TIME_SLOTS[start]?.start || '00:00';
-        const endTime = TIME_SLOTS[end]?.end || '00:00';
+    scheduleList.forEach((entry: any, index: number) => {
+      const { day, periods } = entry;
+      if (!periods || periods.length === 0) return;
 
-        sessions.push({
-          day: dayNum,
-          dayLabel: dayLabelMapping[dayNum] || dayName,
-          sessionIndex: index,
-          periods: start === end ? `Period ${start}` : `Period ${start}-${end}`,
-          timeRange: `${startTime} - ${endTime}`,
-          date: now.format('DD/MM/YYYY')
-        });
+      const start = periods[0];
+      const end = periods[periods.length - 1];
+      const startTime = TIME_SLOTS[start]?.start || '00:00';
+      const endTime = TIME_SLOTS[end]?.end || '00:00';
+
+      sessions.push({
+        day,
+        dayLabel: dayLabelMapping[day] || `Day ${day}`,
+        sessionIndex: index,
+        periods: start === end ? `Tiết ${start}` : `Tiết ${start}-${end}`,
+        timeRange: `${startTime} - ${endTime}`,
+        date: now.format('DD/MM/YYYY')
       });
     });
 
@@ -738,6 +480,7 @@ const ClassDetailPage: React.FC = () => {
             teacherId: cls.teacherId || 0,
             maxStudents: 30, // Default value
             studentCount: cls.students || 0,
+            courseId: cls.courseId || null,
             schedule: cls.schedule as Record<string, string[]> || {},
             attendanceStats: res.data.attendance
           };
@@ -751,54 +494,56 @@ const ClassDetailPage: React.FC = () => {
     }
   };
 
+  // Fetch class details — extracted so it can be reused (e.g. after save)
+  const fetchClassDetails = useCallback(async () => {
+    if (!classId) {
+      setClassError("Class ID not found. Please try again.");
+      return;
+    }
+
+    setLoadingClass(true);
+    setClassError(null);
+
+    try {
+      const res: GetClassDetailsResponse = await getClassDetails(classId);
+
+      const cls = res?.data?.class;
+      if (!cls) {
+        throw new Error("No class data returned from server.");
+      }
+
+      // ✅ Map backend response to ClassData
+      const mapped: ClassData = {
+        id: cls.id,
+        subject: cls.subject || "Unnamed",
+        classCode: cls.classCode || "",
+        description: cls.description || "",
+        room: cls.room || "N/A",
+        status: cls.status === "inactive" ? "inactive" : "active",
+        teacher: cls.teacher || "N/A",
+        teacherId: cls.teacherId || 0,
+        maxStudents: 30, // Default value, backend doesn't have this field
+        studentCount: cls.students || 0,
+        courseId: cls.courseId || null,
+        schedule: cls.schedule as Record<string, string[]> || {},
+        attendanceStats: res.data.attendance
+      };
+
+      setClassData(mapped);
+    } catch (err: any) {
+      console.error("Failed to load class details:", err);
+      const msg = err?.response?.data?.message || err?.message || "Could not load class details";
+      setClassError(String(msg));
+      message.error(String(msg));
+    } finally {
+      setLoadingClass(false);
+    }
+  }, [classId]);
+
   // Fetch class details when page loads / classId changes
   useEffect(() => {
-    const fetchClass = async () => {
-      if (!classId) {
-        setClassError("Class ID not found. Please try again.");
-        return;
-      }
-
-      setLoadingClass(true);
-      setClassError(null);
-
-      try {
-        const res: GetClassDetailsResponse = await getClassDetails(classId);
-
-        const cls = res?.data?.class;
-        if (!cls) {
-          throw new Error("No class data returned from server.");
-        }
-
-        // ✅ Map backend response to ClassData
-        const mapped: ClassData = {
-          id: cls.id,
-          subject: cls.subject || "Unnamed",
-          classCode: cls.classCode || "",
-          description: cls.description || "",
-          room: cls.room || "N/A",
-          status: cls.status === "inactive" ? "inactive" : "active",
-          teacher: cls.teacher || "N/A",
-          teacherId: cls.teacherId || 0,
-          maxStudents: 30, // Default value, backend doesn't have this field
-          studentCount: cls.students || 0,
-          schedule: cls.schedule as Record<string, string[]> || {},
-          attendanceStats: res.data.attendance
-        };
-
-        setClassData(mapped);
-      } catch (err: any) {
-        console.error("Failed to load class details:", err);
-        const msg = err?.response?.data?.message || err?.message || "Could not load class details";
-        setClassError(String(msg));
-        message.error(String(msg));
-      } finally {
-        setLoadingClass(false);
-      }
-    };
-
-    fetchClass();
-  }, [classId]); // ✅ Chỉ phụ thuộc vào classId
+    fetchClassDetails();
+  }, [fetchClassDetails]); // ✅ Chỉ phụ thuộc vào classId
 
   // ✅ Fetch attendance sessions when classId changes or tab switches to attendance
   useEffect(() => {
@@ -851,27 +596,8 @@ const ClassDetailPage: React.FC = () => {
       if (!classId || activeTab !== 'documents') return;
       setLoadingDocuments(true);
       try {
-        const response = await getClassPosts(classId, { includeComments: false, limit: 100, offset: 0 });
-        const docMap = new Map<string, ClassDocumentItem>();
-
-        response.data.items.forEach((post) => {
-          post.attachments.forEach((attachment) => {
-            if (!docMap.has(attachment.documentId)) {
-              docMap.set(attachment.documentId, {
-                documentId: attachment.documentId,
-                title: attachment.title || attachment.documentId,
-                fileUrl: attachment.fileUrl,
-                postId: post.id,
-                createdAt: post.createdAt,
-              });
-            }
-          });
-        });
-
-        const docs = Array.from(docMap.values()).sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        setDocumentsData(docs);
+        const response = await getClassDocuments(classId);
+        setDocumentsData(response.data || []);
       } catch (error: any) {
         console.error('Failed to load documents:', error);
         message.error('Không thể tải tài liệu lớp học');
@@ -923,47 +649,10 @@ const ClassDetailPage: React.FC = () => {
   // ✅ Phân tích lịch trình để hiển thị
   const scheduleSessions = parseSchedule(classData.schedule);
 
-  // Dữ liệu giả cho sinh viên (giữ nguyên dữ liệu giả hiện có)
-  const students: Student[] = [
-    {
-      id: "1",
-      name: "John Smith",
-      studentId: "SV001",
-      email: "john.smith@student.hust.edu.vn",
-      totalSessions: 15,
-      presentCount: 14,
-      absentCount: 1,
-      excusedCount: 0,
-      attendanceRate: 93.3
-    },
-  ];
-
-  // Dữ liệu giả cho các phiên điểm danh
-  const attendanceSessionsMock: AttendanceSession[] = [
-    {
-      id: "1",
-      date: "2024-10-01",
-      sessionNumber: 1,
-      status: 'completed',
-      presentCount: 33,
-      absentCount: 2,
-      excusedCount: 0
-    },
-    {
-      id: "2",
-      date: "2024-10-03",
-      sessionNumber: 2,
-      status: 'completed',
-      presentCount: 32,
-      absentCount: 2,
-      excusedCount: 1
-    },
-  ];
-
   const breadcrumbItems = [
     { title: "Bảng điều khiển", href: "/teacher" },
     { title: "Quản lý Lớp", href: "/teacher/classes" },
-    { title: classData.subject }
+    { title: classData?.subject || "Chi tiết lớp" }
   ];
 
   const getStatusConfig = (status: string) => {
@@ -1432,14 +1121,11 @@ const ClassDetailPage: React.FC = () => {
                 📚 {classData?.subject || 'Đang tải...'}
               </Title>
               <Space className="class-detail-info-tags" size={16} wrap>
-                <Tag color={getStatusConfig(classData.status).color} style={{ fontSize: 14, padding: '4px 12px' }}>
-                  {getStatusConfig(classData.status).text}
+                <Tag color={getStatusConfig(classData?.status || "").color} style={{ fontSize: 14, padding: '4px 12px' }}>
+                  {getStatusConfig(classData?.status || "").text}
                 </Tag>
                 <Text style={{ color: "#64748b", fontSize: 14 }}>
-                  <BookOutlined /> Mã lớp: {classData.classCode}
-                </Text>
-                <Text style={{ color: "#64748b", fontSize: 14 }}>
-                  <EnvironmentOutlined /> {classData.room}
+                  <BookOutlined /> Mã lớp: {classData?.classCode}
                 </Text>
               </Space>
             </div>
@@ -1498,7 +1184,7 @@ const ClassDetailPage: React.FC = () => {
         >
           <TabPane tab="📝 Bài đăng" key="posts">
             {classId ? (
-              <TeacherClassPostsPanel classId={classId} />
+              <TeacherClassPostsPanel classId={classId} courseId={classData?.courseId} />
             ) : (
               <Empty description="Không tìm thấy lớp học" />
             )}
@@ -1539,29 +1225,27 @@ const ClassDetailPage: React.FC = () => {
                     dataIndex: "title",
                     key: "title",
                     render: (value: string, record: ClassDocumentItem) => (
-                      <Button
-                        type="link"
-                        style={{ paddingInline: 0, height: "auto" }}
-                        onClick={async () => {
-                          try {
-                            await openClassDocument(record.documentId);
-                          } catch (error) {
-                            console.error("Failed to open document:", error);
-                            message.error("Không thể mở tài liệu");
-                          }
-                        }}
-                      >
-                        {value}
-                      </Button>
-                    ),
-                  },
-                  {
-                    title: "Bài đăng",
-                    dataIndex: "postId",
-                    key: "postId",
-                    width: 100,
-                    render: (value: number) => (
-                      <Button type="link" style={{ paddingInline: 0 }} onClick={() => setActiveDocumentPostId(value)}>#{value}</Button>
+                      <Space direction="vertical" size={2}>
+                        <Button
+                          type="link"
+                          style={{ paddingInline: 0, height: "auto", textAlign: "left", whiteSpace: "normal" }}
+                          onClick={async () => {
+                            try {
+                              await openClassDocument(record.documentId, record.title);
+                            } catch (error) {
+                              console.error("Failed to open document:", error);
+                              message.error("Không thể mở tài liệu");
+                            }
+                          }}
+                        >
+                          {value}
+                        </Button>
+                        {record.isPrivate ? (
+                          <Tag color="volcano" style={{ margin: 0 }}>Chỉ dành cho Lớp</Tag>
+                        ) : (
+                          <Tag color="geekblue" style={{ margin: 0 }}>Học phần chung</Tag>
+                        )}
+                      </Space>
                     ),
                   },
                   {
@@ -1759,6 +1443,14 @@ const ClassDetailPage: React.FC = () => {
                                   <Text type="secondary" style={{ fontSize: 12 }}>
                                     <ClockCircleOutlined /> {session.timeRange}
                                   </Text>
+                                  {session.location && (
+                                    <>
+                                      <br />
+                                      <Text type="secondary" style={{ fontSize: 12 }}>
+                                        <EnvironmentOutlined /> Địa điểm {session.location}
+                                      </Text>
+                                    </>
+                                  )}
                                 </div>
                               ))}
                             </Card>
@@ -1848,7 +1540,7 @@ const ClassDetailPage: React.FC = () => {
         destroyOnHidden
       >
         {classId && activeDocumentPostId ? (
-          <TeacherClassPostsPanel classId={classId} allowCreatePost={false} focusPostId={activeDocumentPostId} />
+          <TeacherClassPostsPanel classId={classId} courseId={classData?.courseId} allowCreatePost={false} focusPostId={activeDocumentPostId} />
         ) : null}
       </Modal>
 
@@ -1919,192 +1611,17 @@ const ClassDetailPage: React.FC = () => {
         )}
       </Modal>
 
-      {/* ✅ Edit Class Modal */}
-      <Modal
-        title="Chỉnh sửa thông tin Lớp"
-        open={isEditModalVisible}
+      <EditClassModal
+        visible={isEditModalVisible}
         onCancel={() => setIsEditModalVisible(false)}
-        footer={null}
-        width={800}
-        destroyOnClose
-      >
-        {editError && (
-          <Alert
-            message="Lỗi khi cập nhật lớp"
-            description={
-              <div>
-                <Text>{editError}</Text>
-                {renderEditErrorDetails()}
-              </div>
-            }
-            type="error"
-            icon={<ExclamationCircleOutlined />}
-            showIcon
-            closable
-            onClose={() => {
-              setEditError(null);
-              setEditErrorDetails(null);
-            }}
-            style={{ marginBottom: 24 }}
-          />
-        )}
-
-        <Form
-          form={editForm}
-          layout="vertical"
-          style={{ marginTop: 16 }}
-        >
-          <Form.Item
-            label="Tên lớp"
-            name="subject"
-            rules={[
-              { required: true, message: 'Vui lòng nhập tên lớp!' },
-              { min: 3, message: 'Tên lớp phải có ít nhất 3 ký tự!' }
-            ]}
-          >
-            <Input size="large" placeholder="Nhập tên lớp" />
-          </Form.Item>
-
-          <Form.Item
-            label="Mô tả"
-            name="description"
-            rules={[
-              { required: true, message: 'Vui lòng nhập mô tả!' },
-              { min: 10, message: 'Mô tả phải có ít nhất 10 ký tự!' }
-            ]}
-          >
-            <TextArea rows={4} placeholder="Mô tả chi tiết về lớp học" />
-          </Form.Item>
-
-          <Form.Item
-            label="Phòng học"
-            name="room"
-            rules={[{ required: true, message: 'Vui lòng nhập phòng học!' }]}
-          >
-            <Input size="large" placeholder="VD: A101, LAB1" />
-          </Form.Item>
-
-          <Divider orientation="left">Lịch học</Divider>
-
-          {/* Day Selection */}
-          <Form.Item label="Chọn ngày trong tuần">
-            <Select
-              mode="multiple"
-              size="large"
-              placeholder="Chọn ngày dạy"
-              style={{ width: '100%' }}
-              value={selectedDays}
-              onChange={handleEditDayChange}
-            >
-              {weekDays.map(day => (
-                <Option key={day.value} value={day.value}>
-                  {day.label}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          {/* Period Selection for each day */}
-          {selectedDays.sort().map(day => {
-            const dayLabel = weekDays.find(d => d.value === day)?.label;
-            const daySchedule = editSchedules.find(s => s.day === day);
-            const selectedPeriods = dayPeriods[day] || [];
-
-            return (
-              <Card
-                key={day}
-                size="small"
-                style={{
-                  marginBottom: 16,
-                  borderLeft: '4px solid #1890ff'
-                }}
-                title={
-                  <Space>
-                    <CalendarOutlined style={{ color: '#1890ff' }} />
-                    <Text strong>{dayLabel}</Text>
-                  </Space>
-                }
-              >
-                <div style={{ marginBottom: 12 }}>
-                  <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                    Chọn tiết:
-                  </Text>
-                  <Select
-                    mode="multiple"
-                    size="large"
-                    placeholder="Chọn tiết"
-                    style={{ width: '100%' }}
-                    value={selectedPeriods}
-                    onChange={(periods) => handleEditPeriodChange(day, periods)}
-                  >
-                    {TIME_SLOT_OPTIONS.map(slot => (
-                      <Option key={slot.period} value={slot.period}>
-                        {slot.label}
-                      </Option>
-                    ))}
-                  </Select>
-                </div>
-
-                {/* Auto-split sessions display */}
-                {daySchedule && daySchedule.sessions.length > 0 && (
-                  <div style={{ marginTop: 12 }}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      Phiên (tự động tách):
-                    </Text>
-                    <Space direction="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
-                      {daySchedule.sessions.map((session, index) => (
-                        <div key={session.id} style={{
-                          background: '#f0f9ff',
-                          padding: '8px 12px',
-                          borderRadius: 4,
-                          border: '1px solid #bae6fd'
-                        }}>
-                          <Text strong style={{ color: '#0369a1', fontSize: 12 }}>
-                            Phiên {index + 1}:
-                          </Text>{' '}
-                          <Tag color="blue">
-                            {formatTimeRange(session.periods)}
-                          </Tag>
-                        </div>
-                      ))}
-                    </Space>
-
-                    {daySchedule.sessions.length > 1 && (
-                      <Alert
-                        message={`Tự động tách thành ${daySchedule.sessions.length} phiên`}
-                        type="info"
-                        showIcon
-                        style={{ marginTop: 12 }}
-                      />
-                    )}
-                  </div>
-                )}
-              </Card>
-            );
-          })}
-
-          <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
-            <Space>
-              <Button
-                type="primary"
-                size="large"
-                loading={editLoading}
-                onClick={handleUpdateClass}
-                disabled={!!editError}
-              >
-                {editLoading ? 'Đang cập nhập...' : 'Lưu thay đổi'}
-              </Button>
-              <Button
-                size="large"
-                onClick={() => setIsEditModalVisible(false)}
-                disabled={editLoading}
-              >
-                Hủy
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
+        onSuccess={() => {
+          setIsEditModalVisible(false);
+          fetchClassDetails();
+        }}
+        classData={classData}
+        courses={courses}
+        rooms={rooms}
+      />
 
       {/* ✅ Create Attendance Session Modal */}
       <Modal

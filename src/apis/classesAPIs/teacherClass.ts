@@ -2,17 +2,15 @@ import api from "../axios";
 
 // ==================== Types ====================
 
-/**
- * Weekly schedule with period ranges (format: '1-3' means periods 1 to 3)
- */
+export interface DaySchedule {
+  day: number;
+  periods: number[];
+  location?: string;
+  room?: string; // Legacy alias
+}
+
 export interface ScheduleModel {
-  monday?: string[];
-  tuesday?: string[];
-  wednesday?: string[];
-  thursday?: string[];
-  friday?: string[];
-  saturday?: string[];
-  sunday?: string[];
+  schedules: DaySchedule[];
 }
 
 /**
@@ -21,6 +19,7 @@ export interface ScheduleModel {
 export interface CreateClassRequest {
   class_name: string;
   teacher_id: number;
+  course_id?: string | null;
   location?: string | null;
   description?: string | null;
   schedule: ScheduleModel;
@@ -33,6 +32,7 @@ export interface UpdateClassRequest {
   class_name?: string;
   location?: string;
   description?: string;
+  course_id?: string | null;
   is_active?: boolean;
   schedule?: ScheduleModel;
 }
@@ -133,6 +133,7 @@ export interface ClassDetailResponse {
   room: string | null;
   status: "active" | "inactive";
   classCode: string;
+  courseId: string | null;
   description: string | null;
 }
 
@@ -273,7 +274,7 @@ export const getClassesList = async (
   if (status) {
     params.status = status;
   }
-  
+
   const response = await api.get("/teacher/classes", { params });
   return response.data;
 };
@@ -322,6 +323,18 @@ export const updateClass = async (
 };
 
 /**
+ * Cập nhật học phần cho lớp học
+ * PATCH /api/v1/teacher/classes/{class_id}/course
+ */
+export const updateClassCourse = async (
+  classId: number,
+  courseId: string
+): Promise<any> => {
+  const response = await api.patch(`/teacher/classes/${classId}/course`, { course_id: courseId });
+  return response.data;
+};
+
+/**
  * Xóa lớp học (soft delete - set is_active = false)
  * DELETE /api/v1/teacher/classes/{class_id}
  * 
@@ -332,9 +345,60 @@ export const updateClass = async (
  * ```
  */
 export const deleteClass = async (
-  classId: number
+  classId: number,
+  password?: string
 ): Promise<DeleteClassResponse> => {
-  const response = await api.delete(`/teacher/classes/${classId}`);
+  const response = await api.delete(`/teacher/classes/${classId}`, {
+    data: password ? { password } : undefined,
+  });
+  return response.data;
+};
+
+/**
+ * Phục hồi lớp học đã xóa mềm (set is_active = true)
+ * POST /api/v1/teacher/classes/{class_id}/restore
+ */
+export const restoreClass = async (
+  classId: number
+): Promise<{ success: boolean; message: string }> => {
+  const response = await api.post(`/teacher/classes/${classId}/restore`);
+  return response.data;
+};
+
+export interface ClassDocumentItem {
+  documentId: string;
+  title: string;
+  fileUrl?: string;
+  createdAt: string;
+  isPrivate: boolean;
+}
+
+export interface ClassDocumentListResponse {
+  success: boolean;
+  data: ClassDocumentItem[];
+  message: string;
+}
+
+/**
+ * Lấy danh sách tài liệu của lớp học
+ * GET /api/v1/classes/{class_id}/documents
+ */
+export const getClassDocuments = async (
+  classId: number
+): Promise<ClassDocumentListResponse> => {
+  const response = await api.get(`/classes/${classId}/documents`);
+  
+  // Map snake_case to camelCase
+  if (response.data && response.data.data) {
+    response.data.data = response.data.data.map((item: any) => ({
+      documentId: item.document_id,
+      title: item.title,
+      fileUrl: item.file_url,
+      createdAt: item.created_at,
+      isPrivate: item.is_private
+    }));
+  }
+  
   return response.data;
 };
 
@@ -362,17 +426,17 @@ export const getClassStudentsDetails = async (
 ): Promise<GetClassStudentsDetailResponse> => {
   try {
     const response = await api.get(`/teacher/classes/${classId}/students/details`);
-    
+
     return response.data;
   } catch (error: any) {
     console.error(`Failed to fetch students details for class ${classId}:`, error);
-    
+
     const apiError: ApiError = {
       status: error.response?.status,
       message: error.response?.data?.message || error.message || `Failed to fetch students details for class ${classId}`,
       errors: error.response?.data?.errors
     };
-    
+
     throw apiError;
   }
 };
@@ -385,103 +449,68 @@ export const getClassStudentsDetails = async (
  * @example
  * ```typescript
  * // Frontend: { day: 1, sessions: [{ periods: [1,2,3] }, { periods: [6,7,8,9] }] }
- * // Backend: { monday: ["1-3", "6-9"] }
+ * // Backend: { schedules: [{ day: 1, periods: [1,2,3], location: "A101" }, { day: 1, periods: [6,7,8,9], location: "A101" }] }
  * ```
  */
+import { DAY_NAMES, TIME_SLOTS, getEndTimeForPeriod } from "../../constants/mappings";
+
 export const convertFrontendScheduleToBackend = (
   schedules: Array<{
     day: number;
     sessions: Array<{ periods: number[] }>;
-  }>,
-  room?: string
+    location?: string;
+    room?: string; // Legacy alias
+  }>
 ): ScheduleModel => {
-  const dayMapping = [
-    "sunday",
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-    "saturday",
-  ] as const;
-
-  const result: ScheduleModel = {};
-
-  schedules.forEach(({ day, sessions }) => {
-    const dayName = dayMapping[day];
-    
-    result[dayName] = sessions.map(session => {
-      const sortedPeriods = [...session.periods].sort((a, b) => a - b);
-      
-      // Group consecutive periods
-      const groups: number[][] = [];
-      let currentGroup = [sortedPeriods[0]];
-      
-      for (let i = 1; i < sortedPeriods.length; i++) {
-        if (sortedPeriods[i] === currentGroup[currentGroup.length - 1] + 1) {
-          currentGroup.push(sortedPeriods[i]);
-        } else {
-          groups.push(currentGroup);
-          currentGroup = [sortedPeriods[i]];
-        }
-      }
-      groups.push(currentGroup);
-      
-      // Convert each group to "start-end" format
-      return groups.map(group => `${group[0]}-${group[group.length - 1]}`);
-    }).flat();
+  const resultSchedules: DaySchedule[] = [];
+  schedules.forEach(({ day, sessions, location, room }) => {
+    const resolvedLocation = location || room;
+    sessions.forEach((session) => {
+      const uniquePeriods = Array.from(new Set(session.periods)).sort((a, b) => a - b);
+      if (uniquePeriods.length === 0) return;
+      resultSchedules.push({
+        day,
+        periods: uniquePeriods,
+        ...(resolvedLocation ? { location: resolvedLocation } : {}),
+      });
+    });
   });
 
-  return result;
+  return { schedules: resultSchedules };
 };
 
 /**
  * Format schedule thành human-readable string
- * 
- * @example
- * ```typescript
- * const schedule = { monday: ["1-3", "6-9"], wednesday: ["1-3"] };
- * console.log(formatScheduleDisplay(schedule));
- * // Output: "Monday: 07:00-09:50, 13:00-16:50; Wednesday: 07:00-09:50"
- * ```
  */
 export const formatScheduleDisplay = (schedule: ScheduleModel): string => {
-  const dayNames: Record<string, string> = {
-    monday: "Monday",
-    tuesday: "Tuesday",
-    wednesday: "Wednesday",
-    thursday: "Thursday",
-    friday: "Friday",
-    saturday: "Saturday",
-    sunday: "Sunday",
-  };
-
-  const timeSlots: Record<number, string> = {
-    1: "07:00",
-    2: "08:00",
-    3: "09:00",
-    4: "10:00",
-    5: "11:00",
-    6: "13:00",
-    7: "14:00",
-    8: "15:00",
-    9: "16:00",
-    10: "17:00",
-  };
-
-  const getEndTime = (period: number): string => {
-    return timeSlots[period + 1] || "20:00";
-  };
+  if (!schedule || !schedule.schedules) return "";
 
   const result: string[] = [];
 
-  Object.entries(schedule).forEach(([day, periods]) => {
+  schedule.schedules.forEach(({ day, periods }) => {
     if (periods && periods.length > 0) {
-      const dayLabel = dayNames[day] || day;
-      const timeRanges = periods.map(range => {
-        const [start, end] = range.split("-").map(Number);
-        return `${timeSlots[start]}-${getEndTime(end)}`;
+      const dayLabel = DAY_NAMES[day] || `Ngày ${day}`;
+
+      // Group consecutive periods
+      const groups: number[][] = [];
+      let currentGroup = [periods[0]];
+
+      for (let i = 1; i < periods.length; i++) {
+        if (periods[i] === currentGroup[currentGroup.length - 1] + 1) {
+          currentGroup.push(periods[i]);
+        } else {
+          groups.push(currentGroup);
+          currentGroup = [periods[i]];
+        }
+      }
+      groups.push(currentGroup);
+
+      const timeRanges = groups.map(group => {
+        const start = group[0];
+        const end = group[group.length - 1];
+        return `${TIME_SLOTS[start] || start}-${getEndTimeForPeriod(end)}`;
       });
+
       result.push(`${dayLabel}: ${timeRanges.join(", ")}`);
     }
   });
@@ -494,13 +523,13 @@ export const formatScheduleDisplay = (schedule: ScheduleModel): string => {
  */
 export const validatePeriodRange = (period: string): boolean => {
   if (!period.includes("-")) return false;
-  
+
   const [start, end] = period.split("-").map(Number);
-  
+
   if (isNaN(start) || isNaN(end)) return false;
   if (start < 1 || end > 12) return false;
   if (start > end) return false;
-  
+
   return true;
 };
 
@@ -527,10 +556,10 @@ export const getStatusColor = (status: string): string => {
 /**
  * Format attendance rate với màu sắc tương ứng
  */
-export const formatAttendanceRate = (rate: number): { 
-  value: number; 
-  color: string; 
-  status: 'excellent' | 'good' | 'warning' | 'danger' 
+export const formatAttendanceRate = (rate: number): {
+  value: number;
+  color: string;
+  status: 'excellent' | 'good' | 'warning' | 'danger'
 } => {
   if (rate >= 90) {
     return { value: rate, color: '#52c41a', status: 'excellent' };
@@ -547,7 +576,7 @@ export const formatAttendanceRate = (rate: number): {
  * Sắp xếp danh sách sinh viên theo tiêu chí
  */
 export const sortStudents = (
-  students: StudentDetailInClass[], 
+  students: StudentDetailInClass[],
   sortBy: 'name' | 'attendance' | 'joinDate' | 'verification'
 ): StudentDetailInClass[] => {
   return [...students].sort((a, b) => {
@@ -570,13 +599,13 @@ export const sortStudents = (
  * Tìm kiếm sinh viên theo tên hoặc mã SV
  */
 export const searchStudents = (
-  students: StudentDetailInClass[], 
+  students: StudentDetailInClass[],
   searchTerm: string
 ): StudentDetailInClass[] => {
   if (!searchTerm.trim()) return students;
-  
+
   const term = searchTerm.toLowerCase().trim();
-  return students.filter(student => 
+  return students.filter(student =>
     student.fullName.toLowerCase().includes(term) ||
     student.studentId.toLowerCase().includes(term) ||
     student.email.toLowerCase().includes(term)
@@ -587,7 +616,7 @@ export const searchStudents = (
  * Lọc sinh viên theo trạng thái xác thực
  */
 export const filterStudentsByVerification = (
-  students: StudentDetailInClass[], 
+  students: StudentDetailInClass[],
   verified: boolean | null
 ): StudentDetailInClass[] => {
   if (verified === null) return students;
