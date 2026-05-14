@@ -1255,22 +1255,6 @@ const ClassDetailPage: React.FC = () => {
                     width: 200,
                     render: (value: string) => new Date(value).toLocaleString("vi-VN"),
                   },
-                  {
-                    title: "",
-                    key: "aiAction",
-                    width: 160,
-                    render: (_: unknown, record: ClassDocumentItem) => (
-                      <Button
-                        type="primary"
-                        size="small"
-                        icon={<BookOutlined />}
-                        onClick={() => navigate(`/teacher/classes/${classId}/learning/${record.documentId}`, { state: { className: classData?.subject } })}
-                        style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', border: 'none', borderRadius: 8 }}
-                      >
-                        AI Trợ Giảng
-                      </Button>
-                    ),
-                  },
                 ]}
               />
             </Card>

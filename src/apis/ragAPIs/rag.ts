@@ -10,6 +10,7 @@ export interface ChatMessage {
   role: 'user' | 'ai';
   content: string;
   created_at: string;
+  citations?: Citation[];
 }
 
 export interface Citation {
@@ -22,6 +23,9 @@ export interface SourcesPayload {
   pages: Citation[];
 }
 
+export type CreativityMode = 'strict' | 'expanded';
+export type DetailLevel = 'brief' | 'normal' | 'detailed';
+
 /** Parsed SSE event */
 export type SSEEvent =
   | { type: 'token'; text: string }
@@ -32,11 +36,29 @@ export type SSEEvent =
 // ─── History APIs ─────────────────────────────────────────────────────────────
 
 /**
- * Lấy lịch sử chat của user trong lớp học
+ * Lấy lịch sử chat của user trong lớp học (từ Backend DB)
  */
 export async function getChatHistory(classId: number): Promise<ChatMessage[]> {
   const res = await api.get('/rag/chat/history', { params: { class_id: classId } });
-  return res.data?.data?.messages ?? [];
+  // Backend returns Array directly now
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+/**
+ * Lưu cặp câu hỏi - câu trả lời vào Backend DB
+ */
+export async function saveChatMessage(
+  classId: number, 
+  question: string, 
+  answer: string,
+  citations?: Citation[]
+): Promise<void> {
+  await api.post('/rag/chat/save', {
+    class_id: classId,
+    question: question,
+    answer: answer,
+    citations: citations
+  });
 }
 
 /**
@@ -64,6 +86,10 @@ export function streamChat(
   classId: number,
   question: string,
   documentIds: string[],
+  options: {
+    creativityMode?: CreativityMode;
+    detailLevel?: DetailLevel;
+  },
   onToken: (text: string) => void,
   onSources: (payload: SourcesPayload) => void,
   onError: (msg: string) => void,
@@ -87,6 +113,8 @@ export function streamChat(
         class_id: classId,
         question,
         document_ids: documentIds,
+        creativity_mode: options.creativityMode ?? 'strict',
+        detail_level: options.detailLevel ?? 'normal',
       }),
       signal: controller.signal,
     })
@@ -146,8 +174,10 @@ export function streamChat(
       .catch((err: unknown) => {
         if ((err as { name?: string }).name === 'AbortError') return; // cancelled
         onError(String(err));
-        onDone();
       });
+  }).catch((importErr: unknown) => {
+    onError(`Lỗi khởi tạo kết nối: ${String(importErr)}`);
+    onDone();
   });
 
   return controller;
