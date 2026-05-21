@@ -46,6 +46,7 @@ export interface WSMessage {
   type: WSMessageType;
   detections?: DetectionInfo[];
   total_faces?: number;
+  processing_stage?: 'detected' | 'completed';
   timestamp?: string;
   student?: ValidatedStudent;
   stats?: SessionStats;
@@ -73,7 +74,7 @@ export class AIWebSocketClient {
   // Callbacks
   private onConnectedCallback?: () => void;
   private onDisconnectedCallback?: (code: number, reason: string) => void;
-  private onFrameProcessedCallback?: (detections: DetectionInfo[], totalFaces: number) => void;
+  private onFrameProcessedCallback?: (detections: DetectionInfo[], totalFaces: number, processingStage?: 'detected' | 'completed') => void;
   private onStudentValidatedCallback?: (student: ValidatedStudent) => void;
   private onSessionStatusCallback?: (status: string, stats: SessionStats) => void;
   private onErrorCallback?: (error: string) => void;
@@ -164,7 +165,7 @@ export class AIWebSocketClient {
          // Debug
          // Debug detections detail
         if (data.detections && data.total_faces !== undefined) {
-          this.onFrameProcessedCallback?.(data.detections, data.total_faces);
+          this.onFrameProcessedCallback?.(data.detections, data.total_faces, data.processing_stage);
         } else {
           console.warn('[AIWebSocket] Frame processed but missing detections or total_faces');
         }
@@ -250,7 +251,7 @@ export class AIWebSocketClient {
     this.onDisconnectedCallback = callback;
   }
 
-  onFrameProcessed(callback: (detections: DetectionInfo[], totalFaces: number) => void) {
+  onFrameProcessed(callback: (detections: DetectionInfo[], totalFaces: number, processingStage?: 'detected' | 'completed') => void) {
     this.onFrameProcessedCallback = callback;
   }
 

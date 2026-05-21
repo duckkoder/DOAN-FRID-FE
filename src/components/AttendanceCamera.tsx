@@ -427,12 +427,14 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         }
       });
 
-      wsClient.onFrameProcessed((detections, totalFaces) => {
+      wsClient.onFrameProcessed((detections, totalFaces, processingStage) => {
         setDetections(detections);
         setTotalFaces(totalFaces);
         
         // ✅ Mark frame processing complete - cho phép capture frame tiếp theo
-        markFrameComplete();
+        if (processingStage !== 'detected') {
+          markFrameComplete();
+        }
       });
 
       wsClient.onStudentValidated((student) => {
@@ -446,6 +448,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
 
       wsClient.onError((errorMsg) => {
         setError(errorMsg);
+        markFrameComplete();
       });
 
       // Connect
