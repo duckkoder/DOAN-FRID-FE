@@ -113,7 +113,7 @@ export function useFaceRegistration({
         case "step_completed": {
           const stepData = data as WSStepCompletedResponse;
           
-          antMessage.success(`Step ${stepData.step_number}/14 completed: ${stepData.step_name}`);
+          antMessage.success(`Bước ${stepData.step_number}/14 hoàn thành: ${stepData.step_name}`);
           break;
         }
 
@@ -141,7 +141,7 @@ export function useFaceRegistration({
           setProcessedFrame(null); // Clear processed frame
           
           antMessage.success({
-            content: "Collected 14 images! Please review and confirm.",
+            content: "Thu thập xong 14 ảnh! Vui lòng xem lại và xác nhận.",
             duration: 5,
           });
           break;
@@ -157,7 +157,7 @@ export function useFaceRegistration({
           if (confirmData.accepted) {
             // Student accepted - now uploading and waiting for admin
             antMessage.success({
-              content: confirmData.message || "Uploading images and waiting for admin approval...",
+              content: confirmData.message || "Đang tải ảnh và chờ admin duyệt...",
               duration: 3,
             });
             
@@ -185,7 +185,7 @@ export function useFaceRegistration({
             }, 2000);
           } else {
             // Student rejected - can re-collect
-            antMessage.info(confirmData.message || "Cancelled. You can collect again.");
+            antMessage.info(confirmData.message || "Huỷ. Bạn có thể chụp lại.");
             setPreviewImages([]);
             
             // Restart streaming for re-collection
@@ -222,7 +222,7 @@ export function useFaceRegistration({
             videoRef.current.srcObject = null;
           }
           
-          antMessage.success("Face registration successful! 🎉");
+          antMessage.success("Đăng ký khuôn mặt thành công! 🎉");
           break;
         }
 
@@ -242,7 +242,7 @@ export function useFaceRegistration({
 
         case "restarted": {
           
-          antMessage.info("Registration process restarted");
+          antMessage.info("Đã khởi động lại quá trình đăng ký");
           setProcessedFrame(null);
           setIsCompleted(false);
           setCompletionData(null);
@@ -263,11 +263,11 @@ export function useFaceRegistration({
   const handleErrorCode = useCallback((errorCode: FaceRegistrationErrorCodeType, errorMessage: string) => {
     switch (errorCode) {
       case FaceRegistrationErrorCode.STUDENT_NOT_FOUND:
-        antMessage.error("Student not found. Please check the ID.");
+        antMessage.error("Không tìm thấy sinh viên. Vui lòng kiểm tra lại.");
         break;
 
       case FaceRegistrationErrorCode.ALREADY_REGISTERED:
-        antMessage.warning("Face already registered. You can re-register if you want.");
+        antMessage.warning("Đã đăng ký khuôn mặt trước đó. Bạn có thể đăng ký lại nếu muốn.");
         break;
 
       case FaceRegistrationErrorCode.NO_FACE_DETECTED:
@@ -276,11 +276,11 @@ export function useFaceRegistration({
         break;
 
       case FaceRegistrationErrorCode.S3_UPLOAD_FAILED:
-        antMessage.error("Image upload failed. Please try again.");
+        antMessage.error("Đăng tải ảnh thất bại. Vui lòng thử lại.");
         break;
 
       case FaceRegistrationErrorCode.DATABASE_ERROR:
-        antMessage.error("System error. Please contact administrator.");
+        antMessage.error("Lỗi hệ thống. Vui lòng liên hệ quản trị viên.");
         disconnect();
         break;
 
@@ -289,7 +289,7 @@ export function useFaceRegistration({
         break;
 
       case FaceRegistrationErrorCode.WEBSOCKET_ERROR:
-        antMessage.error("WebSocket connection error. Trying to reconnect...");
+        antMessage.error("Lỗi kết nối WebSocket. Đang thử kết nối lại...");
         break;
 
       default:
@@ -302,10 +302,10 @@ export function useFaceRegistration({
    */
   const attemptReconnect = useCallback(() => {
     if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
-      console.error("Max reconnect attempts reached");
+      console.error("Đã đạt tối đa số lần thử kết nối lại");
       setConnectionStatus("error");
-      setError("Cannot connect to server. Please try again later.");
-      antMessage.error("Cannot connect to server after multiple attempts.");
+      setError("Đang công tác với máy chủ không thành công. Vui lòng thử lại sau.");
+      antMessage.error("Đang kết nối thất bại sau nhiều lần thử.");
       return;
     }
 
@@ -351,7 +351,7 @@ export function useFaceRegistration({
       setConnectionStatus("connected");
       setError(null);
       reconnectAttemptsRef.current = 0; // Reset reconnect attempts
-      antMessage.success("Connected successfully!");
+      antMessage.success("Đã kết nối thành công!");
     };
 
     ws.onmessage = handleMessage;
@@ -417,20 +417,20 @@ export function useFaceRegistration({
       }
 
       
-      antMessage.success("Camera is ready!");
+      antMessage.success("Đã bật camera!");
       return true;
     } catch (err: any) {
       console.error("Failed to start webcam:", err);
 
       if (err.name === "NotAllowedError") {
-        antMessage.error("Please allow camera access.");
-        setError("No camera access permission");
+        antMessage.error("Vui lòng cấp quyền truy cập camera.");
+        setError("Không có quyền truy cập camera");
       } else if (err.name === "NotFoundError") {
-        antMessage.error("No camera found on device.");
-        setError("No camera found");
+        antMessage.error("Không tìm thấy camera trên thiết bị.");
+        setError("Không tìm thấy camera");
       } else {
-        antMessage.error("Cannot start camera.");
-        setError("Camera startup error");
+        antMessage.error("Không thể khởi động camera.");
+        setError("Đang khởi động camera gặp lỗi");
       }
 
       return false;
@@ -574,7 +574,7 @@ export function useFaceRegistration({
         }
       }
     } else {
-      antMessage.error("Cannot send confirmation. Please try again.");
+      antMessage.error("Không thể gửi xác nhận. Vui lòng thử lại.");
     }
   }, [startWebcam, startStreaming]);
 

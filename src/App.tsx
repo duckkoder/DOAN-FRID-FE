@@ -7,8 +7,7 @@ export default function App() {
   return (
     <ToastProvider>
       <AuthProvider>
-        {/* <div style={{ minHeight: "100vh", width: "100%", position: "relative" }}> */}
-        <div >
+        <div>
           <RouterProvider router={router} />
         </div>
       </AuthProvider>

@@ -64,6 +64,21 @@ export interface ClassPostItem {
   comments: CommentItem[];
 }
 
+export interface PostReactionActor {
+  id: number;
+  emoji: string;
+  createdAt: string;
+  actorRole: "student" | "teacher";
+  actorProfile: PersonProfile;
+}
+
+export interface PostReactionDetails {
+  postId: number;
+  total: number;
+  byEmoji: Record<string, number>;
+  items: PostReactionActor[];
+}
+
 export interface ListClassPostsResponse {
   success: boolean;
   data: {
@@ -165,6 +180,16 @@ export const removeClassPostReaction = async (
   message: string;
 }> => {
   const response = await api.delete(`/class-posts/posts/${postId}/reactions`);
+  return response.data;
+};
+
+export const getPostReactionDetails = async (
+  postId: number
+): Promise<{
+  success: boolean;
+  data: PostReactionDetails;
+}> => {
+  const response = await api.get(`/class-posts/posts/${postId}/reactions`);
   return response.data;
 };
 

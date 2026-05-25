@@ -202,7 +202,7 @@ const StudentClassDetailPage: React.FC = () => {
   }, [classId]);
 
   useEffect(() => {
-    if (!classId || activeTab !== "documents") return;
+    if (!classId || (activeTab !== "documents" && activeTab !== "posts")) return;
 
     const fetchDocuments = async () => {
       setLoadingDocuments(true);
@@ -220,7 +220,7 @@ const StudentClassDetailPage: React.FC = () => {
   }, [activeTab, classId]);
 
   useEffect(() => {
-    if (!classId || activeTab !== "class-info") return;
+    if (!classId || (activeTab !== "class-info" && activeTab !== "posts")) return;
 
     const fetchClassmates = async () => {
       setLoadingClassmates(true);
@@ -385,59 +385,96 @@ const StudentClassDetailPage: React.FC = () => {
   return (
     <div
       style={{
-        padding: 24,
-        background: "linear-gradient(180deg, #f7fafc 0%, #eef2f7 100%)",
+        padding: "28px 28px 40px",
+        background: "linear-gradient(180deg, #f5f9ff 0%, #eef4fb 100%)",
         minHeight: "100vh",
       }}
     >
       <Breadcrumb items={breadcrumbItems} />
 
-      <Card
+      <div
         style={{
-          marginBottom: 16,
-          borderRadius: 14,
-          border: "1px solid #e6edf5",
-          boxShadow: "0 6px 18px rgba(15, 23, 42, 0.05)",
+          display: "flex",
+          alignItems: "center",
+          gap: 20,
+          marginTop: 28,
+          marginBottom: 48,
+          minHeight: 86,
         }}
       >
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} style={{ marginBottom: 12 }}>
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate(-1)}
+          size="large"
+          style={{
+            borderRadius: 10,
+            height: 40,
+            paddingInline: 18,
+            background: "#ffffff",
+            boxShadow: "0 4px 14px rgba(15, 23, 42, 0.08)",
+          }}
+        >
           Quay lại
         </Button>
 
-        <Space direction="vertical" size={6}>
-          <Title level={2} style={{ margin: 0 }}>
-            {classInfo.className}
-          </Title>
-          <Space wrap>
-            <Text>
-              <UserOutlined /> {classInfo.teacherName}
-            </Text>
-            {classInfo.location && (
-              <Text>
-                <EnvironmentOutlined /> Phòng {classInfo.location}
+        <div style={{ display: "flex", alignItems: "center", gap: 16, minWidth: 0 }}>
+          <div style={{ position: "relative", width: 42, height: 38, flex: "0 0 auto" }}>
+            <span style={{ position: "absolute", left: 2, top: 0, width: 20, height: 24, borderRadius: 2, background: "#83e147" }} />
+            <span style={{ position: "absolute", left: 13, top: 5, width: 20, height: 24, borderRadius: 2, background: "#ec4f8b" }} />
+            <span style={{ position: "absolute", left: 8, top: 12, width: 24, height: 22, borderRadius: 2, background: "#1d9bf0", boxShadow: "0 4px 10px rgba(29, 155, 240, 0.22)" }} />
+          </div>
+
+          <Space direction="vertical" size={10} style={{ minWidth: 0 }}>
+            <Title level={1} style={{ margin: 0, color: "#2563eb", fontSize: 38, lineHeight: 1.08, fontWeight: 800 }}>
+              {classInfo.className}
+            </Title>
+            <Space wrap size={14}>
+              <Tag color={statusConfig.color} style={{ margin: 0, borderRadius: 5, padding: "7px 16px", fontSize: 16, fontWeight: 600 }}>
+                {statusConfig.text}
+              </Tag>
+              <Text style={{ color: "#64748b", fontSize: 16 }}>
+                <BookOutlined /> Mã lớp: {classInfo.classCode}
               </Text>
-            )}
-            <Text>
-              <TeamOutlined /> {classInfo.totalStudents} thành viên
-            </Text>
-            <Tag color={statusConfig.color}>{statusConfig.text}</Tag>
+              <Text style={{ color: "#64748b", fontSize: 16 }}>
+                <UserOutlined /> {classInfo.teacherName}
+              </Text>
+              {classInfo.location && (
+                <Text style={{ color: "#64748b", fontSize: 16 }}>
+                  <EnvironmentOutlined /> Phòng {classInfo.location}
+                </Text>
+              )}
+            </Space>
           </Space>
-        </Space>
-      </Card>
+        </div>
+      </div>
 
       <Card
         style={{
-          borderRadius: 14,
-          border: "1px solid #e6edf5",
-          boxShadow: "0 6px 18px rgba(15, 23, 42, 0.05)",
+          borderRadius: 18,
+          border: "none",
+          boxShadow: "0 14px 34px rgba(15, 23, 42, 0.06)",
+          overflow: "hidden",
         }}
+        bodyStyle={{ padding: "28px 30px 30px" }}
       >
-        <Tabs className="class-detail-tabs" activeKey={activeTab} onChange={handleTabChange} size="large">
-          <Tabs.TabPane tab="📝 Bài đăng" key="posts">
-            <TeacherClassPostsPanel classId={classInfo.id} allowCreatePost={false} />
+        <Tabs className="class-detail-tabs" activeKey={activeTab} onChange={handleTabChange} size="large" tabBarGutter={36}>
+          <Tabs.TabPane tab={<span><FileTextOutlined /> Bài đăng</span>} key="posts">
+            <TeacherClassPostsPanel
+              classId={classInfo.id}
+              allowCreatePost={false}
+              mentionDocuments={documentsData}
+              mentionStudents={classmates}
+              mentionTeachers={[
+                {
+                  id: classInfo.teacherId,
+                  fullName: classInfo.teacherName || "Giảng viên",
+                },
+              ]}
+              mentionSourcesLoading={loadingDocuments || loadingClassmates}
+            />
           </Tabs.TabPane>
 
-          <Tabs.TabPane tab="📚 Tài liệu" key="documents">
+          <Tabs.TabPane tab={<span><BookOutlined /> Tài liệu</span>} key="documents">
             <Card
               title={
                 <Space>
@@ -503,7 +540,7 @@ const StudentClassDetailPage: React.FC = () => {
             </Card>
           </Tabs.TabPane>
 
-          <Tabs.TabPane tab="📅 Điểm danh" key="attendance">
+          <Tabs.TabPane tab={<span><CalendarOutlined /> Điểm danh</span>} key="attendance">
             <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
               <Col xs={12} md={6}>
                 <Card style={{ borderRadius: 12 }}>

@@ -7,9 +7,10 @@ export interface DetectionInfo {
   bbox: number[]; // [x1, y1, x2, y2]
   track_id: number | null;
   student_id: string | null;
-  student_name: string | null;
+  student_code?: string | null;
+  student_name?: string | null;
   confidence: number | null;
-  is_validated: boolean;
+  is_validated?: boolean;
   status?: 'detecting' | 'unknown' | 'recognized' | 'validated'; // ✅ Recognition status
   
   // Anti-spoofing fields
@@ -47,6 +48,7 @@ export interface WSMessage {
   detections?: DetectionInfo[];
   total_faces?: number;
   processing_stage?: 'detected' | 'completed';
+  heavy_processed?: boolean;
   timestamp?: string;
   student?: ValidatedStudent;
   stats?: SessionStats;
@@ -74,7 +76,7 @@ export class AIWebSocketClient {
   // Callbacks
   private onConnectedCallback?: () => void;
   private onDisconnectedCallback?: (code: number, reason: string) => void;
-  private onFrameProcessedCallback?: (detections: DetectionInfo[], totalFaces: number, processingStage?: 'detected' | 'completed') => void;
+  private onFrameProcessedCallback?: (detections: DetectionInfo[], totalFaces: number, processingStage?: 'detected' | 'completed', heavyProcessed?: boolean) => void;
   private onStudentValidatedCallback?: (student: ValidatedStudent) => void;
   private onSessionStatusCallback?: (status: string, stats: SessionStats) => void;
   private onErrorCallback?: (error: string) => void;
@@ -165,7 +167,7 @@ export class AIWebSocketClient {
          // Debug
          // Debug detections detail
         if (data.detections && data.total_faces !== undefined) {
-          this.onFrameProcessedCallback?.(data.detections, data.total_faces, data.processing_stage);
+          this.onFrameProcessedCallback?.(data.detections, data.total_faces, data.processing_stage, data.heavy_processed);
         } else {
           console.warn('[AIWebSocket] Frame processed but missing detections or total_faces');
         }
@@ -251,7 +253,7 @@ export class AIWebSocketClient {
     this.onDisconnectedCallback = callback;
   }
 
-  onFrameProcessed(callback: (detections: DetectionInfo[], totalFaces: number, processingStage?: 'detected' | 'completed') => void) {
+  onFrameProcessed(callback: (detections: DetectionInfo[], totalFaces: number, processingStage?: 'detected' | 'completed', heavyProcessed?: boolean) => void) {
     this.onFrameProcessedCallback = callback;
   }
 

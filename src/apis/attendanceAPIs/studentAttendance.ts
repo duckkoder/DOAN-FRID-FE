@@ -162,7 +162,7 @@ export const connectAttendanceWebSocket = (sessionId: number): WebSocket => {
   // Get WebSocket URL from environment variable
   const wsURL = import.meta.env.VITE_WS_BASE_URL;
   
-  const ws = new WebSocket(`${wsURL}${API_BASE}/ws/${sessionId}`);
+  const ws = new WebSocket(`${wsURL}/api/v1${API_BASE}/ws/${sessionId}`);
   
   return ws;
 };

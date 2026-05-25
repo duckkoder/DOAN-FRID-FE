@@ -25,6 +25,7 @@ export interface StudentAttendanceRecordDetailSchema {
 export interface StudentAttendanceSessionSummarySchema {
     session_id: number;
     session_name?: string | null;
+    location?: string | null;
     start_time: string; // datetime
     end_time?: string | null; // datetime
     class_id: number;

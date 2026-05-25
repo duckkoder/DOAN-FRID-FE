@@ -35,6 +35,9 @@ import ConfirmedStudentsPanel from './ConfirmedStudentsPanel';
 
 const { Text } = Typography;
 
+const LABEL_CACHE_TTL_MS = 1500;
+const BBOX_SMOOTHING_ALPHA = 0.35;
+
 interface AttendanceCameraProps {
   classId: number;
   visible: boolean;
@@ -43,9 +46,15 @@ interface AttendanceCameraProps {
   dayOfWeek?: number;
   periodRange?: string;
   sessionIndex?: number;
+  location?: string;
   /** Session ID để resume (nếu có session ongoing) */
   resumeSessionId?: number;
 }
+
+type CachedDetectionInfo = Partial<DetectionInfo> & {
+  bbox: number[];
+  lastSeenAt: number;
+};
 
 const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   classId,
@@ -55,6 +64,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   dayOfWeek,
   periodRange,
   sessionIndex,
+  location,
   resumeSessionId,
 }) => {
   // States
@@ -98,6 +108,138 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   const orientationRestartTimeoutRef = useRef<number | null>(null);
   const lastOrientationRef = useRef<'portrait' | 'landscape' | null>(null);
   const isRestartingRef = useRef(false);
+  const detectionCacheRef = useRef<Map<string, CachedDetectionInfo>>(new Map());
+
+  const getBboxIou = (a: number[], b: number[]) => {
+    const x1 = Math.max(a[0], b[0]);
+    const y1 = Math.max(a[1], b[1]);
+    const x2 = Math.min(a[2], b[2]);
+    const y2 = Math.min(a[3], b[3]);
+    const intersection = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+    const areaA = Math.max(0, a[2] - a[0]) * Math.max(0, a[3] - a[1]);
+    const areaB = Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]);
+    const union = areaA + areaB - intersection;
+
+    return union > 0 ? intersection / union : 0;
+  };
+
+  const smoothBbox = (previous: number[], next: number[]) => {
+    if (previous.length !== 4 || next.length !== 4) return next;
+    return next.map((value, index) =>
+      previous[index] * (1 - BBOX_SMOOTHING_ALPHA) + value * BBOX_SMOOTHING_ALPHA
+    );
+  };
+
+  const hasStableLabel = (detection: DetectionInfo) => {
+    const hasStudent =
+      Boolean(detection.student_name && detection.student_name !== 'Unknown') ||
+      Boolean(detection.student_id && detection.student_id !== 'Unknown');
+    const hasSpoof = typeof detection.is_live === 'boolean' || Boolean(detection.spoofing_type);
+
+    return hasStudent || hasSpoof || Boolean(detection.status) || Boolean(detection.is_validated);
+  };
+
+  const getDetectionCacheKey = (detection: DetectionInfo, index: number) => (
+    detection.track_id !== null && detection.track_id !== undefined
+      ? `track:${detection.track_id}`
+      : `slot:${index}`
+  );
+
+  const findCachedDetection = (
+    detection: DetectionInfo,
+    index: number,
+    now: number
+  ): CachedDetectionInfo | undefined => {
+    const cacheKey = getDetectionCacheKey(detection, index);
+    const direct = detectionCacheRef.current.get(cacheKey);
+    const isTrackMatch = detection.track_id !== null && detection.track_id !== undefined;
+
+    if (
+      direct &&
+      now - direct.lastSeenAt <= LABEL_CACHE_TTL_MS &&
+      (isTrackMatch || getBboxIou(direct.bbox, detection.bbox) >= 0.35)
+    ) {
+      return direct;
+    }
+
+    let bestMatch: CachedDetectionInfo | undefined;
+    let bestIou = 0;
+
+    detectionCacheRef.current.forEach(cached => {
+      if (now - cached.lastSeenAt > LABEL_CACHE_TTL_MS) return;
+      const iou = getBboxIou(cached.bbox, detection.bbox);
+      if (iou > bestIou) {
+        bestIou = iou;
+        bestMatch = cached;
+      }
+    });
+
+    return bestIou >= 0.35 ? bestMatch : undefined;
+  };
+
+  const pruneDetectionCache = (now: number) => {
+    detectionCacheRef.current.forEach((cached, key) => {
+      if (now - cached.lastSeenAt > LABEL_CACHE_TTL_MS) {
+        detectionCacheRef.current.delete(key);
+      }
+    });
+  };
+
+  const mergeDetectionUpdates = (
+    previous: DetectionInfo[],
+    incoming: DetectionInfo[],
+    processingStage?: 'detected' | 'completed',
+    heavyProcessed?: boolean
+  ): DetectionInfo[] => {
+    const now = performance.now();
+    pruneDetectionCache(now);
+    const shouldUseLabelCache = processingStage === 'detected' || heavyProcessed === false;
+
+    return incoming.map((detection, index) => {
+      const indexedPrior = previous[index];
+      const prior = previous.find(prev =>
+        (detection.track_id !== null && prev.track_id === detection.track_id) ||
+        getBboxIou(prev.bbox, detection.bbox) >= 0.35
+      ) ?? (
+        indexedPrior && getBboxIou(indexedPrior.bbox, detection.bbox) >= 0.35
+          ? indexedPrior
+          : undefined
+      );
+
+      const cached = shouldUseLabelCache
+        ? findCachedDetection(detection, index, now)
+        : undefined;
+      const source = cached ?? prior;
+      const merged = source
+        ? {
+            ...source,
+            ...detection,
+            bbox: smoothBbox(source.bbox, detection.bbox),
+            student_id: detection.student_id && detection.student_id !== 'Unknown'
+              ? detection.student_id
+              : source.student_id,
+            student_name: detection.student_name && detection.student_name !== 'Unknown'
+              ? detection.student_name
+              : source.student_name,
+            recognition_confidence: detection.recognition_confidence ?? source.recognition_confidence,
+            is_live: detection.is_live ?? source.is_live,
+            spoofing_type: detection.spoofing_type ?? source.spoofing_type,
+            spoofing_confidence: detection.spoofing_confidence ?? source.spoofing_confidence,
+            status: detection.status ?? source.status,
+            is_validated: detection.is_validated ?? source.is_validated,
+          } as DetectionInfo
+        : detection;
+
+      if (hasStableLabel(merged)) {
+        detectionCacheRef.current.set(getDetectionCacheKey(merged, index), {
+          ...merged,
+          lastSeenAt: now,
+        });
+      }
+
+      return merged;
+    });
+  };
 
   // ✅ Dynamic Frame Capture Hook với Web Worker
   const { 
@@ -324,7 +466,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         class_id: classId,
         session_name: sessionName,
         late_threshold_minutes: 15,
-        location: 'Classroom',
+        location: location && location !== 'N/A' ? location : undefined,
         day_of_week: dayOfWeek,
         period_range: periodRange,
         session_index: sessionIndex,
@@ -427,8 +569,8 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         }
       });
 
-      wsClient.onFrameProcessed((detections, totalFaces, processingStage) => {
-        setDetections(detections);
+      wsClient.onFrameProcessed((detections, totalFaces, processingStage, heavyProcessed) => {
+        setDetections(prev => mergeDetectionUpdates(prev, detections, processingStage, heavyProcessed));
         setTotalFaces(totalFaces);
         
         // ✅ Mark frame processing complete - cho phép capture frame tiếp theo

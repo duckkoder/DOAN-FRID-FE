@@ -306,7 +306,7 @@ const FaceRegisterPage: React.FC = () => {
       <Breadcrumb items={breadcrumbItems} />
       <div style={{ marginBottom: 16 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} size="small" style={{ borderRadius: 8, marginBottom: 12 }}>
-          Back
+          Quay lại
         </Button>
         <Title level={2} style={{ marginBottom: 8, color: '#2563eb', fontSize: 'clamp(20px, 5vw, 32px)', fontWeight: 700 }}>
           🔒 Đăng ký Khuôn mặt
@@ -369,26 +369,7 @@ const FaceRegisterPage: React.FC = () => {
               </>
             )}
 
-            {initialStatus.details && (
-              <Alert 
-                message="Chi tiết" 
-                description={
-                  <div>
-                    <Text strong>Trạng thái: </Text>
-                    <Tag color={
-                      initialStatus.status === 'approved' ? 'success' : 
-                      initialStatus.status === 'pending_admin_review' ? 'warning' :
-                      initialStatus.status === 'pending_student_review' ? 'processing' : 'default'
-                    }>
-                      {initialStatus.status}
-                    </Tag>
-                  </div>
-                }
-                type="info" 
-                showIcon 
-                style={{ marginTop: 16, textAlign: 'left' }}
-              />
-            )}
+
             
             <Button 
               type="primary" 
@@ -397,7 +378,7 @@ const FaceRegisterPage: React.FC = () => {
               style={{ marginTop: 16, borderRadius: 8, width: '100%', maxWidth: 300 }}
               icon={<ArrowLeftOutlined />}
             >
-              Quay lại to Dashboard
+              Quay lại Dashboard
             </Button>
           </div>
         </Card>
@@ -475,7 +456,7 @@ const FaceRegisterPage: React.FC = () => {
                     loading={isConfirming}
                     style={{ borderRadius: 8, background: '#10b981', borderColor: '#10b981', width: '100%' }}
                   >
-                    Accept
+                    Chấp nhận
                   </Button>
                   <Button 
                     size="middle" 
@@ -485,7 +466,7 @@ const FaceRegisterPage: React.FC = () => {
                     loading={isConfirming}
                     style={{ borderRadius: 8, width: '100%' }}
                   >
-                    Reject & Collect Again
+                    Từ chối &amp; Chụp lại
                   </Button>
                 </Space>
               </>
@@ -606,7 +587,7 @@ const FaceRegisterPage: React.FC = () => {
                       borderColor: '#10b981'
                     }}
                   >
-                    Accept
+                    Chấp nhận
                   </Button>
                   <Button 
                     size='large' 
@@ -620,7 +601,7 @@ const FaceRegisterPage: React.FC = () => {
                       fontSize: 'clamp(14px, 3.5vw, 16px)'
                     }}
                   >
-                    Reject & Collect Again
+                    Từ chối &amp; Chụp lại
                   </Button>
                 </Space>
               </div>
@@ -813,16 +794,16 @@ const FaceRegisterPage: React.FC = () => {
                   {registrationStatus === 'pending_admin_review' ? (
                     <>
                       <LoadingOutlined style={{ fontSize: 'clamp(32px, 8vw, 48px)', color: '#7c3aed', marginBottom: 12 }} />
-                      <Title level={5} style={{ color: '#5b21b6', marginBottom: 8, fontSize: 'clamp(14px, 3.5vw, 16px)' }}>Pending Approval!</Title>
+                      <Title level={5} style={{ color: '#5b21b6', marginBottom: 8, fontSize: 'clamp(14px, 3.5vw, 16px)' }}>Chờ duyệt! ⏳</Title>
                       <Text style={{ color: '#6d28d9', display: 'block', marginBottom: 8, fontSize: 'clamp(12px, 3vw, 14px)' }}>
-                        Your face images have been submitted and are awaiting admin approval.
+                        Ảnh khuôn mặt đã được gửi và đang chờ admin phê duyệt.
                       </Text>
                       <Text type='secondary' style={{ display: 'block', marginBottom: 12, fontSize: 'clamp(12px, 3vw, 14px)' }}>
-                        You will receive a notification when admin reviews your submission.
+                        Bạn sẽ nhận được thông báo khi admin xem xét hồ sơ.
                       </Text>
                       <Alert 
-                        message="Status: Pending Approval" 
-                        description="The approval process may take a few minutes to several hours. Please be patient." 
+                        message="Trạng thái: Chờ phê duyệt" 
+                        description="Quá trình phê duyệt có thể mất vài phút đến vài giờ. Vui lòng kiên nhẫn chờ đợi." 
                         type="info" 
                         showIcon 
                         style={{ fontSize: 'clamp(12px, 3vw, 14px)' }}
@@ -831,17 +812,17 @@ const FaceRegisterPage: React.FC = () => {
                   ) : (
                     <>
                       <CheckCircleOutlined style={{ fontSize: 'clamp(32px, 8vw, 48px)', color: '#10b981', marginBottom: 12 }} />
-                      <Title level={5} style={{ color: '#065f46', marginBottom: 8, fontSize: 'clamp(14px, 3.5vw, 16px)' }}>Complete!</Title>
+                      <Title level={5} style={{ color: '#065f46', marginBottom: 8, fontSize: 'clamp(14px, 3.5vw, 16px)' }}>Hoàn thành! 🎉</Title>
                       <Text style={{ color: '#047857', display: 'block', marginBottom: 8, fontSize: 'clamp(12px, 3vw, 14px)' }}>{completionData.message}</Text>
                       <Text type='secondary' style={{ display: 'block', marginBottom: 12, fontSize: 'clamp(12px, 3vw, 14px)' }}>
-                        Collected {completionData.totalImages} face images
+                        Đã thu thập {completionData.totalImages} ảnh khuôn mặt
                       </Text>
                       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
                         <Button type='primary' icon={<EyeOutlined />} onClick={() => navigate('/student/attendance')} style={{ borderRadius: 8, width: '100%' }}>
-                          View Attendance
+                          Xem điểm danh
                         </Button>
                         <Button icon={<ReloadOutlined />} onClick={restart} style={{ borderRadius: 8, width: '100%' }}>
-                          Register Again
+                          Đăng ký lại
                         </Button>
                       </Space>
                     </>

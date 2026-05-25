@@ -31,6 +31,120 @@
   color: #1d4ed8 !important;
 }
 
+.reaction-summary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 999px;
+}
+
+.reaction-summary-btn:hover {
+  background: #f1f5f9;
+  color: #1d4ed8;
+}
+
+.reaction-summary-stack {
+  display: inline-flex;
+  align-items: center;
+}
+
+.reaction-summary-emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: -5px;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.reaction-summary-emoji:first-child {
+  margin-left: 0;
+}
+
+.reaction-summary-count {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.reaction-panel {
+  width: 320px;
+  max-width: 78vw;
+}
+
+.reaction-panel .ant-tabs-nav {
+  margin-bottom: 6px;
+}
+
+.reaction-panel-list {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.reaction-panel-item {
+  display: flex !important;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 4px !important;
+}
+
+.reaction-panel-emoji {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.reaction-panel-empty {
+  width: 220px;
+  padding: 18px 12px;
+  color: #64748b;
+  text-align: center;
+}
+
+.reaction-panel-tab {
+  font-weight: 600;
+}
+
+.reaction-menu-emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  font-size: 22px;
+  line-height: 1;
+  transition: transform 0.14s ease, background-color 0.14s ease;
+}
+
+.reaction-menu-emoji:hover {
+  background: #f1f5f9;
+  transform: translateY(-2px) scale(1.12);
+}
+
+.reaction-dropdown .ant-dropdown-menu {
+  display: flex;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 999px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+}
+
+.reaction-dropdown .ant-dropdown-menu-item {
+  padding: 2px !important;
+  border-radius: 999px !important;
+}
+
 .post-comment-item {
   display: block;
   width: 100%;
@@ -49,4 +163,150 @@
 
 .comment-reply-btn:hover {
   color: #1d4ed8 !important;
+}
+
+.mention-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+
+.mention-tag {
+  margin: 0 2px;
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 1px 9px;
+  vertical-align: baseline;
+  user-select: none;
+  border-width: 1px;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+
+.mention-tag-doc {
+  background: rgba(219, 234, 254, 0.72) !important;
+  border-color: rgba(37, 99, 235, 0.22) !important;
+  color: #1d4ed8 !important;
+}
+
+.mention-tag-member {
+  background: rgba(220, 252, 231, 0.72) !important;
+  border-color: rgba(22, 163, 74, 0.22) !important;
+  color: #15803d !important;
+}
+
+.mention-tag-teacher {
+  background: rgba(254, 243, 199, 0.74) !important;
+  border-color: rgba(217, 119, 6, 0.24) !important;
+  color: #b45309 !important;
+}
+
+.mention-tag-self {
+  background: rgba(254, 243, 199, 0.9) !important;
+  border-color: rgba(202, 138, 4, 0.32) !important;
+  color: #92400e !important;
+  font-weight: 700;
+  box-shadow: none;
+  transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, color 0.16s ease;
+}
+
+.mention-tag-teacher.mention-tag-self {
+  background: rgba(254, 243, 199, 0.92) !important;
+  border-color: rgba(202, 138, 4, 0.34) !important;
+  color: #92400e !important;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.mention-tag-self:hover,
+.mention-tag-self:focus-visible {
+  background: #fde68a !important;
+  border-color: #d97706 !important;
+  color: #78350f !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.18);
+}
+
+.mention-tag:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.mention-picker {
+  width: min(520px, 100%);
+  border: 1px solid rgba(203, 213, 225, 0.78);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+}
+
+.mention-picker-search {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  color: #334155;
+  font-size: 12px;
+  border-bottom: 1px solid #eef2f8;
+}
+
+.mention-picker-search span {
+  color: #94a3b8;
+}
+
+.mention-picker-list {
+  max-height: 272px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.mention-picker-option {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 38px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #1f2937;
+  text-align: left;
+  cursor: pointer;
+  padding: 7px 9px;
+}
+
+.mention-picker-option:hover,
+.mention-picker-option.active {
+  background: #eef5ff;
+  color: #1d4ed8;
+}
+
+.mention-picker-main {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.mention-picker-meta {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.mention-picker-kind {
+  margin-inline-end: 0;
+  border-radius: 999px;
+  line-height: 18px;
+}
+
+.mention-picker-empty {
+  padding: 18px 12px;
+  color: #64748b;
+  text-align: center;
 }

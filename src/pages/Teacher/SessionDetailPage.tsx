@@ -32,7 +32,8 @@ import {
   CloseOutlined,
   ExclamationCircleOutlined,
   EyeOutlined,
-  WarningOutlined
+  WarningOutlined,
+  EditOutlined
 } from "@ant-design/icons";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import Breadcrumb from "../../components/Breadcrumb";
@@ -44,6 +45,8 @@ import {
   rejectAttendance,
   confirmAllPending,
   getSessionSpoofDetections,
+  overrideAttendanceToPresent,
+  getStudentFaceImageByRecordId,
   type SessionAttendanceResponse,
   type AttendanceRecord,
   type SpoofDetection,
@@ -63,7 +66,14 @@ const SessionDetailPage: React.FC = () => {
   const [exporting, setExporting] = useState<boolean>(false);
   const [actionLoading, setActionLoading] = useState<{ [key: number]: boolean }>({});
   const [confirmingAll, setConfirmingAll] = useState<boolean>(false);
-  
+
+  // Modal states
+  const [rejectModal, setRejectModal] = useState<{ open: boolean; recordId: number; studentName: string } | null>(null);
+  const [overrideModal, setOverrideModal] = useState<{ open: boolean; recordId: number; studentName: string } | null>(null);
+  const [confirmAllModal, setConfirmAllModal] = useState(false);
+  const [studentFaceImage, setStudentFaceImage] = useState<string | null>(null);
+  const [loadingFaceImage, setLoadingFaceImage] = useState<boolean>(false);
+
   // Spoof detections state
   const [spoofDetections, setSpoofDetections] = useState<SpoofDetection[]>([]);
   const [spoofLoading, setSpoofLoading] = useState<boolean>(false);
@@ -151,67 +161,83 @@ const SessionDetailPage: React.FC = () => {
     }
   };
 
-  // Handle reject attendance
+  // Handle reject attendance — just open modal
   const handleRejectAttendance = (recordId: number, studentName: string) => {
-    Modal.confirm({
-      title: "Từ chối Điểm danh",
-      icon: <ExclamationCircleOutlined />,
-      content: `Bạn có chắc muốn đánh dấu ${studentName} là vắng mặt?`,
-      okText: "Xác nhận",
-      cancelText: "Hủy",
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        setActionLoading(prev => ({ ...prev, [recordId]: true }));
-        
-        try {
-          await rejectAttendance(recordId, {
-            notes: `Giáo viên từ chối - AI nhận diện sai`
-          });
-          
-          message.success(`Đã đánh dấu ${studentName} vắng mặt`);
-          await refetchData();
-        } catch (err: any) {
-          console.error("Failed to reject attendance:", err);
-          message.error(err?.response?.data?.detail || "Không thể từ chối điểm danh");
-        } finally {
-          setActionLoading(prev => ({ ...prev, [recordId]: false }));
-        }
-      }
-    });
+    setRejectModal({ open: true, recordId, studentName });
   };
 
-  // Handle confirm all pending
+  const doRejectAttendance = async () => {
+    if (!rejectModal) return;
+    const { recordId, studentName } = rejectModal;
+    setActionLoading(prev => ({ ...prev, [recordId]: true }));
+    try {
+      await rejectAttendance(recordId, { notes: `Giáo viên từ chối - AI nhận diện sai` });
+      message.success(`Đã đánh dấu ${studentName} vắng mặt`);
+      setRejectModal(null);
+      await refetchData();
+    } catch (err: any) {
+      message.error(err?.response?.data?.detail || "Không thể từ chối điểm danh");
+    } finally {
+      setActionLoading(prev => ({ ...prev, [recordId]: false }));
+    }
+  };
+
+  // Handle override absent → present — just open modal
+  const handleOverrideToPresent = async (recordId: number, studentName: string) => {
+    setOverrideModal({ open: true, recordId, studentName });
+    setStudentFaceImage(null);
+    setLoadingFaceImage(true);
+    try {
+      const res = await getStudentFaceImageByRecordId(recordId);
+      if (res && res.success && res.image_url) {
+        setStudentFaceImage(res.image_url);
+      }
+    } catch (err) {
+      console.error("Failed to fetch student face image:", err);
+    } finally {
+      setLoadingFaceImage(false);
+    }
+  };
+
+  const doOverrideToPresent = async () => {
+    if (!overrideModal) return;
+    const { recordId, studentName } = overrideModal;
+    setActionLoading(prev => ({ ...prev, [recordId]: true }));
+    try {
+      await overrideAttendanceToPresent(recordId);
+      message.success(`Đã cập nhật ${studentName} thành Có mặt`);
+      setOverrideModal(null);
+      setStudentFaceImage(null);
+      await refetchData();
+    } catch (err: any) {
+      message.error(err?.response?.data?.detail || "Không thể cập nhật điểm danh");
+    } finally {
+      setActionLoading(prev => ({ ...prev, [recordId]: false }));
+    }
+  };
+
+  // Handle confirm all pending — just open modal
   const handleConfirmAllPending = () => {
     if (!sessionId || !sessionData) return;
-    
     const pendingCount = sessionData.statistics.pending_count || 0;
-    
-    if (pendingCount === 0) {
-      message.info("Không có sinh viên nào chờ xác nhận");
-      return;
+    if (pendingCount === 0) { message.info("Không có sinh viên nào chờ xác nhận"); return; }
+    setConfirmAllModal(true);
+  };
+
+  const doConfirmAllPending = async () => {
+    if (!sessionId || !sessionData) return;
+    const pendingCount = sessionData.statistics.pending_count || 0;
+    setConfirmingAll(true);
+    try {
+      await confirmAllPending(parseInt(sessionId));
+      message.success(`Đã xác nhận tất cả ${pendingCount} sinh viên`);
+      setConfirmAllModal(false);
+      await refetchData();
+    } catch (err: any) {
+      message.error(err?.response?.data?.detail || "Không thể xác nhận tất cả");
+    } finally {
+      setConfirmingAll(false);
     }
-    
-    Modal.confirm({
-      title: "Xác nhận Tất cả",
-      icon: <ExclamationCircleOutlined />,
-      content: `Bạn có muốn xác nhận tất cả ${pendingCount} sinh viên đang chờ là có mặt?`,
-      okText: "Xác nhận Tất cả",
-      cancelText: "Hủy",
-      onOk: async () => {
-        setConfirmingAll(true);
-        
-        try {
-          await confirmAllPending(parseInt(sessionId));
-          message.success(`Đã xác nhận tất cả ${pendingCount} sinh viên`);
-          await refetchData();
-        } catch (err: any) {
-          console.error("Failed to confirm all pending:", err);
-          message.error(err?.response?.data?.detail || "Không thể xác nhận tất cả");
-        } finally {
-          setConfirmingAll(false);
-        }
-      }
-    });
   };
 
   // Get status config
@@ -318,41 +344,64 @@ const SessionDetailPage: React.FC = () => {
     {
       title: "Hành động",
       key: "actions",
-      width: 150,
+      width: 160,
       align: "center" as const,
-      render: (_, record: AttendanceRecord) => {
-        // Only show actions for pending students
-        if (record.status !== 'pending') {
-          return <Text type="secondary">-</Text>;
-        }
-
+      render: (_: any, record: AttendanceRecord) => {
         const isLoading = actionLoading[record.id] || false;
 
-        return (
-          <Space size="small">
-            <Tooltip title="Xác nhận có mặt">
+        // Pending: confirm / reject buttons
+        if (record.status === 'pending') {
+          return (
+            <Space size="small">
+              <Tooltip title="Xác nhận có mặt">
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<CheckOutlined />}
+                  onClick={() => handleConfirmAttendance(record.id, record.student_name)}
+                  loading={isLoading}
+                  disabled={isLoading}
+                  style={{ backgroundColor: '#10b981', borderColor: '#10b981' }}
+                />
+              </Tooltip>
+              <Tooltip title="Đánh dấu vắng mặt">
+                <Button
+                  danger
+                  size="small"
+                  icon={<CloseOutlined />}
+                  onClick={() => handleRejectAttendance(record.id, record.student_name)}
+                  loading={isLoading}
+                  disabled={isLoading}
+                />
+              </Tooltip>
+            </Space>
+          );
+        }
+
+        // Absent: show override button so teacher can fix AI miss-recognition
+        if (record.status === 'absent') {
+          return (
+            <Tooltip title="AI không nhận diện được? Chỉnh thành Có mặt">
               <Button
-                type="primary"
                 size="small"
-                icon={<CheckOutlined />}
-                onClick={() => handleConfirmAttendance(record.id, record.student_name)}
+                icon={<EditOutlined />}
+                onClick={() => handleOverrideToPresent(record.id, record.student_name)}
                 loading={isLoading}
                 disabled={isLoading}
-                style={{ backgroundColor: '#10b981', borderColor: '#10b981' }}
-              />
+                style={{
+                  borderColor: '#2563eb',
+                  color: '#2563eb',
+                  fontSize: 12
+                }}
+              >
+                Sửa
+              </Button>
             </Tooltip>
-            <Tooltip title="Đánh dấu vắng mặt">
-              <Button
-                danger
-                size="small"
-                icon={<CloseOutlined />}
-                onClick={() => handleRejectAttendance(record.id, record.student_name)}
-                loading={isLoading}
-                disabled={isLoading}
-              />
-            </Tooltip>
-          </Space>
-        );
+          );
+        }
+
+        // Present / Excused: no action needed
+        return <Text type="secondary">-</Text>;
       }
     }
   ];
@@ -828,6 +877,150 @@ const SessionDetailPage: React.FC = () => {
           scroll={{ x: 1000 }}
         />
       </Card>
+
+      {/* ── Reject Modal ─────────────────────────── */}
+      <Modal
+        open={!!rejectModal?.open}
+        title={
+          <Space>
+            <ExclamationCircleOutlined style={{ color: '#ef4444' }} />
+            <span>Từ chối Điểm danh</span>
+          </Space>
+        }
+        okText="Xác nhận Vắng"
+        cancelText="Hủy"
+        okButtonProps={{ danger: true, loading: rejectModal ? (actionLoading[rejectModal.recordId] || false) : false }}
+        onOk={doRejectAttendance}
+        onCancel={() => setRejectModal(null)}
+      >
+        <p>
+          Bạn có chắc muốn đánh dấu{' '}
+          <strong>{rejectModal?.studentName}</strong>{' '}
+          là <strong style={{ color: '#ef4444' }}>Vắng mặt</strong>?
+        </p>
+      </Modal>
+
+      {/* ── Override Modal ───────────────────────── */}
+      <Modal
+        open={!!overrideModal?.open}
+        title={
+          <Space>
+            <EditOutlined style={{ color: '#2563eb' }} />
+            <span>Chỉnh sửa Điểm danh (AI Miss)</span>
+          </Space>
+        }
+        okText="Xác nhận Có mặt"
+        cancelText="Hủy"
+        okButtonProps={{
+          style: { backgroundColor: '#10b981', borderColor: '#10b981' },
+          loading: overrideModal ? (actionLoading[overrideModal.recordId] || false) : false
+        }}
+        onOk={doOverrideToPresent}
+        onCancel={() => {
+          setOverrideModal(null);
+          setStudentFaceImage(null);
+        }}
+        width={500}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
+          <p style={{ margin: 0 }}>
+            Bạn có chắc muốn đánh dấu{' '}
+            <strong>{overrideModal?.studentName}</strong>{' '}
+            là <strong style={{ color: '#10b981' }}>Có mặt</strong>?
+          </p>
+
+          <div 
+            style={{ 
+              border: '1px solid #e2e8f0', 
+              borderRadius: 12, 
+              padding: 16, 
+              backgroundColor: '#f8fafc',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 12
+            }}
+          >
+            <span style={{ fontWeight: 600, color: '#475569', fontSize: 13 }}>
+              Ảnh đối chiếu đăng ký gốc (Đã duyệt)
+            </span>
+            
+            {loadingFaceImage ? (
+              <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Spin tip="Đang tải ảnh đối chiếu..." size="small" />
+              </div>
+            ) : studentFaceImage ? (
+              <Image
+                src={studentFaceImage}
+                alt="Student registration front face"
+                style={{ 
+                  height: 180, 
+                  width: 180, 
+                  objectFit: 'cover', 
+                  borderRadius: 8,
+                  border: '2px solid #2563eb'
+                }}
+                preview={{
+                  mask: (
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
+                      <EyeOutlined /> Xem ảnh gốc
+                    </div>
+                  )
+                }}
+              />
+            ) : (
+              <div 
+                style={{ 
+                  height: 180, 
+                  width: 180, 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  backgroundColor: '#cbd5e1',
+                  borderRadius: 8,
+                  padding: 8,
+                  textAlign: 'center'
+                }}
+              >
+                <WarningOutlined style={{ fontSize: 24, color: '#64748b', marginBottom: 8 }} />
+                <span style={{ fontSize: 11, color: '#64748b' }}>
+                  Không tìm thấy ảnh đăng ký đối chiếu
+                </span>
+              </div>
+            )}
+          </div>
+
+          <p style={{ color: '#64748b', fontSize: 12, margin: 0 }}>
+            * Vui lòng đối chiếu gương mặt của sinh viên trước khi xác nhận có mặt thủ công để đảm bảo tính trung thực.
+          </p>
+        </div>
+      </Modal>
+
+      {/* ── Confirm All Modal ────────────────────── */}
+      <Modal
+        open={confirmAllModal}
+        title={
+          <Space>
+            <CheckCircleOutlined style={{ color: '#10b981' }} />
+            <span>Xác nhận Tất cả</span>
+          </Space>
+        }
+        okText="Xác nhận Tất cả"
+        cancelText="Hủy"
+        okButtonProps={{
+          style: { backgroundColor: '#10b981', borderColor: '#10b981' },
+          loading: confirmingAll
+        }}
+        onOk={doConfirmAllPending}
+        onCancel={() => setConfirmAllModal(false)}
+      >
+        <p>
+          Bạn có muốn xác nhận tất cả{' '}
+          <strong>{sessionData?.statistics.pending_count ?? 0}</strong>{' '}
+          sinh viên đang chờ là <strong style={{ color: '#10b981' }}>Có mặt</strong>?
+        </p>
+      </Modal>
     </div>
   );
 };

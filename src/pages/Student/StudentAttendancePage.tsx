@@ -22,9 +22,13 @@ import {
   CalendarOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
+  ClockCircleOutlined,
+  EnvironmentOutlined,
+  BookOutlined,
   SearchOutlined
 } from "@ant-design/icons";
 import Breadcrumb from "../../components/Breadcrumb";
+import { DAY_NAMES, getTimeRangeForPeriods } from "../../constants/mappings";
 
 // Import API and Types
 import { getStudentOverallAttendanceReport } from "../../apis/attendanceAPIs/studentAttendance";
@@ -35,6 +39,51 @@ import {
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+
+const formatDate = (value?: string | null) => {
+  if (!value) return "-";
+  return new Date(value).toLocaleDateString("vi-VN");
+};
+
+const formatTime = (value?: string | null) => {
+  if (!value) return "";
+  return new Date(value).toLocaleTimeString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const getDayLabel = (dayOfWeek?: number | null) => {
+  if (dayOfWeek === null || dayOfWeek === undefined) return "";
+  return DAY_NAMES[dayOfWeek] || `Ngày ${dayOfWeek}`;
+};
+
+const getPeriodInfo = (periodRange?: string | null) => {
+  if (!periodRange) return { label: "", timeRange: "" };
+
+  const matches = periodRange.match(/\d+/g)?.map(Number) || [];
+  const startPeriod = matches[0];
+  const endPeriod = matches[matches.length - 1] || startPeriod;
+  const label = /^tiết/i.test(periodRange.trim())
+    ? periodRange.trim()
+    : `Tiết ${periodRange.trim()}`;
+
+  if (!startPeriod || !endPeriod) {
+    return { label, timeRange: "" };
+  }
+
+  const { start, end } = getTimeRangeForPeriods(startPeriod, endPeriod);
+  return { label, timeRange: `${start} - ${end}` };
+};
+
+const getSessionTimeRange = (record: StudentAttendanceSessionSummarySchema) => {
+  const periodInfo = getPeriodInfo(record.period_range);
+  if (periodInfo.timeRange) return periodInfo.timeRange;
+
+  const start = formatTime(record.start_time);
+  const end = formatTime(record.end_time);
+  return end ? `${start} - ${end}` : start;
+};
 
 // Update this interface to match StudentAttendanceSessionSummarySchema for direct use
 interface LocalAttendanceRecord extends StudentAttendanceSessionSummarySchema {
@@ -166,31 +215,68 @@ const StudentAttendancePage: React.FC = () => {
     setClassFilter('all');
   };
 
-  const columns = [
+  const attendanceColumns = [
     {
       title: 'Ngày học',
       dataIndex: 'start_time',
       key: 'start_time',
-      render: (start_time: string) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <CalendarOutlined style={{ color: '#64748b' }} />
-          <Text>{new Date(start_time).toLocaleDateString('vi-VN')}</Text>
-        </div>
-      )
+      render: (startTime: string, record: LocalAttendanceRecord) => {
+        const dayLabel = getDayLabel(record.day_of_week);
+
+        return (
+          <Space direction="vertical" size={0}>
+            <Text strong>
+              <CalendarOutlined style={{ color: '#64748b', marginRight: 8 }} />
+              {formatDate(startTime)}
+            </Text>
+            {dayLabel && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {dayLabel}
+              </Text>
+            )}
+          </Space>
+        );
+      }
     },
     {
-      title: 'Buổi học & Môn',
+      title: 'Buổi học',
       key: 'class_session_info',
-      render: (record: LocalAttendanceRecord) => (
-        <div>
-          <Text strong>{record.class_name}</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.day_of_week && `${record.day_of_week}, `} {/* Added day_of_week */}
-            {record.period_range && `${record.period_range} `} {/* Added period_range */}
-          </Text>
-        </div>
-      )
+      render: (_: unknown, record: LocalAttendanceRecord) => {
+        const periodInfo = getPeriodInfo(record.period_range);
+        const timeRange = getSessionTimeRange(record);
+
+        return (
+          <Space direction="vertical" size={2}>
+            <Text strong>
+              <BookOutlined style={{ color: '#2563eb', marginRight: 8 }} />
+              {record.class_name}
+            </Text>
+            <Space size={8} wrap>
+              {periodInfo.label && <Tag color="blue">{periodInfo.label}</Tag>}
+              {timeRange && (
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  <ClockCircleOutlined /> {timeRange}
+                </Text>
+              )}
+              {record.location && (
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  <EnvironmentOutlined /> Phòng {record.location}
+                </Text>
+              )}
+              {!record.location && (
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  <EnvironmentOutlined /> Chưa có phòng
+                </Text>
+              )}
+            </Space>
+            {record.session_name && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {record.session_name}
+              </Text>
+            )}
+          </Space>
+        );
+      }
     },
     {
       title: 'Trạng thái',
@@ -239,22 +325,32 @@ const StudentAttendancePage: React.FC = () => {
       <Breadcrumb items={breadcrumbItems} />
 
       {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <Title level={1} style={{
-          marginBottom: 8,
-          color: "#2563eb",
-          fontSize: 36,
-          fontWeight: 700
-        }}>
-          📊 Lịch sử Điểm danh
-        </Title>
-        <Text style={{
-          fontSize: 18,
-          color: "#64748b"
-        }}>
-          Theo dõi trạng thái điểm danh và gửi khiếu nại nếu cần
-        </Text>
-      </div>
+      <Row align="middle" justify="space-between" gutter={[16, 16]} style={{ marginTop: 18, marginBottom: 24 }}>
+        <Col>
+          <Space align="center" size={14}>
+            <div style={{
+              width: 54,
+              height: 54,
+              borderRadius: 16,
+              background: "linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 12px 28px rgba(37, 99, 235, 0.16)"
+            }}>
+              <CalendarOutlined style={{ fontSize: 26, color: "#2563eb" }} />
+            </div>
+            <div>
+              <Title level={2} style={{ margin: 0, color: "#1d4ed8", fontWeight: 800 }}>
+                Lịch sử Điểm danh
+              </Title>
+              <Text type="secondary" style={{ fontSize: 15 }}>
+                Theo dõi trạng thái điểm danh và gửi khiếu nại nếu cần
+              </Text>
+            </div>
+          </Space>
+        </Col>
+      </Row>
 
       {/* Search and Filters */}
       <Card style={{
@@ -320,7 +416,7 @@ const StudentAttendancePage: React.FC = () => {
       {/* Statistics */}
       <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
         <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center' }}>
+          <Card style={{ borderRadius: 16, textAlign: 'center', boxShadow: "0 4px 20px rgba(0,0,0,0.08)", border: "none" }}>
             <Statistic
               title="Tổng buổi học"
               value={totalSessions}
@@ -329,7 +425,7 @@ const StudentAttendancePage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center' }}>
+          <Card style={{ borderRadius: 16, textAlign: 'center', boxShadow: "0 4px 20px rgba(0,0,0,0.08)", border: "none" }}>
             <Statistic
               title="Có mặt"
               value={presentCount}
@@ -338,7 +434,7 @@ const StudentAttendancePage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center' }}>
+          <Card style={{ borderRadius: 16, textAlign: 'center', boxShadow: "0 4px 20px rgba(0,0,0,0.08)", border: "none" }}>
             <Statistic
               title="Vắng/Trễ"
               value={absentCount + lateCount}
@@ -347,7 +443,7 @@ const StudentAttendancePage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center' }}>
+          <Card style={{ borderRadius: 16, textAlign: 'center', boxShadow: "0 4px 20px rgba(0,0,0,0.08)", border: "none" }}>
             <Statistic
               title="Tỷ lệ điểm danh"
               value={attendanceRate}
@@ -369,8 +465,8 @@ const StudentAttendancePage: React.FC = () => {
         </Title>
         <Table
           dataSource={filteredData}
-          columns={columns}
-          rowKey="session_id" // Use session_id as row key
+          columns={attendanceColumns}
+          rowKey="session_id"
           pagination={{
             pageSize: 10,
             showSizeChanger: true,
@@ -403,8 +499,6 @@ const StudentAttendancePage: React.FC = () => {
           <br />
           <Text>📚 Môn: {selectedRecord?.class_name}</Text>
           <br />
-          {/* If teacher name is not available in session summary, you might need to fetch it or pass it */}
-          {/* <Text>👨‍🏫 Giáo viên: {selectedRecord?.teacher}</Text> */}
           <Text>🕐 Buổi: {selectedRecord?.session_name}</Text>
         </div>
 

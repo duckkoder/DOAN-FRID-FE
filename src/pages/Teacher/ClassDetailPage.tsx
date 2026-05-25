@@ -160,7 +160,28 @@ interface UpcomingSession {
   periods: string;
   timeRange: string;
   date: string; // Next occurrence date
+  location?: string;
 }
+
+const getScheduleEntryLocation = (entry: any): string => {
+  return String(entry?.location || entry?.room || "").trim();
+};
+
+const getScheduleFallbackRoom = (schedule: any): string => {
+  const scheduleList = schedule?.schedules;
+  if (!Array.isArray(scheduleList)) return "";
+
+  for (const entry of scheduleList) {
+    const location = getScheduleEntryLocation(entry);
+    if (location) return location;
+  }
+
+  return "";
+};
+
+const getResolvedClassRoom = (cls: any): string => {
+  return String(cls?.room || getScheduleFallbackRoom(cls?.schedule) || "N/A");
+};
 
 const ClassDetailPage: React.FC = () => {
   const navigate = useNavigate();
@@ -358,7 +379,8 @@ const ClassDetailPage: React.FC = () => {
         sessionIndex: index,
         periods: start === end ? `Tiết ${start}` : `Tiết ${start}-${end}`,
         timeRange: `${startTime} - ${endTime}`,
-        date: now.format('DD/MM/YYYY')
+        date: now.format('DD/MM/YYYY'),
+        location: getScheduleEntryLocation(entry) || classData.room
       });
     });
 
@@ -474,7 +496,7 @@ const ClassDetailPage: React.FC = () => {
             subject: cls.subject || "Unnamed",
             classCode: cls.classCode || "",
             description: cls.description || "",
-            room: cls.room || "N/A",
+            room: getResolvedClassRoom(cls),
             status: cls.status === "inactive" ? "inactive" : "active",
             teacher: cls.teacher || "N/A",
             teacherId: cls.teacherId || 0,
@@ -518,7 +540,7 @@ const ClassDetailPage: React.FC = () => {
         subject: cls.subject || "Unnamed",
         classCode: cls.classCode || "",
         description: cls.description || "",
-        room: cls.room || "N/A",
+        room: getResolvedClassRoom(cls),
         status: cls.status === "inactive" ? "inactive" : "active",
         teacher: cls.teacher || "N/A",
         teacherId: cls.teacherId || 0,
@@ -585,7 +607,7 @@ const ClassDetailPage: React.FC = () => {
 
   // ✅ Lấy sinh viên khi classId thay đổi hoặc tab là thông tin lớp học
   useEffect(() => {
-    if (classId && activeTab === 'class-info') {
+    if (classId && (activeTab === 'class-info' || activeTab === 'posts')) {
       fetchStudentsDetails(classId);
     }
   }, [classId, activeTab]);
@@ -593,7 +615,7 @@ const ClassDetailPage: React.FC = () => {
   // ✅ Lấy tài liệu thực từ attachment của posts khi vào tab tài liệu
   useEffect(() => {
     const fetchDocuments = async () => {
-      if (!classId || activeTab !== 'documents') return;
+      if (!classId || (activeTab !== 'documents' && activeTab !== 'posts')) return;
       setLoadingDocuments(true);
       try {
         const response = await getClassDocuments(classId);
@@ -1184,7 +1206,18 @@ const ClassDetailPage: React.FC = () => {
         >
           <TabPane tab="📝 Bài đăng" key="posts">
             {classId ? (
-              <TeacherClassPostsPanel classId={classId} courseId={classData?.courseId} />
+              <TeacherClassPostsPanel
+                classId={classId}
+                courseId={classData?.courseId}
+                mentionDocuments={documentsData}
+                mentionStudents={studentsData}
+                mentionTeachers={
+                  classData
+                    ? [{ id: classData.teacherId, fullName: classData.teacher || "Giảng viên" }]
+                    : []
+                }
+                mentionSourcesLoading={loadingDocuments || loadingStudents}
+              />
             ) : (
               <Empty description="Không tìm thấy lớp học" />
             )}
@@ -1524,7 +1557,20 @@ const ClassDetailPage: React.FC = () => {
         destroyOnHidden
       >
         {classId && activeDocumentPostId ? (
-          <TeacherClassPostsPanel classId={classId} courseId={classData?.courseId} allowCreatePost={false} focusPostId={activeDocumentPostId} />
+          <TeacherClassPostsPanel
+            classId={classId}
+            courseId={classData?.courseId}
+            allowCreatePost={false}
+            focusPostId={activeDocumentPostId}
+            mentionDocuments={documentsData}
+            mentionStudents={studentsData}
+            mentionTeachers={
+              classData
+                ? [{ id: classData.teacherId, fullName: classData.teacher || "Giảng viên" }]
+                : []
+            }
+            mentionSourcesLoading={loadingDocuments || loadingStudents}
+          />
         ) : null}
       </Modal>
 
@@ -1712,7 +1758,7 @@ const ClassDetailPage: React.FC = () => {
                         <Col xs={24} sm={8}>
                           <Space direction="vertical" size={0}>
                             <Text type="secondary" style={{ fontSize: 11 }}>
-                              Phòng: {classData.room}
+                              Phòng: {session.location || classData.room || 'N/A'}
                             </Text>
                             <Text type="secondary" style={{ fontSize: 11 }}>
                               Phiên {session.sessionIndex + 1}
@@ -1752,6 +1798,8 @@ const ClassDetailPage: React.FC = () => {
                   {')'}
                   <br />
                   <Text type="secondary">Ngày: {selectedAttendanceSession.date}</Text>
+                  <br />
+                  <Text type="secondary">Phòng: {selectedAttendanceSession.location || classData.room || 'N/A'}</Text>
                 </div>
               }
               type="success"
@@ -1775,6 +1823,11 @@ const ClassDetailPage: React.FC = () => {
           dayOfWeek={selectedAttendanceSession?.day}
           periodRange={selectedAttendanceSession?.periods}
           sessionIndex={selectedAttendanceSession?.sessionIndex}
+          location={
+            selectedAttendanceSession?.location && selectedAttendanceSession.location !== 'N/A'
+              ? selectedAttendanceSession.location
+              : undefined
+          }
           resumeSessionId={resumeSessionId}
         />
       )}

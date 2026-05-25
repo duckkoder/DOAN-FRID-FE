@@ -18,6 +18,7 @@ const Header: React.FC<HeaderProps> = ({ username, role, onMenuClick, showMenuBu
   const navigate = useNavigate();
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const user = useAuth().user;
+
   React.useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);

@@ -238,7 +238,7 @@ const TeacherHomePage: React.FC = () => {
         <Button 
           size="small" 
           icon={<EyeOutlined />}
-          onClick={() => navigate(`/teacher/session/${record.id}`)} // ✅ Navigate to session detail
+          onClick={() => navigate(`/teacher/attendance/${record.id}`, { state: { from: "/teacher" } })} // ✅ Navigate to session detail
         >
           Chi tiết
         </Button>

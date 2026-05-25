@@ -301,4 +301,23 @@ export const getSessionSpoofDetections = async (
   return response.data;
 };
 
+/**
+ * Override điểm danh vắng thành có mặt (giáo viên chỉnh sửa thủ công)
+ */
+export const overrideAttendanceToPresent = async (
+  recordId: number
+): Promise<ConfirmAttendanceResponse> => {
+  const response = await api.post(`${API_BASE}/records/${recordId}/override`);
+  return response.data;
+};
+
+/**
+ * Lấy ảnh trực diện đã duyệt của sinh viên từ bản ghi điểm danh
+ */
+export const getStudentFaceImageByRecordId = async (
+  recordId: number
+): Promise<{ success: boolean; image_url: string }> => {
+  const response = await api.get(`${API_BASE}/records/${recordId}/student-face-image`);
+  return response.data;
+};
 

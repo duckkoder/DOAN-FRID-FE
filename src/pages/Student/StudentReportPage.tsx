@@ -175,9 +175,9 @@ const StudentReportPage: React.FC = () => {
 
             if (uploadResponse.success && uploadResponse.data.file_id) {
               evidenceFileId = uploadResponse.data.file_id;
-              toast.success('Đả tải lên tài liệu minh chứng thành công!');
+              toast.success('Đã tải lên tài liệu minh chứng thành công!');
             } else {
-              throw new Error(uploadResponse.message || 'Tại file thất bại');
+              throw new Error(uploadResponse.message || 'Tải file thất bại');
             }
           } catch (uploadErr: unknown) {
             toast.error(`File upload error: ${(uploadErr as Error).message || 'Please try again'}`);
@@ -539,11 +539,23 @@ const StudentReportPage: React.FC = () => {
   const pendingCount = leaveRequests.filter(r => r.status === 'pending').length;
   const rejectedCount = leaveRequests.filter(r => r.status === 'rejected').length;
 
+  const pageCardStyle: React.CSSProperties = {
+    borderRadius: 16,
+    boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+    border: "none",
+  };
+
+  const statCardStyle: React.CSSProperties = {
+    borderRadius: 16,
+    boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+    border: "none",
+  };
+
   return (
     <div style={{ 
       minHeight: "100vh", 
       background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)", 
-      padding: "0 24px 24px" 
+      padding: "32px 48px" 
     }}>
       {/* Breadcrumb */}
       <Breadcrumb items={breadcrumbItems} />
@@ -561,89 +573,104 @@ const StudentReportPage: React.FC = () => {
       )}
 
       {/* Header */}
-      <Row gutter={[16, 12]} align="middle" style={{ marginBottom: 16, marginTop: 16 }}>
-        <Col xs={24} md={12}>
-          <Title level={2} style={{ marginBottom: 0 }}>
-            📝 Đơn Xin Nghỉ
-          </Title>
+      <Row align="middle" justify="space-between" gutter={[16, 16]} style={{ marginTop: 18, marginBottom: 24 }}>
+        <Col>
+          <Space align="center" size={14}>
+            <div style={{
+              width: 54,
+              height: 54,
+              borderRadius: 16,
+              background: "linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 12px 28px rgba(37, 99, 235, 0.16)"
+            }}>
+              <FileTextOutlined style={{ fontSize: 26, color: "#2563eb" }} />
+            </div>
+            <div>
+              <Title level={2} style={{ margin: 0, color: "#1d4ed8", fontWeight: 800 }}>
+                Đơn Xin Nghỉ
+              </Title>
+              <Text type="secondary" style={{ fontSize: 15 }}>
+                Theo dõi trạng thái và tạo yêu cầu nghỉ học cho từng lớp
+              </Text>
+            </div>
+          </Space>
         </Col>
-        <Col xs={24} md={12}>
-          <Row gutter={[8, 8]}>
-            <Col xs={12} md={24} style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Button 
-                icon={<ReloadOutlined />}
-                onClick={() => {
-                  fetchClasses();
-                  fetchLeaveRequests();
-                }}
-                loading={loadingClasses || loadingRequests}
-                style={{ width: '100%' }}
-              >
-                Làm mới
-              </Button>
-            </Col>
-            <Col xs={12} md={24} style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Button 
-                type="primary" 
-                icon={<PlusOutlined />}
-                onClick={() => setIsCreateModalVisible(true)}
-                disabled={classes.length === 0}
-                style={{ width: '100%' }}
-              >
-                Tạo đơn xin nghỉ
-              </Button>
-            </Col>
-          </Row>
+        <Col>
+          <Space wrap>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => {
+                fetchClasses();
+                fetchLeaveRequests();
+              }}
+              loading={loadingClasses || loadingRequests}
+              size="large"
+            >
+              Làm mới
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setIsCreateModalVisible(true)}
+              disabled={classes.length === 0}
+              size="large"
+            >
+              Tạo đơn xin nghỉ
+            </Button>
+          </Space>
         </Col>
       </Row>
 
       {/* Statistics */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
         <Col xs={12} sm={12} md={6}>
-          <Card style={{ borderRadius: 12, textAlign: 'center' }}>
+          <Card style={statCardStyle}>
             <Statistic
               title="Tổng yêu cầu"
               value={totalRequests}
-              valueStyle={{ color: '#2563eb' }}
+              valueStyle={{ color: '#2563eb', fontSize: 24 }}
             />
           </Card>
         </Col>
         <Col xs={12} sm={12} md={6}>
-          <Card style={{ borderRadius: 12, textAlign: 'center' }}>
+          <Card style={statCardStyle}>
             <Statistic
               title="Chờ duyệt"
               value={pendingCount}
-              valueStyle={{ color: '#f59e42' }}
+              valueStyle={{ color: '#f59e42', fontSize: 24 }}
             />
           </Card>
         </Col>
         <Col xs={12} sm={12} md={6}>
-          <Card style={{ borderRadius: 12, textAlign: 'center' }}>
+          <Card style={statCardStyle}>
             <Statistic
               title="Được duyệt"
               value={approvedCount}
-              valueStyle={{ color: '#10b981' }}
+              valueStyle={{ color: '#10b981', fontSize: 24 }}
             />
           </Card>
         </Col>
         <Col xs={12} sm={12} md={6}>
-          <Card style={{ borderRadius: 12, textAlign: 'center' }}>
+          <Card style={statCardStyle}>
             <Statistic
               title="Từ chối"
               value={rejectedCount}
-              valueStyle={{ color: '#ef4444' }}
+              valueStyle={{ color: '#ef4444', fontSize: 24 }}
             />
           </Card>
         </Col>
       </Row>
 
       {/* Leave Requests Table */}
-      <Card style={{
-        borderRadius: 12
-      }}>
-        <Divider style={{ margin: '0 0 16px 0' }} orientation="left">
-          📋 Danh sách Xin nghỉ
-        </Divider>
+      <Card style={pageCardStyle}>
+        <Space style={{ marginBottom: 16 }} align="center">
+          <FileTextOutlined style={{ color: "#2563eb", fontSize: 18 }} />
+          <Title level={4} style={{ margin: 0 }}>Danh sách Xin Nghỉ</Title>
+          <Tag color="blue">{leaveRequests.length} đơn</Tag>
+        </Space>
         <Table
           dataSource={leaveRequests}
           columns={columns}

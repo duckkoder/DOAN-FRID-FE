@@ -18,7 +18,8 @@ import {
   FileExcelOutlined,
   FilePdfOutlined,
   CalendarOutlined,
-  UserOutlined
+  UserOutlined,
+  BarChartOutlined
 } from "@ant-design/icons";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import Breadcrumb from "../../components/Breadcrumb";
@@ -44,6 +45,18 @@ interface ClassReport {
   averageAttendance: number;
   sessionsCount: number;
 }
+
+const pageCardStyle: React.CSSProperties = {
+  borderRadius: 16,
+  boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+  border: "none",
+};
+
+const statCardStyle: React.CSSProperties = {
+  borderRadius: 16,
+  boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+  border: "none",
+};
 
 const TeacherReportPage: React.FC = () => {
   const [selectedSubject, setSelectedSubject] = useState<string>('all');
@@ -230,7 +243,7 @@ const TeacherReportPage: React.FC = () => {
       )
     },
     {
-      title: 'Mượn',
+      title: 'Muộn',
       dataIndex: 'lateCount',
       key: 'lateCount',
       align: 'center' as const,
@@ -281,52 +294,55 @@ const TeacherReportPage: React.FC = () => {
       <Breadcrumb items={breadcrumbItems} />
 
       {/* Header */}
-      <div style={{ 
-        display: "flex", 
-        justifyContent: "space-between", 
-        alignItems: "center", 
-        marginBottom: 32 
-      }}>
-        <div>
-          <Title level={1} style={{ 
-            marginBottom: 8, 
-            color: "#2563eb",
-            fontSize: 36,
-            fontWeight: 700
-          }}>
-            📊 Báo cáo Điểm danh
-          </Title>
-          <Text style={{ 
-            fontSize: 18, 
-            color: "#64748b"
-          }}>
-            Tổng hợp báo cáo và thống kê điểm danh các lớp
-          </Text>
-        </div>
-        
-        <Space>
-          <Button 
-            icon={<FileExcelOutlined />}
-            onClick={handleExportExcel}
-            style={{ borderRadius: 8 }}
-          >
-            Xuất Excel
-          </Button>
-          <Button 
-            icon={<FilePdfOutlined />}
-            onClick={handleExportPDF}
-            style={{ borderRadius: 8 }}
-          >
-            Xuất PDF
-          </Button>
-        </Space>
-      </div>
+      <Row align="middle" justify="space-between" gutter={[16, 16]} style={{ marginTop: 18, marginBottom: 24 }}>
+        <Col>
+          <Space align="center" size={14}>
+            <div style={{
+              width: 54,
+              height: 54,
+              borderRadius: 16,
+              background: "linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 12px 28px rgba(37, 99, 235, 0.16)"
+            }}>
+              <BarChartOutlined style={{ fontSize: 26, color: "#2563eb" }} />
+            </div>
+            <div>
+              <Title level={2} style={{ margin: 0, color: "#1d4ed8", fontWeight: 800 }}>
+                Báo cáo Điểm danh
+              </Title>
+              <Text type="secondary" style={{ fontSize: 15 }}>
+                Tổng hợp báo cáo và thống kê điểm danh các lớp
+              </Text>
+            </div>
+          </Space>
+        </Col>
+        <Col>
+          <Space wrap>
+            <Button 
+              icon={<FileExcelOutlined />}
+              onClick={handleExportExcel}
+              size="large"
+            >
+              Xuất Excel
+            </Button>
+            <Button 
+              type="primary"
+              icon={<FilePdfOutlined />}
+              onClick={handleExportPDF}
+              size="large"
+            >
+              Xuất PDF
+            </Button>
+          </Space>
+        </Col>
+      </Row>
 
       {/* Filters */}
       <Card style={{
-        borderRadius: 16,
-        boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-        border: "none",
+        ...pageCardStyle,
         marginBottom: 24
       }}>
         <Row gutter={[16, 16]} align="middle">
@@ -372,17 +388,17 @@ const TeacherReportPage: React.FC = () => {
       {/* Statistics Overview */}
       <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
         <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center' }}>
+          <Card style={statCardStyle}>
             <Statistic
               title="Tổng sinh viên"
               value={totalStudents}
-              prefix={<UserOutlined />}
+              prefix={<UserOutlined style={{ marginRight: 8 }} />}
               valueStyle={{ color: '#2563eb', fontSize: 24 }}
             />
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center' }}>
+          <Card style={statCardStyle}>
             <Statistic
               title="Tỷ lệ điểm danh TB"
               value={avgAttendance}
@@ -392,7 +408,7 @@ const TeacherReportPage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center' }}>
+          <Card style={statCardStyle}>
             <Statistic
               title="Xuất sắc"
               value={excellentStudents}
@@ -401,7 +417,7 @@ const TeacherReportPage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center' }}>
+          <Card style={statCardStyle}>
             <Statistic
               title="Cần chú ý"
               value={lowAttendanceStudents}
@@ -412,18 +428,20 @@ const TeacherReportPage: React.FC = () => {
       </Row>
 
       {/* Charts Section */}
-      <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         {/* Attendance Distribution */}
         <Col xs={24} lg={12}>
-          <Card style={{
-            borderRadius: 16,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-            border: "none",
-            height: 400
-          }}>
-            <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
-              📈 Phân loại điểm danh
-            </Title>
+          <Card 
+            title={
+              <Space>
+                <span>📈 Phân loại điểm danh</span>
+              </Space>
+            }
+            style={{
+              ...pageCardStyle,
+              height: 400
+            }}
+          >
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
                 <Pie
@@ -448,15 +466,17 @@ const TeacherReportPage: React.FC = () => {
 
         {/* Weekly Trend */}
         <Col xs={24} lg={12}>
-          <Card style={{
-            borderRadius: 16,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-            border: "none",
-            height: 400
-          }}>
-            <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
-              📉 Xu hướng theo tuần
-            </Title>
+          <Card 
+            title={
+              <Space>
+                <span>📉 Xu hướng theo tuần</span>
+              </Space>
+            }
+            style={{
+              ...pageCardStyle,
+              height: 400
+            }}
+          >
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={weeklyTrend}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -471,19 +491,21 @@ const TeacherReportPage: React.FC = () => {
       </Row>
 
       {/* Class Reports Summary */}
-      <Card style={{
-        borderRadius: 16,
-        boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-        border: "none",
-        marginBottom: 24
-      }}>
-        <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
-          📚 Tổng quan môn học
-        </Title>
+      <Card 
+        title={
+          <Space>
+            <span>📚 Tổng quan môn học</span>
+          </Space>
+        }
+        style={{
+          ...pageCardStyle,
+          marginBottom: 24
+        }}
+      >
         <Row gutter={[16, 16]}>
           {classReports.map((report, index) => (
             <Col xs={24} sm={12} lg={6} key={index}>
-              <Card size="small" style={{ background: '#f8fafc' }}>
+              <Card size="small" style={{ background: '#f8fafc', borderRadius: 12 }}>
                 <Text strong style={{ display: 'block', marginBottom: 8 }}>
                   {report.subject}
                 </Text>
@@ -507,14 +529,14 @@ const TeacherReportPage: React.FC = () => {
       </Card>
 
       {/* Detailed Student Report */}
-      <Card style={{
-        borderRadius: 16,
-        boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-        border: "none"
-      }}>
-        <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
-          👥 Chi tiết Điểm danh Sinh viên
-        </Title>
+      <Card 
+        title={
+          <Space>
+            <span>👥 Chi tiết Điểm danh Sinh viên</span>
+          </Space>
+        }
+        style={pageCardStyle}
+      >
         <Table
           dataSource={studentsData}
           columns={studentColumns}

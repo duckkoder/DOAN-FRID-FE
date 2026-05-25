@@ -444,11 +444,23 @@ const TeacherLeaveRequestPage: React.FC = () => {
     }),
   };
 
+  const pageCardStyle: React.CSSProperties = {
+    borderRadius: 16,
+    boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+    border: "none",
+  };
+
+  const statCardStyle: React.CSSProperties = {
+    borderRadius: 16,
+    boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+    border: "none",
+  };
+
   return (
     <div style={{ 
       minHeight: "100vh", 
       background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)", 
-      padding: "0 24px 24px" 
+      padding: "32px 48px" 
     }}>
       {/* Breadcrumb */}
       <Breadcrumb items={breadcrumbItems} />
@@ -466,13 +478,41 @@ const TeacherLeaveRequestPage: React.FC = () => {
       )}
 
       {/* Header */}
-      <Title level={2} style={{ marginTop: 16, marginBottom: 24 }}>
-        📋 Quản lý Đơn Xin Nghỉ
-      </Title>
+      <Row align="middle" justify="space-between" gutter={[16, 16]} style={{ marginTop: 18, marginBottom: 24 }}>
+        <Col>
+          <Space align="center" size={14}>
+            <div style={{
+              width: 54,
+              height: 54,
+              borderRadius: 16,
+              background: "linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 12px 28px rgba(37, 99, 235, 0.16)"
+            }}>
+              <FileTextOutlined style={{ fontSize: 26, color: "#2563eb" }} />
+            </div>
+            <div>
+              <Title level={2} style={{ margin: 0, color: "#1d4ed8", fontWeight: 800 }}>
+                Quản lý Đơn Xin Nghỉ
+              </Title>
+              <Text type="secondary" style={{ fontSize: 15 }}>
+                Duyệt, lọc và theo dõi yêu cầu nghỉ học từ sinh viên
+              </Text>
+            </div>
+          </Space>
+        </Col>
+        <Col>
+          <Button icon={<ReloadOutlined />} onClick={fetchLeaveRequests} loading={loading} size="large">
+            Làm mới
+          </Button>
+        </Col>
+      </Row>
 
       {/* Search and Filters */}
       <Card style={{
-        borderRadius: 12,
+        ...pageCardStyle,
         marginBottom: 16
       }}>
         <Row gutter={[16, 16]} align="middle">
@@ -536,40 +576,40 @@ const TeacherLeaveRequestPage: React.FC = () => {
       </Card>
 
       {/* Statistics */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
         <Col xs={12} sm={12} md={6}>
-          <Card style={{ borderRadius: 12, textAlign: 'center' }} loading={loading}>
+          <Card style={statCardStyle} loading={loading}>
             <Statistic
               title="Tổng yêu cầu"
               value={summary.totalRequests}
-              valueStyle={{ color: '#2563eb' }}
+              valueStyle={{ color: '#2563eb', fontSize: 24 }}
             />
           </Card>
         </Col>
         <Col xs={12} sm={12} md={6}>
-          <Card style={{ borderRadius: 12, textAlign: 'center' }} loading={loading}>
+          <Card style={statCardStyle} loading={loading}>
             <Statistic
               title="Chờ duyệt"
               value={summary.pendingCount}
-              valueStyle={{ color: '#f59e42' }}
+              valueStyle={{ color: '#f59e42', fontSize: 24 }}
             />
           </Card>
         </Col>
         <Col xs={12} sm={12} md={6}>
-          <Card style={{ borderRadius: 12, textAlign: 'center' }} loading={loading}>
+          <Card style={statCardStyle} loading={loading}>
             <Statistic
               title="Đã duyệt"
               value={summary.approvedCount}
-              valueStyle={{ color: '#10b981' }}
+              valueStyle={{ color: '#10b981', fontSize: 24 }}
             />
           </Card>
         </Col>
         <Col xs={12} sm={12} md={6}>
-          <Card style={{ borderRadius: 12, textAlign: 'center' }} loading={loading}>
+          <Card style={statCardStyle} loading={loading}>
             <Statistic
               title="Từ chối"
               value={summary.rejectedCount}
-              valueStyle={{ color: '#ef4444' }}
+              valueStyle={{ color: '#ef4444', fontSize: 24 }}
             />
           </Card>
         </Col>
@@ -671,12 +711,12 @@ const TeacherLeaveRequestPage: React.FC = () => {
       )}
 
       {/* Leave Requests Table */}
-      <Card style={{
-        borderRadius: 12
-      }}>
-        <Divider style={{ margin: '0 0 16px 0' }} orientation="left">
-          📊 Danh sách Đơn Xin Nghỉ
-        </Divider>
+      <Card style={pageCardStyle}>
+        <Space style={{ marginBottom: 16 }} align="center">
+          <FileTextOutlined style={{ color: "#2563eb", fontSize: 18 }} />
+          <Title level={4} style={{ margin: 0 }}>Danh sách Đơn Xin Nghỉ</Title>
+          <Tag color="blue">{filteredData.length} đơn</Tag>
+        </Space>
         <Table
           dataSource={filteredData}
           columns={columns}
