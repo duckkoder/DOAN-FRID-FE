@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { Avatar } from "antd";
 import { BellOutlined, UserOutlined, MenuOutlined } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import avatarDefault from "@/assets/avtDefault.png";
 import logoImg from "@/assets/logo_pbl.png";
+import { getStoredTenantSlug, tenantPath } from "@/utils/tenantRouting";
 type HeaderProps = {
   username?: string;
   role?: string;
@@ -16,8 +17,11 @@ type HeaderProps = {
 
 const Header: React.FC<HeaderProps> = ({ username, role, onMenuClick, showMenuButton = false }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const user = useAuth().user;
+  const slugFromPath = location.pathname.match(/^\/([^/]+)\/(admin|teacher|student)(\/|$)/)?.[1];
+  const tenantSlug = slugFromPath || getStoredTenantSlug();
 
   React.useEffect(() => {
     const handleResize = () => {
@@ -32,13 +36,13 @@ const Header: React.FC<HeaderProps> = ({ username, role, onMenuClick, showMenuBu
     // Navigate to dashboard based on role
     switch (role) {
       case "admin":
-        navigate("/admin");
+        navigate(tenantPath("/admin", tenantSlug));
         break;
       case "teacher":
-        navigate("/teacher");
+        navigate(tenantPath("/teacher", tenantSlug));
         break;
       case "student":
-        navigate("/student");
+        navigate(tenantPath("/student", tenantSlug));
         break;
       default:
         navigate("/");

@@ -93,7 +93,8 @@ function isAuthEndpoint(url?: string): boolean {
  * Check if current page is auth page
  */
 function isOnAuthPage(): boolean {
-  return typeof window !== "undefined" && window.location.pathname.startsWith("/auth");
+  if (typeof window === "undefined") return false;
+  return window.location.pathname.startsWith("/auth") || window.location.pathname.endsWith("/login");
 }
 
 /**
@@ -186,7 +187,8 @@ function handleLogout(reason: string = "Session expired"): void {
   // Redirect to login with return URL
   if (typeof window !== "undefined") {
     const next = encodeURIComponent(window.location.pathname + window.location.search);
-    window.location.href = `/auth?next=${next}`;
+    const tenantSlug = window.localStorage.getItem("tenantSlug");
+    window.location.href = tenantSlug ? `/${tenantSlug}/login?next=${next}` : `/auth?next=${next}`;
   }
 }
 

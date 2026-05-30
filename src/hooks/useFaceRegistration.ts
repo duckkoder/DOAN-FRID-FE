@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { message as antMessage } from "antd";
+import { getAccessToken } from "../apis/axios";
 import type {
   FaceRegistrationOptions,
   ProcessedFrame,
@@ -337,7 +338,9 @@ export function useFaceRegistration({
 
     // Always get fresh URL from environment variable to support mobile testing
     const wsBaseUrl = import.meta.env.VITE_WS_BASE_URL || serverUrl;
-    const wsUrl = `${wsBaseUrl}/api/v1/ws/face-registration/${studentId}`;
+    const token = getAccessToken();
+    const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : "";
+    const wsUrl = `${wsBaseUrl}/api/v1/ws/face-registration/${studentId}${tokenQuery}`;
     
 
     setConnectionStatus("connecting");

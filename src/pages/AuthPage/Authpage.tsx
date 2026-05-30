@@ -1,12 +1,15 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { Form, Input, Button, Typography, Row, Col, Card, message, Alert } from "antd";
 import { LockOutlined, MailOutlined, WarningOutlined } from "@ant-design/icons";
 import Footer from "../../components/Footer";
 import { login as apiLogin } from "../../apis/authAPIs/auth";
+import { getPublicTenant, type PublicTenant } from "../../apis/platformAPIs/platform";
 import { AuthContext } from "../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import type { AxiosError } from "axios";
 import logoImg from "@/assets/logo_pbl.png";
+import NotFound from "../NotFound/NotFound";
+import { setStoredTenantSlug, tenantPath } from "@/utils/tenantRouting";
 
 const { Title, Text, Link } = Typography;
 
@@ -17,10 +20,43 @@ interface ErrorResponse {
 
 const AuthPage: React.FC = () => {
   const navigate = useNavigate();
+  const { tenantSlug } = useParams<{ tenantSlug?: string }>();
   const auth = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
+  const [tenantLoading, setTenantLoading] = useState(false);
+  const [publicTenant, setPublicTenant] = useState<PublicTenant | null>(null);
+  const [tenantNotFound, setTenantNotFound] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [errorType, setErrorType] = useState<"error" | "warning" | "">("");
+
+  useEffect(() => {
+    if (!tenantSlug) {
+      setPublicTenant(null);
+      setTenantNotFound(false);
+      return;
+    }
+
+    let active = true;
+    setTenantLoading(true);
+    setTenantNotFound(false);
+    getPublicTenant(tenantSlug)
+      .then((tenant) => {
+        if (!active) return;
+        setPublicTenant(tenant);
+      })
+      .catch(() => {
+        if (!active) return;
+        setPublicTenant(null);
+        setTenantNotFound(true);
+      })
+      .finally(() => {
+        if (active) setTenantLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [tenantSlug]);
 
   const onFinish = async (values: { email: string; password: string; remember?: boolean }) => {
     setLoading(true);
@@ -28,13 +64,26 @@ const AuthPage: React.FC = () => {
     setErrorType("");
 
     try {
+      if (tenantSlug && !publicTenant) {
+        setErrorType("error");
+        setErrorMessage("Mã trường không tồn tại hoặc đang bị khóa.");
+        setLoading(false);
+        return;
+      }
+
       const res = await apiLogin({
         email: values.email,
         password: values.password,
+        tenant_slug: tenantSlug,
       });
 
       if (res && res.user) {
-        
+        if (tenantSlug) {
+          setStoredTenantSlug(tenantSlug);
+        } else {
+          setStoredTenantSlug(null);
+        }
+
         // Lưu thông tin user và tokens
         auth?.login(
           res.user,
@@ -49,11 +98,11 @@ const AuthPage: React.FC = () => {
         // Điều hướng theo role
         const role = res.user.role;
         if (role === "admin") {
-          navigate("/admin");
+          navigate(tenantPath("/admin", tenantSlug));
         } else if (role === "teacher") {
-          navigate("/teacher");
+          navigate(tenantPath("/teacher", tenantSlug));
         } else if (role === "student") {
-          navigate("/student");
+          navigate(tenantPath("/student", tenantSlug));
         } else {
           navigate("/");
         }
@@ -112,6 +161,10 @@ const AuthPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  if (tenantNotFound) {
+    return <NotFound />;
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "#f6f9fc", display: "flex", flexDirection: "column" }}>
@@ -182,6 +235,23 @@ const AuthPage: React.FC = () => {
                     Đăng Nhập
                   </Title>
 
+                  {tenantSlug && (
+                    <Text
+                      type="secondary"
+                      style={{
+                        display: "block",
+                        margin: "-12px 0 20px",
+                        textAlign: "center",
+                        fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
+                      }}
+                    >
+                      {tenantLoading
+                        ? "Đang kiểm tra mã trường..."
+                        : publicTenant
+                          ? `${publicTenant.name} · ${publicTenant.school_code}`
+                          : `Không tìm thấy mã trường: ${tenantSlug}`}
+                    </Text>
+                  )}
                   {/* Error Alert */}
                   {errorMessage && errorType && (
                     <Alert
@@ -245,6 +315,7 @@ const AuthPage: React.FC = () => {
                         block 
                         size="large"
                         loading={loading}
+                        disabled={tenantLoading || tenantNotFound}
                       >
                         {loading ? "Đang đăng nhập..." : "Đăng Nhập"}
                       </Button>

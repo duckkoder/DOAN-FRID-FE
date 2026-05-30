@@ -95,6 +95,12 @@ const TIME_SLOTS: Record<number, { start: string; end: string }> = {
   10: { start: "17:00", end: "17:50" },
 };
 
+const ALLOW_CREATE_ATTENDANCE_ANYTIME =
+  String(import.meta.env.VITE_ATTENDANCE_ALLOW_CREATE_ANYTIME || "").toLowerCase() === "true";
+const ATTENDANCE_CREATE_WINDOW_GRACE_MINUTES = Number(
+  import.meta.env.VITE_ATTENDANCE_CREATE_WINDOW_GRACE_MINUTES || 0
+);
+
 
 interface ClassData {
   id: number;
@@ -161,6 +167,8 @@ interface UpcomingSession {
   timeRange: string;
   date: string; // Next occurrence date
   location?: string;
+  canStart: boolean;
+  disabledReason?: string;
 }
 
 const getScheduleEntryLocation = (entry: any): string => {
@@ -181,6 +189,57 @@ const getScheduleFallbackRoom = (schedule: any): string => {
 
 const getResolvedClassRoom = (cls: any): string => {
   return String(cls?.room || getScheduleFallbackRoom(cls?.schedule) || "N/A");
+};
+
+const getCurrentScheduleDay = () => {
+  const jsDay = dayjs().day();
+  return (jsDay + 6) % 7;
+};
+
+const parseTimeToday = (timeValue: string) => {
+  const [hour, minute] = timeValue.split(":").map(Number);
+  return dayjs().hour(hour).minute(minute).second(0).millisecond(0);
+};
+
+const getSessionStartState = (day: number, periods: number[]) => {
+  if (ALLOW_CREATE_ATTENDANCE_ANYTIME) {
+    return { canStart: true };
+  }
+
+  const now = dayjs();
+  const currentDay = getCurrentScheduleDay();
+  if (day !== currentDay) {
+    return { canStart: false, disabledReason: "Chưa đến ngày học" };
+  }
+
+  if (!periods.length) {
+    return { canStart: false, disabledReason: "Lịch học không hợp lệ" };
+  }
+
+  const startPeriod = Math.min(...periods);
+  const endPeriod = Math.max(...periods);
+  const slotStart = TIME_SLOTS[startPeriod]?.start;
+  const slotEnd = TIME_SLOTS[endPeriod]?.end;
+
+  if (!slotStart || !slotEnd) {
+    return { canStart: false, disabledReason: "Tiết học không hợp lệ" };
+  }
+
+  const grace = Number.isFinite(ATTENDANCE_CREATE_WINDOW_GRACE_MINUTES)
+    ? Math.max(ATTENDANCE_CREATE_WINDOW_GRACE_MINUTES, 0)
+    : 0;
+  const startTime = parseTimeToday(slotStart).subtract(grace, "minute");
+  const endTime = parseTimeToday(slotEnd).add(grace, "minute");
+
+  if (now.isBefore(startTime)) {
+    return { canStart: false, disabledReason: `Chưa đến giờ học (${slotStart} - ${slotEnd})` };
+  }
+
+  if (now.isAfter(endTime)) {
+    return { canStart: false, disabledReason: `Đã quá giờ học (${slotStart} - ${slotEnd})` };
+  }
+
+  return { canStart: true };
 };
 
 const ClassDetailPage: React.FC = () => {
@@ -372,6 +431,7 @@ const ClassDetailPage: React.FC = () => {
       const end = periods[periods.length - 1];
       const startTime = TIME_SLOTS[start]?.start || '00:00';
       const endTime = TIME_SLOTS[end]?.end || '00:00';
+      const startState = getSessionStartState(day, periods);
 
       sessions.push({
         day,
@@ -380,7 +440,9 @@ const ClassDetailPage: React.FC = () => {
         periods: start === end ? `Tiết ${start}` : `Tiết ${start}-${end}`,
         timeRange: `${startTime} - ${endTime}`,
         date: now.format('DD/MM/YYYY'),
-        location: getScheduleEntryLocation(entry) || classData.room
+        location: getScheduleEntryLocation(entry) || classData.room,
+        canStart: startState.canStart,
+        disabledReason: startState.disabledReason,
       });
     });
 
@@ -396,7 +458,7 @@ const ClassDetailPage: React.FC = () => {
       return acc;
     }, [] as UpcomingSession[]);
 
-    // Sort by date and time
+    // Hiển thị toàn bộ buổi học; chỉ buổi đang trong khung giờ mới được chọn.
     return uniqueSessions.sort((a, b) => {
       const dateCompare = dayjs(a.date, 'DD/MM/YYYY').diff(dayjs(b.date, 'DD/MM/YYYY'));
       if (dateCompare !== 0) return dateCompare;
@@ -416,6 +478,11 @@ const ClassDetailPage: React.FC = () => {
   const handleStartAttendance = () => {
     if (!selectedAttendanceSession) {
       message.warning('Please select a session to start attendance!');
+      return;
+    }
+
+    if (!selectedAttendanceSession.canStart) {
+      message.warning(selectedAttendanceSession.disabledReason || 'Chưa đến thời gian điểm danh');
       return;
     }
 
@@ -1706,15 +1773,30 @@ const ClassDetailPage: React.FC = () => {
                     <Card
                       key={`${session.day}-${session.sessionIndex}-${session.date}`}
                       size="small"
-                      hoverable
-                      onClick={() => setSelectedAttendanceSession(session)}
+                      hoverable={session.canStart}
+                      onClick={() => {
+                        if (session.canStart) {
+                          setSelectedAttendanceSession(session);
+                        }
+                      }}
                       style={{
-                        cursor: 'pointer',
-                        borderLeft: isSelected ? '4px solid #10b981' : '4px solid #52c41a',
+                        cursor: session.canStart ? 'pointer' : 'not-allowed',
+                        opacity: session.canStart ? 1 : 0.48,
+                        borderLeft: isSelected
+                          ? '4px solid #10b981'
+                          : session.canStart
+                            ? '4px solid #52c41a'
+                            : '4px solid #cbd5e1',
                         background: isSelected
                           ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)'
-                          : '#f6ffed',
-                        border: isSelected ? '2px solid #10b981' : '1px solid #b7eb8f',
+                          : session.canStart
+                            ? '#f6ffed'
+                            : '#f8fafc',
+                        border: isSelected
+                          ? '2px solid #10b981'
+                          : session.canStart
+                            ? '1px solid #b7eb8f'
+                            : '1px solid #e2e8f0',
                         transition: 'all 0.3s'
                       }}
                     >
@@ -1729,7 +1811,7 @@ const ClassDetailPage: React.FC = () => {
                               width: 20,
                               height: 20,
                               borderRadius: '50%',
-                              border: '2px solid #52c41a',
+                              border: session.canStart ? '2px solid #52c41a' : '2px solid #cbd5e1',
                               background: '#ffffff'
                             }} />
                           )}
@@ -1742,8 +1824,8 @@ const ClassDetailPage: React.FC = () => {
                             <Text type="secondary" style={{ fontSize: 11 }}>
                               {session.date}
                             </Text>
-                            <Tag color="success" style={{ fontSize: 11, marginTop: 4 }}>
-                              Đang diễn ra
+                            <Tag color={session.canStart ? "success" : "default"} style={{ fontSize: 11, marginTop: 4 }}>
+                              {session.canStart ? "Đang trong giờ" : "Ngoài giờ"}
                             </Tag>
                           </Space>
                         </Col>
@@ -1783,29 +1865,6 @@ const ClassDetailPage: React.FC = () => {
                 </Text>
               </Space>
             </Card>
-          )}
-
-          {selectedAttendanceSession && (
-            <Alert
-              message="Phiên đã chọn"
-              description={
-                <div>
-                  <Text strong>{selectedAttendanceSession.dayLabel}</Text>
-                  {' - '}
-                  <Text>{selectedAttendanceSession.periods}</Text>
-                  {' ('}
-                  <Text type="secondary">{selectedAttendanceSession.timeRange}</Text>
-                  {')'}
-                  <br />
-                  <Text type="secondary">Ngày: {selectedAttendanceSession.date}</Text>
-                  <br />
-                  <Text type="secondary">Phòng: {selectedAttendanceSession.location || classData.room || 'N/A'}</Text>
-                </div>
-              }
-              type="success"
-              showIcon
-              style={{ marginTop: 16 }}
-            />
           )}
         </div>
       </Modal>

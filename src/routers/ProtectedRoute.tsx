@@ -1,32 +1,80 @@
-import React from "react";
-import { useAuth } from "../hooks/useAuth";
-import { Navigate, Outlet, useLocation } from "react-router-dom";
-import IsNotAllowPAge from "../pages/AuthPage/IsNotAllowPAge";
+import React, { useEffect, useState } from "react";
+import { Navigate, Outlet, useLocation, useParams } from "react-router-dom";
 
-const roleRoutes: Record<string, string[]> = {
-  admin: ["/admin", "/admin/teachers", "/admin/students"],
-  teacher: ["/teacher", "/teacher/classes", "/teacher/class/:classId",
-     "/teacher/attendance", "/teacher/reports", "/teacher/leave-requests",
-     "/teacher/class/create"],
-  student: ["/student", "/student/classes", "/student/attendance", "/student/reports",
-    "/student/class/:classId", "/student/register-face"],
+import { useAuth } from "../hooks/useAuth";
+import IsNotAllowPAge from "../pages/AuthPage/IsNotAllowPAge";
+import { getStoredTenantSlug, stripTenantPrefix, tenantPath } from "@/utils/tenantRouting";
+import { getPublicTenant } from "@/apis/platformAPIs/platform";
+import NotFound from "@/pages/NotFound/NotFound";
+
+const roleBasePaths: Record<string, string> = {
+  admin: "/admin",
+  teacher: "/teacher",
+  student: "/student",
 };
 
 const ProtectedRoute: React.FC = () => {
   const { user } = useAuth();
   const location = useLocation();
+  const { tenantSlug } = useParams<{ tenantSlug?: string }>();
+  const storedTenantSlug = getStoredTenantSlug();
+  const activeTenantSlug = tenantSlug || storedTenantSlug;
+  const [tenantExists, setTenantExists] = useState<boolean | null>(tenantSlug ? null : true);
+  const isTenantMismatch = !!tenantSlug && !!storedTenantSlug && tenantSlug !== storedTenantSlug;
 
-  if (!user) {
-    return <Navigate to="/auth" />;
+  useEffect(() => {
+    if (!tenantSlug || isTenantMismatch) {
+      setTenantExists(true);
+      return;
+    }
+
+    let active = true;
+    setTenantExists(null);
+    getPublicTenant(tenantSlug)
+      .then(() => {
+        if (active) setTenantExists(true);
+      })
+      .catch(() => {
+        if (active) setTenantExists(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [tenantSlug, isTenantMismatch]);
+
+  if (isTenantMismatch) {
+    return <NotFound />;
   }
 
-  // Kiểm tra quyền truy cập route theo role
-  const allowedRoutes = roleRoutes[user.role as string] || [];
-  const isAllowed = allowedRoutes.some((route) => location.pathname.startsWith(route));
-  if (!isAllowed) {
+  if (tenantSlug && tenantExists === null) {
+    return null;
+  }
+
+  if (tenantSlug && tenantExists === false) {
+    return <NotFound />;
+  }
+
+  if (!user) {
+    return <Navigate to={activeTenantSlug ? `/${activeTenantSlug}/login` : "/auth"} replace />;
+  }
+
+  if (!tenantSlug && storedTenantSlug && /^\/(admin|teacher|student)(\/|$)/.test(location.pathname)) {
     return (
-      <IsNotAllowPAge />
+      <Navigate
+        to={tenantPath(location.pathname + location.search, storedTenantSlug)}
+        replace
+        state={location.state}
+      />
     );
+  }
+
+  const tenantlessPath = stripTenantPrefix(location.pathname, tenantSlug);
+  const roleBasePath = roleBasePaths[user.role as string];
+  const isAllowed = !!roleBasePath && tenantlessPath.startsWith(roleBasePath);
+
+  if (!isAllowed) {
+    return <IsNotAllowPAge />;
   }
 
   return <Outlet />;

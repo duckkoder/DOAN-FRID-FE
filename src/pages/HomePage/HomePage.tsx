@@ -1,5 +1,6 @@
-import React from "react";
-import { Button, Typography, Row, Col, Card } from "antd";
+import React, { useEffect, useMemo, useState } from "react";
+import { Button, Typography, Row, Col, Card, Dropdown, Empty } from "antd";
+import type { MenuProps } from "antd";
 import { useNavigate } from "react-router-dom";
 import {
   UserOutlined,
@@ -10,13 +11,58 @@ import {
   ClockCircleOutlined,
   BookOutlined,
   FileSearchOutlined,
+  ArrowRightOutlined,
 } from "@ant-design/icons";
 import logoImg from "@/assets/logo_pbl.png";
+import { listPublicTenants, type PublicTenant } from "@/apis/platformAPIs/platform";
 
 const { Title, Text, Paragraph } = Typography;
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
+  const [partners, setPartners] = useState<PublicTenant[]>([]);
+  const [partnersLoading, setPartnersLoading] = useState(false);
+
+  useEffect(() => {
+    setPartnersLoading(true);
+    listPublicTenants()
+      .then(setPartners)
+      .catch(() => setPartners([]))
+      .finally(() => setPartnersLoading(false));
+  }, []);
+
+  const partnerMenuItems = useMemo<MenuProps["items"]>(
+    () =>
+      partners.map((tenant) => ({
+        key: tenant.slug,
+        label: (
+          <div style={{ display: "grid", gap: 2, minWidth: 240 }}>
+            <span style={{ color: "#172033", fontWeight: 750 }}>{tenant.name}</span>
+            <span style={{ color: "#64748b", fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace", fontSize: 12 }}>
+              /{tenant.slug}/login
+            </span>
+          </div>
+        ),
+      })),
+    [partners],
+  );
+
+  const handleSelectPartner: MenuProps["onClick"] = ({ key }) => {
+    navigate(`/${key}/login`);
+  };
+
+  const loginSelector = (label = "Đăng nhập") => (
+    <Dropdown
+      trigger={["click"]}
+      placement="bottomRight"
+      menu={{ items: partnerMenuItems, onClick: handleSelectPartner }}
+      disabled={partnersLoading || partners.length === 0}
+    >
+      <Button size="large" type="primary" style={{ borderRadius: 10, fontWeight: 700, flexShrink: 0 }}>
+        {partnersLoading ? "Đang tải..." : label}
+      </Button>
+    </Dropdown>
+  );
 
   const features = [
     {
@@ -99,9 +145,7 @@ const HomePage: React.FC = () => {
           </div>
         </div>
 
-        <Button size="large" type="primary" onClick={() => navigate("/auth")} style={{ borderRadius: 10, fontWeight: 700, flexShrink: 0 }}>
-          Đăng nhập
-        </Button>
+        {loginSelector("Đăng nhập")}
       </header>
 
       <main>
@@ -148,16 +192,13 @@ const HomePage: React.FC = () => {
               FRID hỗ trợ nhà trường quản lý lớp học, phiên điểm danh, dữ liệu chuyên cần, tài liệu học tập và hỏi đáp AI trong một hệ thống thống nhất.
             </Paragraph>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              {loginSelector("Vào hệ thống")}
               <Button
-                type="primary"
                 size="large"
-                onClick={() => navigate("/auth")}
-                style={{ height: 48, borderRadius: 10, fontWeight: 750, paddingInline: 24 }}
+                onClick={() => document.getElementById("partners")?.scrollIntoView({ behavior: "smooth" })}
+                style={{ height: 48, borderRadius: 10, fontWeight: 650 }}
               >
-                Vào hệ thống
-              </Button>
-              <Button size="large" onClick={() => navigate("/auth")} style={{ height: 48, borderRadius: 10, fontWeight: 650 }}>
-                Đăng nhập tài khoản
+                Xem đối tác
               </Button>
             </div>
           </div>
@@ -237,6 +278,79 @@ const HomePage: React.FC = () => {
           </Row>
         </section>
 
+        <section id="partners" style={{ padding: "64px clamp(20px, 5vw, 72px)", background: "#fff" }}>
+          <Title level={2} style={{ textAlign: "center", marginBottom: 12, color: "#172033", fontSize: "clamp(26px, 4vw, 38px)" }}>
+            Đối tác của chúng tôi
+          </Title>
+          <Paragraph style={{ textAlign: "center", color: "#64748b", maxWidth: 720, margin: "0 auto 40px", fontSize: 16 }}>
+            Chọn trường của bạn để đi tới đúng không gian đăng nhập và dữ liệu riêng của trường.
+          </Paragraph>
+
+          {partnersLoading ? (
+            <Row gutter={[20, 20]}>
+              {[1, 2, 3].map((item) => (
+                <Col xs={24} md={8} key={item}>
+                  <Card loading style={{ height: 142, borderRadius: 10, border: "1px solid #e5eaf2" }} />
+                </Col>
+              ))}
+            </Row>
+          ) : partners.length === 0 ? (
+            <Empty description="Chưa có đối tác đang hoạt động" />
+          ) : (
+            <Row gutter={[20, 20]}>
+              {partners.map((tenant) => (
+                <Col xs={24} sm={12} lg={8} key={tenant.slug}>
+                  <Card
+                    hoverable
+                    onClick={() => navigate(`/${tenant.slug}/login`)}
+                    style={{
+                      height: "100%",
+                      borderRadius: 10,
+                      border: "1px solid #dbe6f5",
+                      boxShadow: "0 14px 40px rgba(15, 35, 75, 0.08)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        minWidth: 64,
+                        height: 42,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginBottom: 16,
+                        padding: "0 14px",
+                        borderRadius: 10,
+                        background: "#e8f0ff",
+                        color: "#1e3a8a",
+                        fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
+                        fontWeight: 850,
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {tenant.school_code}
+                    </div>
+                    <Title level={4} style={{ marginBottom: 8, color: "#172033" }}>
+                      {tenant.name}
+                    </Title>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                      <Text style={{ color: "#64748b" }}>
+                        Mã trường: <strong>{tenant.school_code}</strong>
+                      </Text>
+                      <Button
+                        type="primary"
+                        shape="circle"
+                        aria-label={`Đăng nhập ${tenant.name}`}
+                        icon={<ArrowRightOutlined />}
+                      />
+                    </div>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          )}
+        </section>
+
         <section style={{ padding: "58px 20px", background: "#10213f", textAlign: "center" }}>
           <Title level={2} style={{ color: "#fff", marginBottom: 14, fontSize: "clamp(26px, 4vw, 38px)" }}>
             Bắt đầu quản lý với FRID
@@ -244,9 +358,7 @@ const HomePage: React.FC = () => {
           <Paragraph style={{ color: "#cbd5e1", fontSize: 16, maxWidth: 660, margin: "0 auto 26px", lineHeight: 1.8 }}>
             Đăng nhập để quản lý lớp học, phiên điểm danh, báo cáo chuyên cần và trợ giảng tài liệu.
           </Paragraph>
-          <Button type="primary" size="large" onClick={() => navigate("/auth")} style={{ height: 48, borderRadius: 10, fontWeight: 750, paddingInline: 28 }}>
-            Đăng nhập
-          </Button>
+          {loginSelector("Đăng nhập")}
         </section>
       </main>
 

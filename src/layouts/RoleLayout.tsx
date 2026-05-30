@@ -1,11 +1,12 @@
-import React, { useContext, useState, useEffect } from "react";
-import { Outlet, Navigate, useNavigate } from "react-router-dom";
+﻿import React, { useContext, useState, useEffect } from "react";
+import { Outlet, Navigate, useNavigate, useParams } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { logout as apiLogout } from "../apis/authAPIs/auth";
 
 import Header from "../components/Header";
 import LeftBar from "../components/LeftBar";
 import { message } from "antd";
+import { getStoredTenantSlug, tenantPath } from "@/utils/tenantRouting";
 
 const leftBarConfig = {
   "admin": [ // Admin
@@ -22,6 +23,7 @@ const leftBarConfig = {
         { key: "students", label: "Sinh viên", path: "/admin/students" },
         { key: "departments", label: "Khoa & Chuyên ngành", path: "/admin/departments" },
         { key: "rooms", label: "Phòng học", path: "/admin/rooms" },
+        { key: "settings", label: "Cấu hình tích hợp", path: "/admin/settings" },
       ]
     },
     {
@@ -98,7 +100,9 @@ const leftBarConfig = {
 const RoleLayout: React.FC = () => {
   const auth = useContext(AuthContext);
   const navigate = useNavigate();
+  const { tenantSlug } = useParams<{ tenantSlug?: string }>();
   const user = auth?.user;
+  const activeTenantSlug = tenantSlug || getStoredTenantSlug();
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [drawerVisible, setDrawerVisible] = useState(false);
 
@@ -116,7 +120,7 @@ const RoleLayout: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  if (!user) return <Navigate to="/auth" />;
+  if (!user) return <Navigate to={activeTenantSlug ? `/${activeTenantSlug}/login` : "/auth"} />;
 
   // Handler cho logout
   const handleLogout = async () => {
@@ -132,7 +136,7 @@ const RoleLayout: React.FC = () => {
       message.success("Đăng xuất thành công!");
       
       // Redirect to login
-      navigate("/auth");
+      navigate(activeTenantSlug ? `/${activeTenantSlug}/login` : "/auth");
       
     } catch (error) {
       console.error("Logout error:", error);
@@ -145,7 +149,13 @@ const RoleLayout: React.FC = () => {
   };
 
   // Chọn leftBarSections và username theo role
-  const leftBarSections = leftBarConfig[user.role as "admin" | "teacher" | "student"] || [];
+  const leftBarSections = (leftBarConfig[user.role as "admin" | "teacher" | "student"] || []).map((section) => ({
+    ...section,
+    items: section.items.map((item) => ({
+      ...item,
+      path: item.action === "logout" ? item.path : tenantPath(item.path, activeTenantSlug),
+    })),
+  }));
   const username = user.full_name;
 
   return (

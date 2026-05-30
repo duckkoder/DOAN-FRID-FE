@@ -2,6 +2,7 @@ import { createBrowserRouter, createRoutesFromElements, Route } from "react-rout
 
 import AppLayout from "../layouts/AppLayout";
 import ProtectedRoute from "./ProtectedRoute";
+import PlatformProtectedRoute from "./PlatformProtectedRoute";
 import RoleLayout from "../layouts/RoleLayout";
 
 import AuthPage from "../pages/AuthPage/Authpage";
@@ -12,6 +13,7 @@ import AdminStudentPage from "../pages/Admin/AdminStudentPage";
 import AdminDepartmentPage from "../pages/Admin/AdminDepartmentPage";
 import AdminHomePage from "../pages/Admin/AdminHomePage";
 import AdminRoomPage from "../pages/Admin/AdminRoomPage";
+import AdminTenantSettingsPage from "../pages/Admin/AdminTenantSettingsPage";
 
 import TeacherClassPage from "../pages/Teacher/TeacherClassPage";
 import TeacherCoursePage from "../pages/Teacher/TeacherCoursePage";
@@ -34,59 +36,67 @@ import FaceRegisterPage from "../pages/Student/FaceRegisterPage";
 import ClassCreatePage from "../pages/Class/ClassCreatePage";
 import LearningWorkspacePage from "../pages/LearningWorkspacePage/LearningWorkspacePage";
 import NotFound from "../pages/NotFound/NotFound";
+import PlatformLoginPage from "../pages/Platform/PlatformLoginPage";
+import PlatformTenantsPage from "../pages/Platform/PlatformTenantsPage";
+
+const roleRoutes = (
+  <>
+    <Route path="teacher/classes/:classId/learning/:documentId" element={<LearningWorkspacePage />} />
+    <Route path="student/classes/:classId/learning/:documentId" element={<LearningWorkspacePage />} />
+
+    <Route element={<AppLayout />}>
+      <Route element={<RoleLayout />}>
+        <Route path="admin">
+          <Route index element={<AdminHomePage />} />
+          <Route path="teachers" element={<AdminTeacherPage />} />
+          <Route path="students" element={<AdminStudentPage />} />
+          <Route path="departments" element={<AdminDepartmentPage />} />
+          <Route path="rooms" element={<AdminRoomPage />} />
+          <Route path="settings" element={<AdminTenantSettingsPage />} />
+        </Route>
+
+        <Route path="teacher">
+          <Route index element={<TeacherHomePage />} />
+          <Route path="courses" element={<TeacherCoursePage />} />
+          <Route path="classes" element={<TeacherClassPage />} />
+          <Route path="class/:classId" element={<ClassDetailPage />} />
+          <Route path="attendance/:sessionId" element={<SessionDetailPage />} />
+          <Route path="reports" element={<TeacherReportPage />} />
+          <Route path="leave-requests" element={<TeacherLeaveRequestPage />} />
+          <Route path="classes/create" element={<ClassCreatePage />} />
+          <Route path="profile" element={<TeacherProfilePage />} />
+        </Route>
+
+        <Route path="student">
+          <Route index element={<StudentHomePage />} />
+          <Route path="classes" element={<StudentClassPage />} />
+          <Route path="classes/:classId" element={<StudentClassDetailPage />} />
+          <Route path="classes/:classId/attendance" element={<StudentAttendanceListPage />} />
+          <Route path="attendance" element={<StudentAttendancePage />} />
+          <Route path="reports" element={<StudentReportPage />} />
+          <Route path="register-face" element={<FaceRegisterPage />} />
+          <Route path="profile" element={<StudentProfilePage />} />
+        </Route>
+      </Route>
+    </Route>
+  </>
+);
 
 const router = createBrowserRouter(
   createRoutesFromElements(
     <>
       <Route path="/auth" element={<AuthPage />} />
+      <Route path="/:tenantSlug" element={<AuthPage />} />
+      <Route path="/:tenantSlug/login" element={<AuthPage />} />
+      <Route path="/platform/login" element={<PlatformLoginPage />} />
+      <Route element={<PlatformProtectedRoute />}>
+        <Route path="/platform/tenants" element={<PlatformTenantsPage />} />
+        <Route path="/platform" element={<PlatformTenantsPage />} />
+      </Route>
       <Route path="/" element={<HomePage />} />
 
-      <Route element={<ProtectedRoute />}>
-        {/* ── Full-screen routes: NO AppLayout sidebar ── */}
-        <Route path="/teacher/classes/:classId/learning/:documentId" element={<LearningWorkspacePage />} />
-        <Route path="/student/classes/:classId/learning/:documentId" element={<LearningWorkspacePage />} />
-
-        {/* ── Standard routes: WITH AppLayout + sidebar ── */}
-        <Route element={<AppLayout />}>
-          <Route element={<RoleLayout />}>
-
-            {/* Admin */}
-            <Route path="/admin">
-              <Route index element={<AdminHomePage />} />
-              <Route path="teachers" element={<AdminTeacherPage />} />
-              <Route path="students" element={<AdminStudentPage />} />
-              <Route path="departments" element={<AdminDepartmentPage />} />
-              <Route path="rooms" element={<AdminRoomPage />} />
-            </Route>
-
-            {/* Teacher */}
-            <Route path="/teacher">
-              <Route index element={<TeacherHomePage />} />
-              <Route path="courses" element={<TeacherCoursePage />} />
-              <Route path="classes" element={<TeacherClassPage />} />
-              <Route path="class/:classId" element={<ClassDetailPage />} />
-              <Route path="attendance/:sessionId" element={<SessionDetailPage />} />
-              <Route path="reports" element={<TeacherReportPage />} />
-              <Route path="leave-requests" element={<TeacherLeaveRequestPage />} />
-              <Route path="classes/create" element={<ClassCreatePage />} />
-              <Route path="profile" element={<TeacherProfilePage />} />
-            </Route>
-
-            {/* Student */}
-            <Route path="/student">
-              <Route index element={<StudentHomePage />} />
-              <Route path="classes" element={<StudentClassPage />} />
-              <Route path="classes/:classId" element={<StudentClassDetailPage />} />
-              <Route path="classes/:classId/attendance" element={<StudentAttendanceListPage />} />
-              <Route path="attendance" element={<StudentAttendancePage />} />
-              <Route path="reports" element={<StudentReportPage />} />
-              <Route path="register-face" element={<FaceRegisterPage />} />
-              <Route path="profile" element={<StudentProfilePage />} />
-            </Route>
-
-          </Route>
-        </Route>
-      </Route>
+      <Route element={<ProtectedRoute />}>{roleRoutes}</Route>
+      <Route path="/:tenantSlug" element={<ProtectedRoute />}>{roleRoutes}</Route>
 
       <Route path="*" element={<NotFound />} />
     </>,

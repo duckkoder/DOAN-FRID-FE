@@ -381,7 +381,7 @@ const LearningWorkspacePage: React.FC = () => {
         if (isFirstToken) {
           setMessages(p => [...p, { 
             id: aiMsgId, role: 'ai', 
-            content: '⚠️ Không thể kết nối AI Service. Vui lòng thử lại.', 
+            content: err || '⚠️ Không thể kết nối AI Service. Vui lòng thử lại.', 
             timestamp: new Date() 
           }]);
         }
