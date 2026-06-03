@@ -75,13 +75,15 @@ const headerAliases: Record<string, keyof Pick<ImportRow, "class_name" | "course
   "phong hoc": "room",
   "phòng học": "room",
 };
-const buildSampleRows = (rooms: Room[]) => {
+const buildSampleRows = (courses: CourseListItem[], rooms: Room[]) => {
+  const firstCourse = courses[0];
+  const secondCourse = courses[1] || firstCourse;
   const firstRoom = rooms[0]?.name || "A101";
   const secondRoom = rooms[1]?.name || firstRoom;
   return [
-    ["Lap trinh Web - Nhom 1", "PBL6", "Lop thuc hanh PBL6", "monday", "1-3", firstRoom],
-    ["Lap trinh Web - Nhom 1", "PBL6", "Lop thuc hanh PBL6", "wednesday", "6,7,8", firstRoom],
-    ["Co so du lieu - Nhom 2", "CSDL", "Lop ly thuyet", "friday", "4-5", secondRoom],
+    [`${firstCourse?.title || "Học phần"} - Nhóm 1`, firstCourse?.code || "", firstCourse ? `Lịch học ${firstCourse.title}` : "", "Thứ hai", "1-3", firstRoom],
+    [`${firstCourse?.title || "Học phần"} - Nhóm 1`, firstCourse?.code || "", firstCourse ? `Lịch học ${firstCourse.title}` : "", "Thứ tư", "6,7,8", firstRoom],
+    [`${secondCourse?.title || "Học phần"} - Nhóm 2`, secondCourse?.code || "", secondCourse ? `Lịch học ${secondCourse.title}` : "", "Thứ sáu", "4-5", secondRoom],
   ];
 };
 
@@ -214,6 +216,7 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
   ), [rooms]);
 
   const validRows = rows.filter(row => row.is_valid);
+  const canCreateClasses = courses.length > 0 && rooms.length > 0 && validRows.length > 0;
 
   const reset = () => {
     setRows([]);
@@ -241,7 +244,7 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
   useEffect(() => {
     if (!open) return;
     ensureLookups().catch(() => {
-      message.error("Không thể tải danh sách phòng học");
+      message.error("Không thể tải danh sách học phần/phòng học");
     });
   }, [open]);
 
@@ -274,13 +277,14 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
     availableRooms.forEach((room) => localRoomMap.set(normalizeKey(room.name), room));
 
     if (!row.class_name) row.errors.push("Tên lớp không được để trống");
+    if (!row.course_code) row.errors.push("Mã học phần không được để trống");
     if (!row.day) row.errors.push("Thứ không được để trống");
     if (!row.periods) row.errors.push("Tiết học không được để trống");
     if (!row.room) row.errors.push("Phòng học không được để trống");
 
     const parsedDay = parseDay(row.day);
     if (parsedDay === null) {
-      row.errors.push("Thứ phải là Thứ hai-Chủ nhật hoặc số 2-8");
+      row.errors.push("Thứ phải nhập từ 2-8 hoặc ghi bằng chữ, ví dụ Thứ hai, Thứ ba, Chủ nhật");
     } else {
       row.parsed_day = parsedDay;
     }
@@ -300,8 +304,6 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
         row.course_id = course.id;
         row.course_code = course.code;
       }
-    } else {
-      row.course_id = null;
     }
 
     const room = localRoomMap.get(normalizeKey(row.room));
@@ -341,6 +343,17 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
     setLoading(true);
     setResult(null);
     try {
+      const lookups = await ensureLookups();
+      if (lookups.nextCourses.length === 0) {
+        message.error("Chưa có học phần nào. Cần tạo học phần trước khi tạo lớp hàng loạt.");
+        setRows([]);
+        return false;
+      }
+      if (lookups.nextRooms.length === 0) {
+        message.error("Chưa có phòng học đang sử dụng. Cần tạo phòng học trước khi tạo lớp hàng loạt.");
+        setRows([]);
+        return false;
+      }
       const parsedRows = await parseFile(file);
       setRows(parsedRows);
       const invalidCount = parsedRows.filter(row => !row.is_valid).length;
@@ -367,12 +380,20 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
   };
 
   const downloadTemplate = async (format: "xlsx" | "csv") => {
-    const { nextRooms } = await ensureLookups();
-    const data = [friendlyHeaders, ...buildSampleRows(nextRooms)];
+    const { nextCourses, nextRooms } = await ensureLookups();
+    const data = [friendlyHeaders, ...buildSampleRows(nextCourses, nextRooms)];
     if (format === "xlsx") {
       const worksheet = XLSX.utils.aoa_to_sheet(data);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Danh sách lớp");
+      XLSX.utils.book_append_sheet(
+        workbook,
+        XLSX.utils.aoa_to_sheet([
+          ["Mã học phần", "Tên học phần"],
+          ...nextCourses.map(course => [course.code, course.title]),
+        ]),
+        "Học phần"
+      );
       XLSX.utils.book_append_sheet(
         workbook,
         XLSX.utils.aoa_to_sheet([
@@ -436,6 +457,14 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
   const handleConfirmImport = async () => {
     if (!teacherId) {
       message.error("Không tìm thấy thông tin giáo viên");
+      return;
+    }
+    if (courses.length === 0) {
+      message.error("Chưa có học phần nào. Cần tạo học phần trước khi tạo lớp hàng loạt.");
+      return;
+    }
+    if (rooms.length === 0) {
+      message.error("Chưa có phòng học đang sử dụng. Cần tạo phòng học trước khi tạo lớp hàng loạt.");
       return;
     }
     if (validRows.length === 0) {
@@ -524,7 +553,7 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
           key="create"
           type="primary"
           loading={importing}
-          disabled={validRows.length === 0}
+          disabled={!canCreateClasses}
           onClick={handleConfirmImport}
         >
           Tạo {buildClassPayloads().length || 0} lớp
@@ -536,7 +565,19 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
           type="info"
           showIcon
           message="Một dòng trong file là một buổi học. Các dòng cùng tên lớp và mã học phần sẽ được gộp thành một lớp có nhiều buổi."
-          description="Mã học phần có thể để trống. Cột Thứ nhận Thứ hai-Chủ nhật hoặc số 2-8. Cột Tiết học nhận dạng 1-3 hoặc 1,2,3."
+          description="Mã học phần là bắt buộc và phải khớp học phần đang có. Cột Thứ nên nhập 2-8 hoặc ghi bằng chữ như Thứ hai, Thứ ba, Chủ nhật; hệ thống sẽ tự chuyển về lịch nội bộ. Cột Tiết học nhận dạng 1-3 hoặc 1,2,3."
+        />
+
+        <Alert
+          type={courses.length > 0 ? "success" : "warning"}
+          showIcon
+          message={courses.length > 0 ? `Đã tải ${courses.length} học phần` : "Chưa có học phần để tạo lớp"}
+          description={courses.length > 0 ? (
+            <Space wrap size={[6, 6]}>
+              {courses.slice(0, 12).map(course => <Tag key={course.id}>{course.code} - {course.title}</Tag>)}
+              {courses.length > 12 && <Tag>+{courses.length - 12} học phần khác</Tag>}
+            </Space>
+          ) : "Cần tạo học phần trước. File mẫu vẫn tải được nhưng chưa thể tạo lớp khi danh sách học phần trống."}
         />
 
         <Alert
@@ -551,7 +592,7 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
           ) : "Cột Phòng học chỉ nhận phòng đang có trong danh sách phòng học. Đóng mở lại cửa sổ này hoặc kiểm tra danh mục phòng học nếu danh sách trống."}
         />
 
-        <Dragger {...uploadProps} style={{ padding: 18 }}>
+        <Dragger {...uploadProps} disabled={loading || courses.length === 0 || rooms.length === 0} style={{ padding: 18 }}>
           <p className="ant-upload-drag-icon"><InboxOutlined /></p>
           <p className="ant-upload-text">Kéo thả file danh sách lớp vào đây hoặc bấm để chọn file</p>
           <p className="ant-upload-hint">Hỗ trợ .xlsx, .xls, .csv</p>

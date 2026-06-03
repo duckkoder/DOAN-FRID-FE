@@ -1056,6 +1056,7 @@ const AdminTeacherPage: React.FC = () => {
           fetchTeachers();
         }}
         type="teacher"
+        emailDomain={teacherEmailDomain}
       />
     </div>
   );

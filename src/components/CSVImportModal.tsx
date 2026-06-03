@@ -57,13 +57,15 @@ interface CSVImportModalProps {
   onCancel: () => void;
   onSuccess: () => void;
   type: 'student' | 'teacher';
+  emailDomain: string;
 }
 
 const CSVImportModal: React.FC<CSVImportModalProps> = ({
   visible,
   onCancel,
   onSuccess,
-  type
+  type,
+  emailDomain,
 }) => {
   const { message } = App.useApp();
   const [previewData, setPreviewData] = useState<PreviewResponse | null>(null);
@@ -79,23 +81,20 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
       fileName: 'mau_tao_sinh_vien_hang_loat',
       headers: ['full_name', 'mssv', 'password', 'phone', 'department_name', 'academic_year', 'date_of_birth'],
       displayHeaders: ['Họ và tên', 'Mã sinh viên', 'Mật khẩu', 'Số điện thoại', 'Khoa', 'Khóa học', 'Ngày sinh'],
-      rows: [
-        ['Nguyen Van A', '102220001', 'Password123', '0912345678', 'Information Technology', '2022', '2004-01-15'],
-        ['Tran Thi B', '102220002', 'Password123', '0987654321', 'Electronics & Telecommunications', '2022', '2004-05-20'],
-      ],
     },
     teacher: {
       fileName: 'mau_tao_giao_vien_hang_loat',
       headers: ['full_name', 'email', 'password', 'phone', 'department_name', 'specialization_name'],
       displayHeaders: ['Họ và tên', 'Tên email', 'Mật khẩu', 'Số điện thoại', 'Khoa', 'Chuyên ngành'],
-      rows: [
-        ['Nguyen Van A', 'nguyenvana', 'Password123', '0912345678', 'Information Technology', 'Computer Science'],
-        ['Tran Thi B', 'tranthib', 'Password123', '0987654321', 'Electronics & Telecommunications', 'Electronics'],
-      ],
     },
   };
 
   const selectedTemplate = templates[type];
+  const displayEmailDomain = emailDomain?.trim() || (type === "student" ? "sv1.dut.udn.vn" : "dut.udn.vn");
+  const catalogReady = type === "student" ? departments.length > 0 : departments.length > 0 && specializations.length > 0;
+  const catalogSummary = type === "student"
+    ? `Đã tải ${departments.length} khoa`
+    : `Đã tải ${departments.length} khoa và ${specializations.length} chuyên ngành`;
   const headerAliases = useMemo(() => {
     const aliases = new Map<string, string>();
     selectedTemplate.headers.forEach((header, index) => {
@@ -353,8 +352,7 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
       render: (value: string) => (
         <span>
           {value}
-          {type === 'student' && <span style={{ color: '#999' }}>@sv1.dut.udn.vn</span>}
-          {type === 'teacher' && <span style={{ color: '#999' }}>@dut.udn.vn</span>}
+          <span style={{ color: '#999' }}>@{displayEmailDomain}</span>
         </span>
       ),
     },
@@ -443,7 +441,7 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
         XLSX.utils.aoa_to_sheet([
           ['Thông tin', 'Bắt buộc', 'Ghi chú'],
           ['Họ và tên', 'Có', 'Họ tên đầy đủ'],
-          [type === 'student' ? 'Mã sinh viên' : 'Tên email', 'Có', type === 'student' ? 'MSSV 9 chữ số' : 'Chỉ nhập phần trước @dut.udn.vn'],
+          [type === 'student' ? 'Mã sinh viên' : 'Tên email', 'Có', type === 'student' ? 'MSSV 9 chữ số' : `Chỉ nhập phần trước @${displayEmailDomain}`],
           ['Mật khẩu', 'Có', 'Tối thiểu 8 ký tự, có chữ hoa, chữ thường và số'],
           ['Số điện thoại', 'Có', '10 chữ số, bắt đầu bằng 0'],
           ['Khoa', 'Không', 'Nếu nhập, chọn đúng tên trong sheet Khoa.'],
@@ -631,23 +629,24 @@ const CSVImportModal: React.FC<CSVImportModalProps> = ({
                 <p><strong>Các thông tin cần điền:</strong> Họ tên, {type === 'student' ? 'mã sinh viên' : 'tên email'}, mật khẩu, số điện thoại; khoa/chuyên ngành có thể để trống.</p>
                 <p><strong>Lưu ý:</strong></p>
                 <ul>
-                  <li>{type === 'student' ? 'MSSV phải có 9 chữ số' : 'Email chỉ nhập phần trước domain, không nhập @dut.udn.vn'}</li>
+                  <li>{type === 'student' ? `MSSV phải có 9 chữ số. Email sẽ dùng đuôi @${displayEmailDomain}` : `Email chỉ nhập phần trước domain, không nhập @${displayEmailDomain}`}</li>
                   <li>Mật khẩu tối thiểu 8 ký tự, có ít nhất 1 chữ hoa, 1 chữ thường và 1 chữ số. Ví dụ: Password123.</li>
                   <li>Số điện thoại gồm 10 chữ số và bắt đầu bằng 0.</li>
                   <li>Khoa và chuyên ngành không bắt buộc. Có thể để trống trong file hoặc xóa giá trị ở preview.</li>
                   <li>Nếu nhập khoa/chuyên ngành, chọn đúng tên đang có trong danh mục. Có thể sửa nhanh bằng danh sách chọn ở bảng xem trước.</li>
                 </ul>
                 <Alert
-                  type={departments.length > 0 ? "success" : "warning"}
+                  type={catalogReady ? "success" : "warning"}
                   showIcon
                   style={{ marginTop: 12 }}
-                  message={departments.length > 0 ? `Đã tải ${departments.length} khoa và ${specializations.length} chuyên ngành` : "Chưa tải được danh sách khoa/chuyên ngành"}
+                  message={catalogReady ? catalogSummary : "Chưa tải đủ danh mục khoa/chuyên ngành"}
                   description={departments.length > 0 ? (
                     <Space wrap size={[6, 6]}>
                       {departments.slice(0, 10).map(department => <Tag key={department.id}>{department.name}</Tag>)}
                       {departments.length > 10 && <Tag>+{departments.length - 10} khoa khác</Tag>}
+                      {type === "teacher" && specializations.length > 0 && <Tag color="blue">{specializations.length} chuyên ngành</Tag>}
                     </Space>
-                  ) : "File vẫn có thể để trống khoa/chuyên ngành. Nếu muốn chọn giá trị, kiểm tra lại danh mục khoa/chuyên ngành trước khi tạo tài khoản."}
+                  ) : "Khoa/chuyên ngành không bắt buộc, nhưng nếu muốn điền trong file thì cần có danh mục tương ứng để chọn đúng tên."}
                 />
                 <Space wrap style={{ marginTop: 8 }}>
                   <Button type="primary" icon={<FileExcelOutlined />} onClick={() => downloadTemplate('xlsx')}>

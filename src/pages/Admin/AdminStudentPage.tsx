@@ -1240,6 +1240,7 @@ const AdminStudentPage: React.FC = () => {
           fetchStudents();
         }}
         type="student"
+        emailDomain={studentEmailDomain}
       />
     </div>
   );
