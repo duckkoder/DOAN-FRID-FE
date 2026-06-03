@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { 
+  App,
   Typography, 
   Card, 
   Row, 
@@ -35,7 +36,6 @@ import {
 } from "@ant-design/icons";
 import Breadcrumb from "../../components/Breadcrumb";
 import LeaveRequestModal from "../../components/LeaveRequestModal";
-import { useToast } from "../../context/ToastContext";
 import dayjs from 'dayjs';
 // ✅ Import APIs
 import { getStudentClasses, type StudentClassItem } from "../../apis/classesAPIs/studentClass";
@@ -55,7 +55,7 @@ const { Title, Text } = Typography;
 
 // ✅ UPDATED: Use LeaveRequestDetail directly instead of custom interface
 const StudentReportPage: React.FC = () => {
-  const toast = useToast();
+  const { message } = App.useApp();
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isViewModalVisible, setIsViewModalVisible] = useState(false);
@@ -116,7 +116,7 @@ const StudentReportPage: React.FC = () => {
       console.error('Failed to fetch classes:', err);
       const errorMsg = (err as Error).message || 'Không thể tải danh sách lớp';
       setError(errorMsg);
-      toast.error(errorMsg);
+      message.error(errorMsg);
     } finally {
       setLoadingClasses(false);
     }
@@ -133,7 +133,7 @@ const StudentReportPage: React.FC = () => {
       setLeaveRequests(response.data.leaveRequests);
     } catch (err: unknown) {
       console.error('Failed to fetch leave requests:', err);
-      toast.error((err as Error).message || 'Không thể tải yêu cầu xin nghỉ');
+      message.error((err as Error).message || 'Không thể tải yêu cầu xin nghỉ');
     } finally {
       setLoadingRequests(false);
     }
@@ -175,12 +175,12 @@ const StudentReportPage: React.FC = () => {
 
             if (uploadResponse.success && uploadResponse.data.file_id) {
               evidenceFileId = uploadResponse.data.file_id;
-              toast.success('Đã tải lên tài liệu minh chứng thành công!');
+              message.success('Đã tải lên tài liệu minh chứng thành công!');
             } else {
               throw new Error(uploadResponse.message || 'Tải file thất bại');
             }
           } catch (uploadErr: unknown) {
-            toast.error(`File upload error: ${(uploadErr as Error).message || 'Please try again'}`);
+            message.error(`File upload error: ${(uploadErr as Error).message || 'Please try again'}`);
             throw new Error(`File upload failed: ${(uploadErr as Error).message}`);
           }
         }
@@ -201,7 +201,7 @@ const StudentReportPage: React.FC = () => {
       const response = await createLeaveRequest(payload);
 
       if (response.success) {
-        toast.success('Đã gửi yêu cầu xin nghỉ thành công! Giáo viên sẽ xem xét sớm nhất có thể.');
+        message.success('Đã gửi yêu cầu xin nghỉ thành công! Giáo viên sẽ xem xét sớm nhất có thể.');
         
         // Refresh leave requests list
         await fetchLeaveRequests();
@@ -230,7 +230,7 @@ const StudentReportPage: React.FC = () => {
         }
       }
       
-      toast.error(errorMessage);
+      message.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -261,12 +261,12 @@ const StudentReportPage: React.FC = () => {
 
             if (uploadResponse.success && uploadResponse.data.file_id) {
               evidenceFileId = uploadResponse.data.file_id;
-              toast.success('Đã tải lên tài liệu minh chứng thành công!');
+              message.success('Đã tải lên tài liệu minh chứng thành công!');
             } else {
               throw new Error(uploadResponse.message || 'Tải file thất bại');
             }
           } catch (uploadErr: unknown) {
-            toast.error(`File upload error: ${(uploadErr as Error).message || 'Please try again'}`);
+            message.error(`File upload error: ${(uploadErr as Error).message || 'Please try again'}`);
             throw new Error(`File upload failed: ${(uploadErr as Error).message}`);
           }
         }
@@ -283,7 +283,7 @@ const StudentReportPage: React.FC = () => {
       const response = await updateLeaveRequest(editingRequest.id, payload);
 
       if (response.success) {
-        toast.success('Đã cập nhật yêu cầu xin nghỉ thành công!');
+        message.success('Đã cập nhật yêu cầu xin nghỉ thành công!');
         
         await fetchLeaveRequests();
         
@@ -311,7 +311,7 @@ const StudentReportPage: React.FC = () => {
         }
       }
       
-      toast.error(errorMessage);
+      message.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -322,7 +322,7 @@ const StudentReportPage: React.FC = () => {
     try {
       await cancelLeaveRequest(parseInt(requestId));
       
-      toast.success('Đã hủy yêu cầu xin nghỉ thành công!');
+      message.success('Đã hủy yêu cầu xin nghỉ thành công!');
       
       await fetchLeaveRequests();
     } catch (err: unknown) {
@@ -341,7 +341,7 @@ const StudentReportPage: React.FC = () => {
         }
       }
       
-      toast.error(errorMessage);
+      message.error(errorMessage);
     }
   };
 

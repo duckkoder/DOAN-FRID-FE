@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import { 
   Typography, 
   Card, 
@@ -19,7 +19,8 @@ import {
   UserOutlined,
   BookOutlined,
   EnvironmentOutlined,
-  PlusOutlined
+  PlusOutlined,
+  UploadOutlined
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import Breadcrumb from "../../components/Breadcrumb";
@@ -28,8 +29,11 @@ import 'dayjs/locale/vi';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import weekday from 'dayjs/plugin/weekday';
 import { 
-  getClassesList
+  getClassesList,
+  type ClassListItem
 } from "../../apis/classesAPIs/teacherClass";
+import { useAuth } from "../../hooks/useAuth";
+import TeacherClassImportModal from "./components/TeacherClassImportModal";
 
 dayjs.extend(isoWeek);
 dayjs.extend(weekday);
@@ -64,7 +68,10 @@ const TeacherClassPage: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(dayjs());
   const [classes, setClasses] = useState<ClassSession[]>([]);
   const [loading, setLoading] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const teacherId = user?.teacher_id ?? null;
 
   // Time slots mapping
   const TIME_SLOTS: Record<number, string> = {
@@ -119,7 +126,7 @@ const TeacherClassPage: React.FC = () => {
         const { day, periods, location, room } = daySchedule as any;
         if (!periods || periods.length === 0) return;
 
-        // day 0=Monday..6=Sunday → display as 1=Monday..7=Sunday
+        // day 0=Monday..6=Sunday â†’ display as 1=Monday..7=Sunday
         const dayNumber = day + 1;
 
         const start = periods[0];
@@ -368,6 +375,38 @@ const TeacherClassPage: React.FC = () => {
     };
   }, [classes, uniqueClasses, totalClasses]);
 
+  const pageHeaderStyle: React.CSSProperties = {
+    marginBottom: 26,
+  };
+
+  const headerIconStyle: React.CSSProperties = {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 16px 34px rgba(37, 99, 235, 0.18)",
+    flexShrink: 0,
+  };
+
+  const headerTitleStyle: React.CSSProperties = {
+    margin: 0,
+    color: "#2563eb",
+    fontSize: "clamp(30px, 4vw, 40px)",
+    fontWeight: 800,
+    lineHeight: 1.12,
+  };
+
+  const headerSubtitleStyle: React.CSSProperties = {
+    display: "block",
+    marginTop: 6,
+    color: "#64748b",
+    fontSize: 16,
+    lineHeight: 1.5,
+  };
+
   return (
     <div className="responsive-container" style={{ 
       minHeight: "100vh", 
@@ -458,36 +497,47 @@ const TeacherClassPage: React.FC = () => {
       
       <Breadcrumb items={breadcrumbItems} />
 
-      <div className="class-page-header" style={{ display: "flex", justifyContent: "space-between", marginBottom: 24 }}>
-        <div className="class-page-header-content" style={{ flex: 1 }}>
-          <Title level={1} className="class-page-title" style={{ margin: 0, marginBottom: 8, color: "#2563eb", fontSize: 36, fontWeight: 700 }}>
-            📚 Quản lý Lớp học
-          </Title>
-          <Text className="class-page-subtitle" style={{ fontSize: 16, color: "#64748b", display: "block" }}>
-            Quản lý thời khóa biểu và thông tin lớp học
-          </Text>
-          <Text className="class-page-time" style={{ fontSize: 13, color: "#10b981", fontWeight: 500, display: "block", marginTop: 8 }}>
-            🕐 Hiện tại: {currentTime.format('dddd, DD/MM/YYYY HH:mm')}
-          </Text>
-        </div>
-
-        <div className="class-page-actions">
-          <Button 
-            type="primary" icon={<PlusOutlined />} size="large"
-            onClick={() => navigate('/teacher/classes/create')}
-            style={{ 
-              borderRadius: 8, 
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              border: 'none', 
-              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)', 
-              fontWeight: 600,
-              height: 44
-            }}
-          >
-            Tạo Lớp Mới
-          </Button>
-        </div>
-      </div>
+      <Row align="middle" justify="space-between" gutter={[18, 18]} className="class-page-header" style={pageHeaderStyle}>
+        <Col xs={24} md={18}>
+          <Space align="center" size={16}>
+            <div style={headerIconStyle}>
+              <BookOutlined style={{ fontSize: 28, color: "#2563eb" }} />
+            </div>
+            <div>
+              <Title level={1} className="class-page-title" style={headerTitleStyle}>
+                Quản lý Lớp học
+              </Title>
+              <Text className="class-page-subtitle" style={headerSubtitleStyle}>
+                Quản lý thời khóa biểu và thông tin lớp học
+              </Text>
+              <Text className="class-page-time" style={{ fontSize: 13, color: "#10b981", fontWeight: 600, display: "block", marginTop: 8 }}>
+                Hiện tại: {currentTime.format('dddd, DD/MM/YYYY HH:mm')}
+              </Text>
+            </div>
+          </Space>
+        </Col>
+        <Col xs={24} md={6} className="class-page-actions" style={{ textAlign: "right" }}>
+          <Space wrap style={{ justifyContent: "flex-end" }}>
+            <Button
+              icon={<UploadOutlined />}
+              size="large"
+              onClick={() => setImportOpen(true)}
+              style={{ borderRadius: 10, fontWeight: 600, height: 44 }}
+            >
+              Import lớp
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              size="large"
+              onClick={() => navigate('/teacher/classes/create')}
+              style={{ borderRadius: 10, fontWeight: 600, height: 44 }}
+            >
+              Tạo Lớp mới
+            </Button>
+          </Space>
+        </Col>
+      </Row>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={12} md={6}>
@@ -520,6 +570,13 @@ const TeacherClassPage: React.FC = () => {
       <Card style={{ borderRadius: 16, boxShadow: "0 4px 20px rgba(0,0,0,0.08)", border: "none", padding: 16 }}>
         <TimelineView />
       </Card>
+
+      <TeacherClassImportModal
+        open={importOpen}
+        teacherId={teacherId}
+        onCancel={() => setImportOpen(false)}
+        onSuccess={fetchClasses}
+      />
     </div>
   );
 };

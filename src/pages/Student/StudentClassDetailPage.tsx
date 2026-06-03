@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  App,
   Alert,
   Avatar,
   Button,
@@ -17,7 +18,6 @@ import {
   Timeline,
   Typography,
   Modal,
-  message,
 } from "antd";
 import {
   ArrowLeftOutlined,
@@ -60,6 +60,17 @@ import {
 import { DAY_NAMES, getTimeRangeForPeriods } from "../../constants/mappings";
 
 const { Title, Text, Paragraph } = Typography;
+
+const headerIconStyle: React.CSSProperties = {
+  width: 54,
+  height: 54,
+  borderRadius: 16,
+  background: "linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  boxShadow: "0 12px 28px rgba(37, 99, 235, 0.16)",
+};
 
 // Time slots mapping moved to src/constants/mappings.ts
 
@@ -106,6 +117,7 @@ const resolveAvatarUrl = (avatar?: string | null): string | undefined => {
 
 const StudentClassDetailPage: React.FC = () => {
   const navigate = useNavigate();
+  const { message } = App.useApp();
   const location = useLocation();
   const params = useParams<{ classId: string }>();
 
@@ -417,15 +429,13 @@ const StudentClassDetailPage: React.FC = () => {
           Quay lại
         </Button>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 16, minWidth: 0 }}>
-          <div style={{ position: "relative", width: 42, height: 38, flex: "0 0 auto" }}>
-            <span style={{ position: "absolute", left: 2, top: 0, width: 20, height: 24, borderRadius: 2, background: "#83e147" }} />
-            <span style={{ position: "absolute", left: 13, top: 5, width: 20, height: 24, borderRadius: 2, background: "#ec4f8b" }} />
-            <span style={{ position: "absolute", left: 8, top: 12, width: 24, height: 22, borderRadius: 2, background: "#1d9bf0", boxShadow: "0 4px 10px rgba(29, 155, 240, 0.22)" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+          <div style={headerIconStyle}>
+            <BookOutlined style={{ fontSize: 26, color: "#2563eb" }} />
           </div>
 
-          <Space direction="vertical" size={10} style={{ minWidth: 0 }}>
-            <Title level={1} style={{ margin: 0, color: "#2563eb", fontSize: 38, lineHeight: 1.08, fontWeight: 800 }}>
+          <Space direction="vertical" size={6} style={{ minWidth: 0 }}>
+            <Title level={2} style={{ margin: 0, color: "#1d4ed8", fontWeight: 800 }}>
               {classInfo.className}
             </Title>
             <Space wrap size={14}>

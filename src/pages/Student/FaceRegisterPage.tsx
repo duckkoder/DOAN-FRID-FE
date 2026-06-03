@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Button, Steps, Alert, Progress, Space, Row, Col, Tag, Spin, Badge, Statistic, Image, message } from 'antd';
-import { CameraOutlined, CheckCircleOutlined, ReloadOutlined, SafetyCertificateOutlined, EyeOutlined, ArrowLeftOutlined, CloseCircleOutlined, LoadingOutlined, CheckOutlined, CloseOutlined, ClockCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { App, Typography, Card, Button, Steps, Alert, Progress, Space, Row, Col, Tag, Spin, Badge, Statistic, Image } from 'antd';
+import { CameraOutlined, CheckCircleOutlined, ReloadOutlined, SafetyCertificateOutlined, EyeOutlined, CloseCircleOutlined, LoadingOutlined, CheckOutlined, CloseOutlined, ClockCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import Breadcrumb from '../../components/Breadcrumb';
 import { useFaceRegistration } from '../../hooks/useFaceRegistration';
@@ -11,8 +11,20 @@ import type { FaceRegistrationStatus } from '../../apis/faceRegistrationAPIs/fac
 const { Title, Text } = Typography;
 const { Step } = Steps;
 
+const headerIconStyle: React.CSSProperties = {
+  width: 54,
+  height: 54,
+  borderRadius: 16,
+  background: 'linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  boxShadow: '0 12px 28px rgba(37, 99, 235, 0.16)',
+};
+
 const FaceRegisterPage: React.FC = () => {
   const navigate = useNavigate();
+  const { message } = App.useApp();
   const { user } = useAuth();
   const studentId = user?.student_id || NaN;
   
@@ -304,16 +316,20 @@ const FaceRegisterPage: React.FC = () => {
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)', padding: '16px 16px 32px' }}>
       <Breadcrumb items={breadcrumbItems} />
-      <div style={{ marginBottom: 16 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} size="small" style={{ borderRadius: 8, marginBottom: 12 }}>
-          Quay lại
-        </Button>
-        <Title level={2} style={{ marginBottom: 8, color: '#2563eb', fontSize: 'clamp(20px, 5vw, 32px)', fontWeight: 700 }}>
-          🔒 Đăng ký Khuôn mặt
-        </Title>
-        <Text style={{ fontSize: 'clamp(14px, 3.5vw, 18px)', color: '#64748b', display: 'block' }}>
-          Đăng ký khuôn mặt để sử dụng tính năng điểm danh tự động
-        </Text>
+      <div style={{ marginBottom: 24 }}>
+        <Space align="center" size={14}>
+          <div style={headerIconStyle}>
+            <SafetyCertificateOutlined style={{ fontSize: 26, color: '#2563eb' }} />
+          </div>
+          <div>
+            <Title level={2} style={{ margin: 0, color: '#1d4ed8', fontWeight: 800 }}>
+              Đăng ký Khuôn mặt
+            </Title>
+            <Text style={{ fontSize: 15, color: '#64748b', display: 'block', marginTop: 4 }}>
+              Đăng ký khuôn mặt để sử dụng tính năng điểm danh tự động
+            </Text>
+          </div>
+        </Space>
       </div>
 
       {/* Loading Status */}
@@ -368,18 +384,6 @@ const FaceRegisterPage: React.FC = () => {
                 </Text>
               </>
             )}
-
-
-            
-            <Button 
-              type="primary" 
-              size="middle" 
-              onClick={() => navigate('/student')} 
-              style={{ marginTop: 16, borderRadius: 8, width: '100%', maxWidth: 300 }}
-              icon={<ArrowLeftOutlined />}
-            >
-              Quay lại Dashboard
-            </Button>
           </div>
         </Card>
       )}

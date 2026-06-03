@@ -1,16 +1,23 @@
 import { AuthProvider } from "./context/AuthProvider";
-import { ToastProvider } from "./context/ToastContext";
 import { RouterProvider } from "react-router-dom";
+import { App as AntApp, ConfigProvider } from "antd";
 import router from "./routers/AppRouter";
 
 export default function App() {
   return (
-    <ToastProvider>
-      <AuthProvider>
-        <div>
+    <ConfigProvider
+      theme={{
+        token: {
+          colorPrimary: "#1677ff",
+          borderRadius: 8,
+        },
+      }}
+    >
+      <AntApp message={{ top: 72, duration: 3, maxCount: 3 }} notification={{ placement: "topRight" }}>
+        <AuthProvider>
           <RouterProvider router={router} />
-        </div>
-      </AuthProvider>
-    </ToastProvider>
+        </AuthProvider>
+      </AntApp>
+    </ConfigProvider>
   );
 }

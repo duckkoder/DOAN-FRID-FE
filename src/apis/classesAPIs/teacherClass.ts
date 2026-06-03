@@ -20,7 +20,6 @@ export interface CreateClassRequest {
   class_name: string;
   teacher_id: number;
   course_id?: string | null;
-  location?: string | null;
   description?: string | null;
   schedule: ScheduleModel;
 }
@@ -30,7 +29,6 @@ export interface CreateClassRequest {
  */
 export interface UpdateClassRequest {
   class_name?: string;
-  location?: string;
   description?: string;
   course_id?: string | null;
   is_active?: boolean;

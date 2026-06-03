@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+  App,
   Card,
   Table,
   Tag,
@@ -9,7 +10,6 @@ import {
   Input,
   Modal,
   Form,
-  message,
   Row,
   Col,
   Image,
@@ -42,8 +42,10 @@ import {
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
+const FACE_IMAGE_TARGET = 14;
 
 const AdminFaceRegistrationTable: React.FC = () => {
+  const { message } = App.useApp();
   // ==================== State ====================
   const [registrations, setRegistrations] = useState<FaceRegistrationListItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -97,7 +99,7 @@ const AdminFaceRegistrationTable: React.FC = () => {
     } catch (error: any) {
       console.error('Error fetching face registrations:', error);
       message.error(
-        error?.response?.data?.detail || 'Could not load face registration list'
+        error?.response?.data?.detail || 'Không thể tải danh sách đăng ký khuôn mặt'
       );
     } finally {
       setLoading(false);
@@ -112,7 +114,7 @@ const AdminFaceRegistrationTable: React.FC = () => {
     } catch (error: any) {
       console.error('Error fetching registration detail:', error);
       message.error(
-        error?.response?.data?.detail || 'Could not load registration details'
+        error?.response?.data?.detail || 'Không thể tải chi tiết đăng ký khuôn mặt'
       );
     } finally {
       setLoadingDetail(false);
@@ -180,11 +182,11 @@ const AdminFaceRegistrationTable: React.FC = () => {
         
         // Show success with embedding info
         const embeddingInfo = response.embeddings_created 
-          ? ` (${response.embeddings_created} embeddings created in ${response.processing_time_seconds || elapsed}s)`
+          ? ` (${response.embeddings_created} embedding tạo trong ${response.processing_time_seconds || elapsed}s)`
           : '';
         
         message.success({
-          content: `Face registration approved${embeddingInfo}. Student has been verified!`,
+          content: `Đã duyệt đăng ký khuôn mặt${embeddingInfo}. Sinh viên đã được xác minh.`,
           duration: 5,
         });
         
@@ -194,7 +196,7 @@ const AdminFaceRegistrationTable: React.FC = () => {
           rejection_reason: values.reason,
           note: values.note,
         });
-        message.success('Face registration rejected');
+        message.success('Đã từ chối đăng ký khuôn mặt');
       }
 
       setIsActionModalOpen(false);
@@ -206,12 +208,12 @@ const AdminFaceRegistrationTable: React.FC = () => {
       setProcessingEmbeddings(false);
       
       // Better error messages
-      let errorMessage = 'Could not process registration';
+      let errorMessage = 'Không thể xử lý đăng ký khuôn mặt';
       
       if (error?.code === 'ECONNABORTED') {
-        errorMessage = 'Timeout: Processing took too long. Please try again.';
+        errorMessage = 'Quá thời gian xử lý. Vui lòng thử lại.';
       } else if (error?.response?.status === 500) {
-        errorMessage = 'Server error: ' + (error?.response?.data?.detail || 'Could not connect to AI-service');
+        errorMessage = 'Lỗi máy chủ: ' + (error?.response?.data?.detail || 'Không thể kết nối AI-service');
       } else if (error?.response?.data?.detail) {
         errorMessage = error.response.data.detail;
       }
@@ -234,20 +236,20 @@ const AdminFaceRegistrationTable: React.FC = () => {
       width: 60,
     },
     {
-      title: 'Student ID',
+      title: 'Mã SV',
       dataIndex: 'student_code',
       key: 'student_code',
       width: 110,
     },
     {
-      title: 'Student Name',
+      title: 'Họ tên',
       dataIndex: 'student_name',
       key: 'student_name',
       width: 200,
       ellipsis: true,
     },
     {
-      title: 'Verified',
+      title: 'Xác minh',
       dataIndex: 'student_is_verified',
       key: 'student_is_verified',
       width: 120,
@@ -256,12 +258,12 @@ const AdminFaceRegistrationTable: React.FC = () => {
           color={isVerified ? 'success' : 'default'}
           icon={isVerified ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
         >
-          {isVerified ? 'Verified' : 'Not Verified'}
+          {isVerified ? 'Đã xác minh' : 'Chưa xác minh'}
         </Tag>
       ),
     },
     {
-      title: 'Status',
+      title: 'Trạng thái',
       dataIndex: 'status',
       key: 'status',
       width: 150,
@@ -272,34 +274,34 @@ const AdminFaceRegistrationTable: React.FC = () => {
       ),
     },
     {
-      title: 'Images',
+      title: 'Ảnh',
       dataIndex: 'total_images_captured',
       key: 'total_images_captured',
       width: 90,
       render: (count: number) => (
         <Tag color="blue" icon={<CameraOutlined />}>
-          {count}/12
+          {count}/{FACE_IMAGE_TARGET}
         </Tag>
       ),
     },
     {
-      title: 'Student Confirmed',
+      title: 'SV xác nhận',
       dataIndex: 'student_reviewed_at',
       key: 'student_reviewed_at',
       width: 150,
       render: (date: string | null, record) => {
-        if (!date) return <Tag>Not Confirmed</Tag>;
+        if (!date) return <Tag>Chưa xác nhận</Tag>;
         const accepted = record.student_accepted;
         return (
           <div>
-            <div>{new Date(date).toLocaleDateString('en-US')}</div>
+            <div>{new Date(date).toLocaleDateString('vi-VN')}</div>
             {accepted !== null && (
               <Tag
                 color={accepted ? 'green' : 'red'}
                 icon={accepted ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
                 style={{ marginTop: 4 }}
               >
-                {accepted ? 'Accepted' : 'Rejected'}
+                {accepted ? 'Đã đồng ý' : 'Đã từ chối'}
               </Tag>
             )}
           </div>
@@ -307,14 +309,14 @@ const AdminFaceRegistrationTable: React.FC = () => {
       },
     },
     {
-      title: 'Created Date',
+      title: 'Ngày tạo',
       dataIndex: 'created_at',
       key: 'created_at',
       width: 140,
-      render: (date: string) => new Date(date).toLocaleDateString('en-US'),
+      render: (date: string) => new Date(date).toLocaleDateString('vi-VN'),
     },
     {
-      title: 'Actions',
+      title: 'Thao tác',
       key: 'action',
       fixed: 'right',
       width: 100,
@@ -324,7 +326,7 @@ const AdminFaceRegistrationTable: React.FC = () => {
           icon={<EyeOutlined />}
           onClick={() => handleViewDetail(record)}
         >
-          View
+          Xem
         </Button>
       ),
     },
@@ -339,12 +341,12 @@ const AdminFaceRegistrationTable: React.FC = () => {
             <Col>
               <Space>
                 <CameraOutlined style={{ fontSize: 20 }} />
-                <span style={{ fontSize: 16 }}>Biometric Registration Management</span>
+                <span style={{ fontSize: 16 }}>Duyệt đăng ký khuôn mặt sinh viên</span>
               </Space>
             </Col>
             <Col>
               <Tag color="gold" icon={<ClockCircleOutlined />} style={{ fontSize: 12, padding: '2px 8px' }}>
-                {registrations.filter((r) => r.status === 'pending_admin_review').length} pending
+                {registrations.filter((r) => r.status === 'pending_admin_review').length} chờ duyệt
               </Tag>
             </Col>
           </Row>
@@ -354,7 +356,7 @@ const AdminFaceRegistrationTable: React.FC = () => {
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           <Col xs={24} sm={12} md={6}>
             <Input
-              placeholder="Search by student ID, name"
+              placeholder="Tìm theo mã hoặc tên sinh viên"
               prefix={<SearchOutlined />}
               allowClear
               value={searchText}
@@ -363,22 +365,22 @@ const AdminFaceRegistrationTable: React.FC = () => {
           </Col>
           <Col xs={12} sm={8} md={5}>
             <Select
-              placeholder="Filter by status"
+              placeholder="Lọc theo trạng thái"
               style={{ width: '100%' }}
               allowClear
               value={selectedStatus}
               onChange={handleStatusFilterChange}
             >
-              <Option value="pending_admin_review">Pending</Option>
-              <Option value="approved">Approved</Option>
-              <Option value="rejected">Rejected</Option>
-              <Option value="pending_student_review">Pending Student</Option>
-              <Option value="cancelled">Cancelled</Option>
+              <Option value="pending_admin_review">Chờ quản trị duyệt</Option>
+              <Option value="approved">Đã duyệt</Option>
+              <Option value="rejected">Đã từ chối</Option>
+              <Option value="pending_student_review">Chờ sinh viên xác nhận</Option>
+              <Option value="cancelled">Đã hủy</Option>
             </Select>
           </Col>
           <Col xs={12} sm={4} md={3}>
             <Button icon={<ReloadOutlined />} onClick={handleReset}>
-              {!isMobile && "Reset"}
+              {!isMobile && "Đặt lại"}
             </Button>
           </Col>
         </Row>
@@ -414,7 +416,7 @@ const AdminFaceRegistrationTable: React.FC = () => {
         title={
           <Space>
             <CameraOutlined />
-            <span>Biometric Registration Details</span>
+            <span>Chi tiết đăng ký khuôn mặt</span>
           </Space>
         }
         open={isDetailModalOpen}
@@ -431,25 +433,25 @@ const AdminFaceRegistrationTable: React.FC = () => {
             {/* Student Info */}
             <Row gutter={[16, 16]}>
               <Col span={12}>
-                <Text strong>Student ID:</Text> <Tag color="blue">{viewingRegistration.student_code}</Tag>
+                <Text strong>Mã sinh viên:</Text> <Tag color="blue">{viewingRegistration.student_code}</Tag>
               </Col>
               <Col span={12}>
-                <Text strong>Full Name:</Text> {viewingRegistration.student_name}
+                <Text strong>Họ tên:</Text> {viewingRegistration.student_name}
               </Col>
               <Col span={12}>
                 <Text strong>Email:</Text> {viewingRegistration.student_email}
               </Col>
               <Col span={12}>
-                <Text strong>Verified:</Text>{' '}
+                <Text strong>Xác minh:</Text>{' '}
                 <Tag
                   color={viewingRegistration.student_is_verified ? 'success' : 'default'}
                   icon={viewingRegistration.student_is_verified ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
                 >
-                  {viewingRegistration.student_is_verified ? 'Verified' : 'Not Verified'}
+                  {viewingRegistration.student_is_verified ? 'Đã xác minh' : 'Chưa xác minh'}
                 </Tag>
               </Col>
               <Col span={12}>
-                <Text strong>Status:</Text>{' '}
+                <Text strong>Trạng thái:</Text>{' '}
                 <Tag color={getRegistrationStatusColor(viewingRegistration.status)}>
                   {getRegistrationStatusText(viewingRegistration.status)}
                 </Tag>
@@ -461,14 +463,14 @@ const AdminFaceRegistrationTable: React.FC = () => {
             {/* Registration Info */}
             <Row gutter={[16, 16]}>
               <Col span={8}>
-                <Text strong>Images Collected:</Text> {viewingRegistration.total_images_captured}/12
+                <Text strong>Ảnh đã thu thập:</Text> {viewingRegistration.total_images_captured}/{FACE_IMAGE_TARGET}
               </Col>
               <Col span={8}>
-                <Text strong>Progress:</Text> {viewingRegistration.registration_progress}%
+                <Text strong>Tiến độ:</Text> {viewingRegistration.registration_progress}%
               </Col>
               <Col span={8}>
-                <Text strong>Created Date:</Text>{' '}
-                {new Date(viewingRegistration.created_at).toLocaleString('en-US')}
+                <Text strong>Ngày tạo:</Text>{' '}
+                {new Date(viewingRegistration.created_at).toLocaleString('vi-VN')}
               </Col>
             </Row>
 
@@ -478,7 +480,7 @@ const AdminFaceRegistrationTable: React.FC = () => {
             {viewingRegistration.verification_data?.steps && (
               <>
                 <Title level={5}>
-                  <CameraOutlined /> Collected Images ({viewingRegistration.verification_data.steps.length} images)
+                  <CameraOutlined /> Ảnh đã thu thập ({viewingRegistration.verification_data.steps.length} ảnh)
                 </Title>
                 <Row gutter={[8, 8]} style={{ maxHeight: 400, overflowY: 'auto', marginBottom: 16 }}>
                   {viewingRegistration.verification_data.steps.map((step: any, index: number) => (
@@ -523,18 +525,18 @@ const AdminFaceRegistrationTable: React.FC = () => {
             {viewingRegistration.student_reviewed_at && (
               <>
                 <Alert
-                  message="Student Confirmed"
+                  message="Sinh viên đã xác nhận"
                   description={
                     <div>
                       <Text strong>
-                        Decision:{' '}
+                        Quyết định:{' '}
                         {viewingRegistration.student_accepted ? (
                           <Tag color="green" icon={<CheckCircleOutlined />}>
-                            Accepted
+                            Đã đồng ý
                           </Tag>
                         ) : (
                           <Tag color="red" icon={<CloseCircleOutlined />}>
-                            Rejected
+                            Đã từ chối
                           </Tag>
                         )}
                       </Text>
@@ -550,29 +552,29 @@ const AdminFaceRegistrationTable: React.FC = () => {
             {viewingRegistration.admin_reviewed_at && (
               <>
                 <Alert
-                  message="Admin Processed"
+                  message="Quản trị đã xử lý"
                   description={
                     <div>
                       <Text>
-                        Time: {new Date(viewingRegistration.admin_reviewed_at).toLocaleString('en-US')}
+                        Thời gian: {new Date(viewingRegistration.admin_reviewed_at).toLocaleString('vi-VN')}
                       </Text>
                       <br />
                       {viewingRegistration.reviewer_name && (
                         <>
-                          <Text>Reviewer: {viewingRegistration.reviewer_name}</Text>
+                          <Text>Người duyệt: {viewingRegistration.reviewer_name}</Text>
                           <br />
                         </>
                       )}
                       {viewingRegistration.rejection_reason && (
                         <>
-                          <Text strong>Rejection Reason: </Text>
+                          <Text strong>Lý do từ chối: </Text>
                           <Text type="danger">{viewingRegistration.rejection_reason}</Text>
                           <br />
                         </>
                       )}
                       {viewingRegistration.note && (
                         <>
-                          <Text strong>Note: </Text>
+                          <Text strong>Ghi chú: </Text>
                           <Text>{viewingRegistration.note}</Text>
                         </>
                       )}
@@ -593,14 +595,14 @@ const AdminFaceRegistrationTable: React.FC = () => {
                   icon={<CheckCircleOutlined />}
                   onClick={handleApprove}
                 >
-                  Approve
+                  Duyệt
                 </Button>
                 <Button
                   danger
                   icon={<CloseCircleOutlined />}
                   onClick={handleReject}
                 >
-                  Reject
+                  Từ chối
                 </Button>
               </Space>
             )}
@@ -610,7 +612,7 @@ const AdminFaceRegistrationTable: React.FC = () => {
 
       {/* Approve/Reject Modal */}
       <Modal
-        title={actionType === 'approve' ? 'Approve Registration' : 'Reject Registration'}
+        title={actionType === 'approve' ? 'Duyệt đăng ký khuôn mặt' : 'Từ chối đăng ký khuôn mặt'}
         open={isActionModalOpen}
         onOk={handleActionSubmit}
         onCancel={() => {
@@ -618,21 +620,21 @@ const AdminFaceRegistrationTable: React.FC = () => {
           form.resetFields();
         }}
         confirmLoading={loading}
-        okText={actionType === 'approve' ? 'Approve' : 'Reject'}
-        cancelText="Cancel"
+        okText={actionType === 'approve' ? 'Duyệt' : 'Từ chối'}
+        cancelText="Hủy"
         okButtonProps={{ disabled: processingEmbeddings }}
         cancelButtonProps={{ disabled: processingEmbeddings }}
       >
         {/* Embedding Processing Indicator */}
         {processingEmbeddings && (
           <Alert
-            message="Processing embeddings..."
+            message="Đang xử lý embedding khuôn mặt..."
             description={
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Spin />
                 <Text type="secondary">
-                  Extracting facial features from 14 images. 
-                  This process may take 10-30 seconds. Please wait...
+                  Hệ thống đang trích xuất đặc trưng khuôn mặt từ {FACE_IMAGE_TARGET} ảnh.
+                  Quá trình này có thể mất 10-30 giây, vui lòng chờ.
                 </Text>
               </Space>
             }
@@ -645,23 +647,23 @@ const AdminFaceRegistrationTable: React.FC = () => {
         <Form form={form} layout="vertical" style={{ marginTop: 24 }}>
           {actionType === 'reject' && (
             <Form.Item
-              label="Rejection Reason"
+              label="Lý do từ chối"
               name="reason"
-              rules={[{ required: true, message: 'Please enter rejection reason!' }]}
+              rules={[{ required: true, message: 'Vui lòng nhập lý do từ chối' }]}
             >
               <TextArea
                 rows={4}
-                placeholder="Enter reason for rejecting face registration..."
+                placeholder="Nhập lý do từ chối đăng ký khuôn mặt..."
                 maxLength={500}
                 showCount
                 disabled={processingEmbeddings}
               />
             </Form.Item>
           )}
-          <Form.Item label="Note (optional)" name="note">
+          <Form.Item label="Ghi chú (không bắt buộc)" name="note">
             <TextArea
               rows={3}
-              placeholder="Enter note if needed..."
+              placeholder="Nhập ghi chú nếu cần..."
               maxLength={300}
               showCount
               disabled={processingEmbeddings}
@@ -670,8 +672,8 @@ const AdminFaceRegistrationTable: React.FC = () => {
           
           {actionType === 'approve' && (
             <Alert
-              message="Note"
-              description="After approval, the system will automatically extract embeddings from 14 face images. This process takes about 10-30 seconds."
+              message="Lưu ý"
+              description={`Sau khi duyệt, hệ thống sẽ tự động trích xuất embedding từ ${FACE_IMAGE_TARGET} ảnh khuôn mặt. Quá trình này thường mất khoảng 10-30 giây.`}
               type="warning"
               showIcon
               style={{ marginTop: 16 }}

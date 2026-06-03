@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
+  App,
   Typography,
   Card,
   Row,
@@ -11,7 +12,6 @@ import {
   Form,
   Input,
   Select,
-  message,
   Space,
   Statistic,
   Spin, // Added for loading state
@@ -39,6 +39,42 @@ import {
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+
+const pageStyle: React.CSSProperties = {
+  minHeight: "100vh",
+  background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)",
+  padding: "32px 48px",
+};
+
+const panelStyle: React.CSSProperties = {
+  borderRadius: 16,
+  boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+  border: "none",
+};
+
+const headerIconStyle: React.CSSProperties = {
+  width: 54,
+  height: 54,
+  borderRadius: 16,
+  background: "linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  boxShadow: "0 12px 28px rgba(37, 99, 235, 0.16)",
+};
+
+const heroTitleStyle: React.CSSProperties = {
+  margin: 0,
+  color: "#1d4ed8",
+  fontWeight: 800,
+};
+
+const heroSubtitleStyle: React.CSSProperties = {
+  display: "block",
+  color: "#64748b",
+  fontSize: 15,
+  marginTop: 4,
+};
 
 const formatDate = (value?: string | null) => {
   if (!value) return "-";
@@ -92,6 +128,7 @@ interface LocalAttendanceRecord extends StudentAttendanceSessionSummarySchema {
 }
 
 const StudentAttendancePage: React.FC = () => {
+  const { message } = App.useApp();
   const [isAppealModalVisible, setIsAppealModalVisible] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<LocalAttendanceRecord | null>(null);
   const [form] = Form.useForm();
@@ -295,7 +332,7 @@ const StudentAttendancePage: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+      <div style={{ ...pageStyle, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <Spin size="large" tip="Đang tải dữ liệu điểm danh..." />
       </div>
     );
@@ -303,7 +340,7 @@ const StudentAttendancePage: React.FC = () => {
 
   if (error) {
     return (
-      <div style={{ padding: "32px 48px" }}>
+      <div style={pageStyle}>
         <Alert
           message="Lỗi"
           description={error}
@@ -316,11 +353,7 @@ const StudentAttendancePage: React.FC = () => {
 
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)",
-      padding: "32px 48px"
-    }}>
+    <div style={pageStyle}>
       {/* Breadcrumb */}
       <Breadcrumb items={breadcrumbItems} />
 
@@ -328,23 +361,14 @@ const StudentAttendancePage: React.FC = () => {
       <Row align="middle" justify="space-between" gutter={[16, 16]} style={{ marginTop: 18, marginBottom: 24 }}>
         <Col>
           <Space align="center" size={14}>
-            <div style={{
-              width: 54,
-              height: 54,
-              borderRadius: 16,
-              background: "linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 12px 28px rgba(37, 99, 235, 0.16)"
-            }}>
+            <div style={headerIconStyle}>
               <CalendarOutlined style={{ fontSize: 26, color: "#2563eb" }} />
             </div>
             <div>
-              <Title level={2} style={{ margin: 0, color: "#1d4ed8", fontWeight: 800 }}>
+              <Title level={2} style={heroTitleStyle}>
                 Lịch sử Điểm danh
               </Title>
-              <Text type="secondary" style={{ fontSize: 15 }}>
+              <Text style={heroSubtitleStyle}>
                 Theo dõi trạng thái điểm danh và gửi khiếu nại nếu cần
               </Text>
             </div>
@@ -353,12 +377,7 @@ const StudentAttendancePage: React.FC = () => {
       </Row>
 
       {/* Search and Filters */}
-      <Card style={{
-        borderRadius: 16,
-        boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-        border: "none",
-        marginBottom: 24
-      }}>
+      <Card style={{ ...panelStyle, marginBottom: 24 }}>
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} sm={8}>
             <Input
@@ -416,7 +435,7 @@ const StudentAttendancePage: React.FC = () => {
       {/* Statistics */}
       <Row gutter={[24, 24]} style={{ marginBottom: 32 }}>
         <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center', boxShadow: "0 4px 20px rgba(0,0,0,0.08)", border: "none" }}>
+          <Card style={{ ...panelStyle, textAlign: 'center' }}>
             <Statistic
               title="Tổng buổi học"
               value={totalSessions}
@@ -425,7 +444,7 @@ const StudentAttendancePage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center', boxShadow: "0 4px 20px rgba(0,0,0,0.08)", border: "none" }}>
+          <Card style={{ ...panelStyle, textAlign: 'center' }}>
             <Statistic
               title="Có mặt"
               value={presentCount}
@@ -434,7 +453,7 @@ const StudentAttendancePage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center', boxShadow: "0 4px 20px rgba(0,0,0,0.08)", border: "none" }}>
+          <Card style={{ ...panelStyle, textAlign: 'center' }}>
             <Statistic
               title="Vắng/Trễ"
               value={absentCount + lateCount}
@@ -443,7 +462,7 @@ const StudentAttendancePage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card style={{ borderRadius: 16, textAlign: 'center', boxShadow: "0 4px 20px rgba(0,0,0,0.08)", border: "none" }}>
+          <Card style={{ ...panelStyle, textAlign: 'center' }}>
             <Statistic
               title="Tỷ lệ điểm danh"
               value={attendanceRate}
@@ -455,13 +474,9 @@ const StudentAttendancePage: React.FC = () => {
       </Row>
 
       {/* Attendance Table */}
-      <Card style={{
-        borderRadius: 16,
-        boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-        border: "none"
-      }}>
+      <Card style={panelStyle}>
         <Title level={4} style={{ marginBottom: 16, color: "#374151" }}>
-          📋 Chi tiết Điểm danh {allAttendanceSessions.length > 0 && `(${filteredData.length}/${allAttendanceSessions.length} kết quả)`}
+          Chi tiết Điểm danh {allAttendanceSessions.length > 0 && `(${filteredData.length}/${allAttendanceSessions.length} kết quả)`}
         </Title>
         <Table
           dataSource={filteredData}
@@ -495,11 +510,11 @@ const StudentAttendancePage: React.FC = () => {
         <div style={{ marginBottom: 16, padding: 16, background: '#f8fafc', borderRadius: 8 }}>
           <Text strong>Thông tin buổi học:</Text>
           <br />
-          <Text>📅 Ngày: {selectedRecord && new Date(selectedRecord.start_time).toLocaleDateString('vi-VN')}</Text>
+          <Text>Ngày: {selectedRecord && new Date(selectedRecord.start_time).toLocaleDateString('vi-VN')}</Text>
           <br />
-          <Text>📚 Môn: {selectedRecord?.class_name}</Text>
+          <Text>Môn: {selectedRecord?.class_name}</Text>
           <br />
-          <Text>🕐 Buổi: {selectedRecord?.session_name}</Text>
+          <Text>Buổi: {selectedRecord?.session_name}</Text>
         </div>
 
         <Form

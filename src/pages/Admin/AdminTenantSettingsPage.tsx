@@ -1,23 +1,23 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  App,
   Button,
   Card,
   Col,
   Divider,
   Form,
   Input,
-  Modal,
   Row,
   Space,
   Tag,
   Typography,
-  message,
 } from "antd";
 import {
   CheckCircleOutlined,
   DeleteOutlined,
   KeyOutlined,
   LockOutlined,
+  MailOutlined,
   RobotOutlined,
   SafetyCertificateOutlined,
   SaveOutlined,
@@ -27,7 +27,10 @@ import {
 import {
   deleteTenantSecret,
   listTenantSecrets,
+  listTenantSettings,
+  upsertTenantSetting,
   upsertTenantSecret,
+  type TenantSetting,
   type TenantSecret,
 } from "@/apis/tenantSettingsAPIs/tenantSettings";
 import Breadcrumb from "@/components/Breadcrumb";
@@ -35,6 +38,11 @@ import Breadcrumb from "@/components/Breadcrumb";
 const { Paragraph, Text, Title } = Typography;
 
 const GEMINI_KEY = "gemini_api_key";
+const TEACHER_EMAIL_DOMAIN_KEY = "teacher_email_domain";
+const STUDENT_EMAIL_DOMAIN_KEY = "student_email_domain";
+
+const getSettingValueFromList = (settings: TenantSetting[], keyName: string, fallback: string) =>
+  settings.find((setting) => setting.key_name === keyName)?.value || fallback;
 
 const pageStyle: React.CSSProperties = {
   minHeight: "100vh",
@@ -77,10 +85,14 @@ const iconBoxStyle: React.CSSProperties = {
 };
 
 const AdminTenantSettingsPage: React.FC = () => {
+  const { message, modal } = App.useApp();
   const [form] = Form.useForm<{ gemini_api_key: string }>();
+  const [emailForm] = Form.useForm<{ teacher_email_domain: string; student_email_domain: string }>();
   const [secrets, setSecrets] = useState<TenantSecret[]>([]);
+  const [settings, setSettings] = useState<TenantSetting[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [emailSaving, setEmailSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const geminiSecret = useMemo(
@@ -89,6 +101,10 @@ const AdminTenantSettingsPage: React.FC = () => {
   );
 
   const isConfigured = Boolean(geminiSecret);
+  const getSettingValue = (keyName: string, fallback: string) =>
+    settings.find((setting) => setting.key_name === keyName)?.value || fallback;
+  const teacherEmailDomain = getSettingValue(TEACHER_EMAIL_DOMAIN_KEY, "dut.udn.vn");
+  const studentEmailDomain = getSettingValue(STUDENT_EMAIL_DOMAIN_KEY, "sv1.dut.udn.vn");
   const updatedAt = geminiSecret?.updated_at
     ? new Date(geminiSecret.updated_at).toLocaleString("vi-VN")
     : "Chưa có dữ liệu";
@@ -101,8 +117,16 @@ const AdminTenantSettingsPage: React.FC = () => {
   const fetchSecrets = async () => {
     try {
       setLoading(true);
-      const data = await listTenantSecrets();
-      setSecrets(data.secrets);
+      const [secretData, settingData] = await Promise.all([
+        listTenantSecrets(),
+        listTenantSettings(),
+      ]);
+      setSecrets(secretData.secrets);
+      setSettings(settingData.settings);
+      emailForm.setFieldsValue({
+        teacher_email_domain: getSettingValueFromList(settingData.settings, TEACHER_EMAIL_DOMAIN_KEY, "dut.udn.vn"),
+        student_email_domain: getSettingValueFromList(settingData.settings, STUDENT_EMAIL_DOMAIN_KEY, "sv1.dut.udn.vn"),
+      });
     } catch {
       message.error("Không thể tải cấu hình");
     } finally {
@@ -113,6 +137,23 @@ const AdminTenantSettingsPage: React.FC = () => {
   useEffect(() => {
     void fetchSecrets();
   }, []);
+
+  const handleSaveEmailSettings = async (values: { teacher_email_domain: string; student_email_domain: string }) => {
+    try {
+      setEmailSaving(true);
+      await Promise.all([
+        upsertTenantSetting(TEACHER_EMAIL_DOMAIN_KEY, values.teacher_email_domain.trim()),
+        upsertTenantSetting(STUDENT_EMAIL_DOMAIN_KEY, values.student_email_domain.trim()),
+      ]);
+      message.success("Đã lưu định dạng email");
+      await fetchSecrets();
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      message.error(detail || "Không thể lưu định dạng email");
+    } finally {
+      setEmailSaving(false);
+    }
+  };
 
   const handleSave = async (values: { gemini_api_key: string }) => {
     try {
@@ -130,7 +171,7 @@ const AdminTenantSettingsPage: React.FC = () => {
   };
 
   const handleDelete = () => {
-    Modal.confirm({
+    modal.confirm({
       title: "Xóa khóa truy cập?",
       content:
         "Sau khi xóa, các tính năng AI cần khóa Gemini sẽ tạm dừng cho đến khi lưu khóa mới.",
@@ -239,6 +280,66 @@ const AdminTenantSettingsPage: React.FC = () => {
             </Card>
           </Col>
         </Row>
+
+        <Card
+          style={panelStyle}
+          title={
+            <Space size={12}>
+              <div style={{ ...iconBoxStyle, width: 36, height: 36, borderRadius: 10, fontSize: 16 }}>
+                <MailOutlined />
+              </div>
+              <span>Định dạng email tài khoản</span>
+            </Space>
+          }
+          extra={
+            <Tag color="blue" style={{ borderRadius: 6, margin: 0 }}>
+              @{teacherEmailDomain} · @{studentEmailDomain}
+            </Tag>
+          }
+        >
+          <Form form={emailForm} layout="vertical" onFinish={handleSaveEmailSettings}>
+            <Row gutter={[16, 12]}>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="Tên miền email giáo viên"
+                  name="teacher_email_domain"
+                  rules={[{ required: true, message: "Nhập tên miền email giáo viên" }]}
+                >
+                  <Input
+                    addonBefore="@"
+                    placeholder="dut.udn.vn"
+                    size="large"
+                    style={{ borderRadius: 8 }}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="Tên miền email sinh viên"
+                  name="student_email_domain"
+                  rules={[{ required: true, message: "Nhập tên miền email sinh viên" }]}
+                >
+                  <Input
+                    addonBefore="@"
+                    placeholder="sv1.dut.udn.vn"
+                    size="large"
+                    style={{ borderRadius: 8 }}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Button
+              type="primary"
+              htmlType="submit"
+              icon={<SaveOutlined />}
+              loading={emailSaving}
+              size="large"
+              style={{ borderRadius: 8 }}
+            >
+              Lưu định dạng email
+            </Button>
+          </Form>
+        </Card>
 
         <Row gutter={[20, 20]} align="stretch">
           <Col xs={24} lg={15}>

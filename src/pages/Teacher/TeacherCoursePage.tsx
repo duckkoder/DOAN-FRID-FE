@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+﻿import React, { useState, useEffect, useCallback } from "react";
 import {
   Card,
   Typography,
@@ -321,31 +321,73 @@ const TeacherCoursePage: React.FC = () => {
     },
   ];
 
+  const pageHeaderStyle: React.CSSProperties = {
+    marginTop: 18,
+    marginBottom: 26,
+  };
+
+  const headerIconStyle: React.CSSProperties = {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 16px 34px rgba(37, 99, 235, 0.18)",
+    flexShrink: 0,
+  };
+
+  const headerTitleStyle: React.CSSProperties = {
+    margin: 0,
+    color: "#2563eb",
+    fontSize: "clamp(30px, 4vw, 40px)",
+    fontWeight: 800,
+    lineHeight: 1.12,
+  };
+
+  const headerSubtitleStyle: React.CSSProperties = {
+    display: "block",
+    marginTop: 6,
+    color: "#64748b",
+    fontSize: 16,
+    lineHeight: 1.5,
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: "#f6f9fc", padding: "32px 48px" }}>
       <Breadcrumb
         items={[{ title: "Trang chủ", href: "/teacher" }, { title: "Quản lý Học phần" }]}
       />
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
-        <div>
-          <Title level={2} style={{ margin: 0, color: "#2563eb", fontWeight: 700 }}>
-            📚 Quản lý Học phần
-          </Title>
-          <Text style={{ color: "#64748b" }}>
-            Quản lý Học phần (Course) để nhóm Lớp học và lưu trữ tài liệu AI RAG dùng chung.
-          </Text>
-        </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          size="large"
-          onClick={() => setIsModalVisible(true)}
-          style={{ borderRadius: 8 }}
-        >
-          Tạo Học Phần
-        </Button>
-      </div>
+      <Row align="middle" justify="space-between" gutter={[18, 18]} style={pageHeaderStyle}>
+        <Col xs={24} md={18}>
+          <Space align="center" size={16}>
+            <div style={headerIconStyle}>
+              <BookOutlined style={{ fontSize: 28, color: "#2563eb" }} />
+            </div>
+            <div>
+              <Title level={1} style={headerTitleStyle}>
+                Quản lý Học phần
+              </Title>
+              <Text style={headerSubtitleStyle}>
+                Nhóm lớp học, quản lý tài liệu dùng chung và cấu hình học phần cho AI RAG
+              </Text>
+            </div>
+          </Space>
+        </Col>
+        <Col xs={24} md={6} style={{ textAlign: "right" }}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            size="large"
+            onClick={() => setIsModalVisible(true)}
+            style={{ borderRadius: 10, fontWeight: 600 }}
+          >
+            Tạo Học phần
+          </Button>
+        </Col>
+      </Row>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col span={8}>

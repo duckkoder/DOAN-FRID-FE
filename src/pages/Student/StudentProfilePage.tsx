@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useContext } from "react";
 import { 
+  App,
   Card, 
   Form, 
   Input, 
   Button, 
-  Alert, 
   Upload, 
   Avatar,
   Select,
@@ -32,15 +32,13 @@ import {
 } from "../../apis/departmentAPIs/department";
 
 const StudentProfilePage: React.FC = () => {
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const authContext = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string>("");
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [departments, setDepartments] = useState<DepartmentResponse[]>([]);
-  const [showNotification, setShowNotification] = useState(false);
-  const [notificationMessage, setNotificationMessage] = useState('');
-  const [notificationType, setNotificationType] = useState<'success' | 'error'>('success');
 
   // Fetch departments
   useEffect(() => {
@@ -73,9 +71,7 @@ const StudentProfilePage: React.FC = () => {
         setAvatarUrl(data.avatar_url || "");
       } catch (error) {
         console.error("Error fetching profile:", error);
-        setNotificationType('error');
-        setNotificationMessage('Không thể tải thông tin hồ sơ!');
-        setShowNotification(true);
+        message.error('Không thể tải thông tin hồ sơ!');
         // Use context data as fallback
         const fallbackData = {
           full_name: authContext?.user?.full_name || "",
@@ -104,17 +100,13 @@ const StudentProfilePage: React.FC = () => {
         authContext.updateUser({ avatar_url: result.avatar_url });
       }
       
-      setNotificationType('success');
-      setNotificationMessage('Đã cập nhật ảnh đại diện thành công!');
-      setShowNotification(true);
+      message.success('Đã cập nhật ảnh đại diện thành công!');
     } catch (error: unknown) {
       console.error("Error uploading avatar:", error);
       const axiosError = error as { response?: { data?: { detail?: string } }; message?: string };
       const errorMsg = axiosError?.response?.data?.detail || axiosError?.message || "Không thể tải ảnh lên!";
       
-      setNotificationType('error');
-      setNotificationMessage(errorMsg);
-      setShowNotification(true);
+      message.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -140,9 +132,7 @@ const StudentProfilePage: React.FC = () => {
         });
       }
       
-      setNotificationType('success');
-      setNotificationMessage('Đã cập nhật hồ sơ thành công!');
-      setShowNotification(true);
+      message.success('Đã cập nhật hồ sơ thành công!');
       
       // Update form with latest data
       form.setFieldsValue({
@@ -154,9 +144,7 @@ const StudentProfilePage: React.FC = () => {
       const axiosError = error as { response?: { data?: { detail?: string } }; message?: string };
       const errorMsg = axiosError?.response?.data?.detail || axiosError?.message || "Không thể cập nhật hồ sơ!";
       
-      setNotificationType('error');
-      setNotificationMessage(errorMsg);
-      setShowNotification(true);
+      message.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -164,19 +152,6 @@ const StudentProfilePage: React.FC = () => {
 
   return (
     <div style={{ padding: "24px", maxWidth: "800px", margin: "0 auto" }}>
-      {/* Notification Alert */}
-      {showNotification && (
-        <Alert
-          message={notificationType === 'success' ? 'Thành công' : 'Lỗi'}
-          description={notificationMessage}
-          type={notificationType}
-          showIcon
-          closable
-          onClose={() => setShowNotification(false)}
-          style={{ marginBottom: 16 }}
-        />
-      )}
-
       <Card 
         title="Thông tin cá nhân"
         extra={

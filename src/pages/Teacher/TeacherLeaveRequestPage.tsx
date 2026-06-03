@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { 
   Typography, 
   Card, 
@@ -456,6 +456,39 @@ const TeacherLeaveRequestPage: React.FC = () => {
     border: "none",
   };
 
+  const pageHeaderStyle: React.CSSProperties = {
+    marginTop: 18,
+    marginBottom: 26,
+  };
+
+  const headerIconStyle: React.CSSProperties = {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 16px 34px rgba(37, 99, 235, 0.18)",
+    flexShrink: 0,
+  };
+
+  const headerTitleStyle: React.CSSProperties = {
+    margin: 0,
+    color: "#2563eb",
+    fontSize: "clamp(30px, 4vw, 40px)",
+    fontWeight: 800,
+    lineHeight: 1.12,
+  };
+
+  const headerSubtitleStyle: React.CSSProperties = {
+    display: "block",
+    marginTop: 6,
+    color: "#64748b",
+    fontSize: 16,
+    lineHeight: 1.5,
+  };
+
   return (
     <div style={{ 
       minHeight: "100vh", 
@@ -478,33 +511,30 @@ const TeacherLeaveRequestPage: React.FC = () => {
       )}
 
       {/* Header */}
-      <Row align="middle" justify="space-between" gutter={[16, 16]} style={{ marginTop: 18, marginBottom: 24 }}>
-        <Col>
-          <Space align="center" size={14}>
-            <div style={{
-              width: 54,
-              height: 54,
-              borderRadius: 16,
-              background: "linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 12px 28px rgba(37, 99, 235, 0.16)"
-            }}>
-              <FileTextOutlined style={{ fontSize: 26, color: "#2563eb" }} />
+      <Row align="middle" justify="space-between" gutter={[18, 18]} style={pageHeaderStyle}>
+        <Col xs={24} md={18}>
+          <Space align="center" size={16}>
+            <div style={headerIconStyle}>
+              <FileTextOutlined style={{ fontSize: 28, color: "#2563eb" }} />
             </div>
             <div>
-              <Title level={2} style={{ margin: 0, color: "#1d4ed8", fontWeight: 800 }}>
+              <Title level={1} style={headerTitleStyle}>
                 Quản lý Đơn Xin Nghỉ
               </Title>
-              <Text type="secondary" style={{ fontSize: 15 }}>
+              <Text style={headerSubtitleStyle}>
                 Duyệt, lọc và theo dõi yêu cầu nghỉ học từ sinh viên
               </Text>
             </div>
           </Space>
         </Col>
-        <Col>
-          <Button icon={<ReloadOutlined />} onClick={fetchLeaveRequests} loading={loading} size="large">
+        <Col xs={24} md={6} style={{ textAlign: "right" }}>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={fetchLeaveRequests}
+            loading={loading}
+            size="large"
+            style={{ borderRadius: 10, fontWeight: 600 }}
+          >
             Làm mới
           </Button>
         </Col>

@@ -28,8 +28,8 @@ export type AuthTokens = {
 export type AuthContextType = {
   user: User | null;
   tokens: AuthTokens;
-  login: (user: User, tokens?: AuthTokens, rememberMe?: boolean) => void;
-  logout: () => void;
+  login: (user: User, tokens?: AuthTokens, rememberMe?: boolean) => Promise<void>;
+  logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
 };
 

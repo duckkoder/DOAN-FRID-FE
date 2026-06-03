@@ -166,16 +166,16 @@ export const getRegistrationStatusColor = (status: string): string => {
 };
 
 /**
- * Get status text in English
+ * Get status text in Vietnamese
  */
 export const getRegistrationStatusText = (status: string): string => {
   const statusTexts: Record<string, string> = {
-    collecting: 'Collecting',
-    pending_student_review: 'Pending Student Review',
-    pending_admin_review: 'Pending Admin Review',
-    approved: 'Approved',
-    rejected: 'Rejected',
-    cancelled: 'Cancelled',
+    collecting: 'Đang thu thập',
+    pending_student_review: 'Chờ sinh viên xác nhận',
+    pending_admin_review: 'Chờ quản trị duyệt',
+    approved: 'Đã duyệt',
+    rejected: 'Đã từ chối',
+    cancelled: 'Đã hủy',
   };
   return statusTexts[status] || status;
 };

@@ -5,6 +5,7 @@ import { getCookie } from "../utils/cookies";
 import { decryptString } from "../utils/crypto";
 import type { User, AuthTokens as AuthTokensType } from "./AuthContext";
 import { AuthContext } from "./AuthContext";
+import { logout as revokeRefreshToken } from "../apis/authAPIs/auth";
 
 const AUTH_COOKIE = "authState";
 const COOKIE_SECRET = (import.meta.env?.VITE_AUTH_COOKIE_SECRET as string) || "dev-local-secret-please-change";
@@ -29,14 +30,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const decrypted = await decryptString(raw, COOKIE_SECRET);
             const parsed = JSON.parse(decrypted) as PersistedAuth;
             
-            setUser(parsed.user ?? null);
-            setTokens(parsed.tokens ?? { accessToken: null, refreshToken: null });
+            const nextUser = parsed.user ?? null;
+            const nextTokens = parsed.tokens ?? { accessToken: null, refreshToken: null };
+
+            setUser(nextUser);
+            setTokens(nextTokens);
+            await setAuthTokens(nextTokens.accessToken ?? null, nextTokens.refreshToken ?? null, nextUser);
           } catch {
             // Try plain JSON fallback
             try {
               const parsed = JSON.parse(raw) as PersistedAuth;
-              setUser(parsed.user ?? null);
-              setTokens(parsed.tokens ?? { accessToken: null, refreshToken: null });
+              const nextUser = parsed.user ?? null;
+              const nextTokens = parsed.tokens ?? { accessToken: null, refreshToken: null };
+
+              setUser(nextUser);
+              setTokens(nextTokens);
+              await setAuthTokens(nextTokens.accessToken ?? null, nextTokens.refreshToken ?? null, nextUser);
             } catch {
               // Failed to parse
             }
@@ -49,24 +58,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     })();
   }, []);
 
-  const login = (nextUser: User | string, nextTokens?: AuthTokensType, rememberMe = false) => {
+  const login = async (nextUser: User | string, nextTokens?: AuthTokensType, rememberMe = false) => {
     const actualUser = typeof nextUser === "string" ? null : nextUser;
     
     setUser(actualUser);
     setTokens(nextTokens ?? { accessToken: null, refreshToken: null });
     
     // Sync tokens với axios (axios sẽ tự lưu vào cookie)
-    setAuthTokens(
+    await setAuthTokens(
       nextTokens?.accessToken ?? null,
       nextTokens?.refreshToken ?? null,
       actualUser
     );
   };
 
-  const logout = () => {
-    setUser(null);
-    setTokens({ accessToken: null, refreshToken: null });
-    clearInMemoryAuth();
+  const logout = async () => {
+    const refreshToken = tokens?.refreshToken;
+    try {
+      if (refreshToken) {
+        await revokeRefreshToken({ refresh_token: refreshToken });
+      }
+    } catch (error) {
+      console.error("Logout revoke failed:", error);
+    } finally {
+      setUser(null);
+      setTokens({ accessToken: null, refreshToken: null });
+      clearInMemoryAuth();
+    }
   };
 
   const updateUser = async (updates: Partial<User>) => {

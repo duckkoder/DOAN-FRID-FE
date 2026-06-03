@@ -1,23 +1,52 @@
 import React, { useState, useEffect } from 'react';
 import { 
+  App,
   Card, Table, Button, Space, Tag, Modal, 
-  Form, Input, InputNumber, Select, message, 
+  Form, Input, InputNumber, Select, 
   Popconfirm, Typography, Tooltip 
 } from 'antd';
 import { 
   PlusOutlined, EditOutlined, DeleteOutlined, 
-  ReloadOutlined, EnvironmentOutlined 
+  ReloadOutlined, EnvironmentOutlined, UploadOutlined
 } from '@ant-design/icons';
-import { getRoomsList, createRoom, updateRoom, deleteRoom, Room } from '../../apis/roomsAPIs/room';
+import { getRoomsList, createRoom, updateRoom, deleteRoom } from '../../apis/roomsAPIs/room';
+import type { Room } from '../../apis/roomsAPIs/room';
+import Breadcrumb from "@/components/Breadcrumb";
+import AdminBulkImportModal, { type AdminImportType } from "@/components/AdminBulkImportModal";
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 
+const pageStyle: React.CSSProperties = {
+  minHeight: '100vh',
+  padding: '32px 48px',
+  background: 'linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)',
+};
+
+const panelStyle: React.CSSProperties = {
+  border: 'none',
+  borderRadius: 16,
+  boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+};
+
+const headerIconStyle: React.CSSProperties = {
+  width: 54,
+  height: 54,
+  borderRadius: 16,
+  background: 'linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  boxShadow: '0 12px 28px rgba(37, 99, 235, 0.16)',
+};
+
 const AdminRoomPage: React.FC = () => {
+  const { message } = App.useApp();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
 
@@ -96,6 +125,16 @@ const AdminRoomPage: React.FC = () => {
     }
   };
 
+  const handleImportRow = async (type: AdminImportType, row: Record<string, any>) => {
+    if (type !== 'room') return;
+    await createRoom({
+      name: row.name,
+      capacity: Number(row.capacity),
+      description: row.description || undefined,
+      status: (row.status || 'active').toLowerCase(),
+    });
+  };
+
   const columns = [
     {
       title: 'Tên phòng',
@@ -163,17 +202,34 @@ const AdminRoomPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24, alignItems: 'center' }}>
-        <div>
-          <Title level={2} style={{ margin: 0, color: '#1e293b' }}>
-            <EnvironmentOutlined style={{ marginRight: 12 }} />
-            Quản lý Phòng học
-          </Title>
-        </div>
+    <div style={pageStyle}>
+      <Breadcrumb
+        items={[
+          { title: 'Trang chủ', href: '/admin' },
+          { title: 'Quản lý Phòng học' },
+        ]}
+      />
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, marginTop: 18, marginBottom: 24, alignItems: 'center', flexWrap: 'wrap' }}>
+        <Space align="center" size={14}>
+          <div style={headerIconStyle}>
+            <EnvironmentOutlined style={{ fontSize: 26, color: '#2563eb' }} />
+          </div>
+          <div>
+            <Title level={2} style={{ margin: 0, color: '#1d4ed8', fontWeight: 800 }}>
+              Quản lý Phòng học
+            </Title>
+            <Text type="secondary" style={{ fontSize: 15 }}>
+              Quản lý sức chứa, mô tả và trạng thái sử dụng của phòng học
+            </Text>
+          </div>
+        </Space>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={fetchRooms} disabled={loading}>
             Làm mới
+          </Button>
+          <Button icon={<UploadOutlined />} onClick={() => setIsImportModalOpen(true)}>
+            Import phòng
           </Button>
           <Button 
             type="primary" 
@@ -185,7 +241,7 @@ const AdminRoomPage: React.FC = () => {
         </Space>
       </div>
 
-      <Card bordered={false} style={{ borderRadius: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+      <Card bordered={false} style={panelStyle}>
         <Table 
           columns={columns} 
           dataSource={rooms} 
@@ -249,6 +305,13 @@ const AdminRoomPage: React.FC = () => {
           )}
         </Form>
       </Modal>
+      <AdminBulkImportModal
+        open={isImportModalOpen}
+        type="room"
+        onCancel={() => setIsImportModalOpen(false)}
+        onImportRow={handleImportRow}
+        onSuccess={fetchRooms}
+      />
     </div>
   );
 };

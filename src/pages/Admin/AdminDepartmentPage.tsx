@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
+  App,
   Typography,
   Card,
   Table,
@@ -10,14 +11,12 @@ import {
   Col,
   Modal,
   Form,
-  message,
   Popconfirm,
   Tag,
   Tooltip,
   Collapse,
   Empty,
   Divider,
-  Badge,
 } from "antd";
 import {
   PlusOutlined,
@@ -29,9 +28,11 @@ import {
   BookOutlined,
   RightOutlined,
   DownOutlined,
+  UploadOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import Breadcrumb from "@/components/Breadcrumb";
+import AdminBulkImportModal, { type AdminImportType } from "@/components/AdminBulkImportModal";
 import {
   getDepartments,
   createDepartment,
@@ -54,7 +55,43 @@ import {
 const { Title, Text } = Typography;
 const { Panel } = Collapse;
 
+const pageStyle: React.CSSProperties = {
+  minHeight: "100vh",
+  padding: "32px 48px",
+  background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)",
+};
+
+const panelStyle: React.CSSProperties = {
+  border: "none",
+  borderRadius: 16,
+  boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+};
+
+const headerIconStyle: React.CSSProperties = {
+  width: 54,
+  height: 54,
+  borderRadius: 16,
+  background: "linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  boxShadow: "0 12px 28px rgba(37, 99, 235, 0.16)",
+};
+
+const iconBoxStyle: React.CSSProperties = {
+  width: 44,
+  height: 44,
+  borderRadius: 12,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "#e0f2fe",
+  color: "#1d4ed8",
+  fontSize: 20,
+};
+
 const AdminDepartmentPage: React.FC = () => {
+  const { message } = App.useApp();
   // ==================== State ====================
   const [departments, setDepartments] = useState<DepartmentResponse[]>([]);
   const [loading, setLoading] = useState(false);
@@ -69,6 +106,7 @@ const AdminDepartmentPage: React.FC = () => {
     Record<number, boolean>
   >({});
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+  const [importType, setImportType] = useState<AdminImportType | null>(null);
 
   // Department Modal
   const [deptModalOpen, setDeptModalOpen] = useState(false);
@@ -112,8 +150,8 @@ const AdminDepartmentPage: React.FC = () => {
     }
   };
 
-  const fetchSpecializationsForDept = async (deptId: number) => {
-    if (specializationsMap[deptId] !== undefined) return; // already cached
+  const fetchSpecializationsForDept = async (deptId: number, force = false) => {
+    if (!force && specializationsMap[deptId] !== undefined) return; // already cached
     try {
       setSpecializationsLoading((prev) => ({ ...prev, [deptId]: true }));
       const data = await getSpecializations(deptId);
@@ -248,13 +286,7 @@ const AdminDepartmentPage: React.FC = () => {
         message.success("Đã tạo chuyên ngành mới thành công!");
       }
       setSpecModalOpen(false);
-      // Invalidate cache for this dept, reload it, and update total count
-      setSpecializationsMap((prev) => {
-        const next = { ...prev };
-        delete next[currentDeptId];
-        return next;
-      });
-      await fetchSpecializationsForDept(currentDeptId);
+      await fetchSpecializationsForDept(currentDeptId, true);
       await fetchTotalSpecializations();
     } catch (error: any) {
       if (error?.errorFields) return;
@@ -270,19 +302,39 @@ const AdminDepartmentPage: React.FC = () => {
     try {
       await deleteSpecialization(spec.id);
       message.success("Đã xóa chuyên ngành thành công!");
-      // Invalidate cache, reload dept specializations, and update total count
-      setSpecializationsMap((prev) => {
-        const next = { ...prev };
-        delete next[spec.department_id];
-        return next;
-      });
-      await fetchSpecializationsForDept(spec.department_id);
+      await fetchSpecializationsForDept(spec.department_id, true);
       await fetchTotalSpecializations();
     } catch (error: any) {
       message.error(
         error?.response?.data?.detail || "Không thể xóa chuyên ngành"
       );
     }
+  };
+
+  const handleImportRow = async (type: AdminImportType, row: Record<string, any>) => {
+    if (type === "department") {
+      await createDepartment({
+        name: row.name,
+        code: row.code,
+        description: row.description || null,
+      });
+      return;
+    }
+
+    if (type === "specialization") {
+      await createSpecialization({
+        name: row.name,
+        code: row.code,
+        department_id: row.department_id,
+        description: row.description || null,
+      });
+    }
+  };
+
+  const handleImportSuccess = async () => {
+    await fetchDepartments();
+    await fetchTotalSpecializations();
+    setSpecializationsMap({});
   };
 
   // ==================== Specialization Table Columns ====================
@@ -366,7 +418,7 @@ const AdminDepartmentPage: React.FC = () => {
 
   // ==================== Render ====================
   return (
-    <div style={{ padding: "0 24px 40px" }}>
+    <div style={pageStyle}>
       <Breadcrumb
         items={[
           { title: "Trang chủ", href: "/admin" },
@@ -374,80 +426,121 @@ const AdminDepartmentPage: React.FC = () => {
         ]}
       />
 
-      <Row align="middle" justify="space-between" style={{ marginTop: 16, marginBottom: 24 }}>
+      <Row align="middle" justify="space-between" gutter={[16, 16]} style={{ marginTop: 18, marginBottom: 24 }}>
         <Col>
-          <Title level={2} style={{ margin: 0 }}>
-            <BankOutlined style={{ marginRight: 10, color: "#1677ff" }} />
-            Quản lý Khoa & Chuyên ngành
-          </Title>
-          <Text type="secondary" style={{ fontSize: 14 }}>
-            Quản lý các khoa/phòng ban và chuyên ngành trong trường
-          </Text>
+          <Space align="center" size={14}>
+            <div style={headerIconStyle}>
+              <BankOutlined style={{ fontSize: 26, color: "#2563eb" }} />
+            </div>
+            <div>
+              <Title level={2} style={{ margin: 0, color: "#1d4ed8", fontWeight: 800 }}>
+                Quản lý Khoa & Chuyên ngành
+              </Title>
+              <Text type="secondary" style={{ fontSize: 15 }}>
+                Tổ chức khoa, phòng ban và chuyên ngành của trường
+              </Text>
+            </div>
+          </Space>
         </Col>
         <Col>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            size="large"
-            onClick={openCreateDeptModal}
-            style={{ borderRadius: 8 }}
-          >
-            Thêm Khoa mới
-          </Button>
+          <Space wrap>
+            <Button icon={<UploadOutlined />} size="large" onClick={() => setImportType("department")} style={{ borderRadius: 8 }}>
+              Import khoa
+            </Button>
+            <Button icon={<UploadOutlined />} size="large" onClick={() => setImportType("specialization")} style={{ borderRadius: 8 }}>
+              Import chuyên ngành
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} size="large" onClick={openCreateDeptModal} style={{ borderRadius: 8 }}>
+              Thêm khoa
+            </Button>
+          </Space>
         </Col>
       </Row>
 
       {/* Summary badges */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col>
+        <Col xs={24} md={8}>
           <Card
             style={{
-              borderRadius: 12,
-              background: "linear-gradient(135deg, #e6f4ff 0%, #bae0ff 100%)",
-              border: "none",
-              minWidth: 160,
+              ...panelStyle,
+              height: "100%",
             }}
           >
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 28, fontWeight: 700, color: "#1677ff" }}>
-                {departments.length}
+            <Space align="center" size={14}>
+              <div style={iconBoxStyle}>
+                <BankOutlined />
               </div>
-              <Text style={{ color: "#1677ff", fontWeight: 500 }}>
-                <BankOutlined /> Tổng số Khoa
-              </Text>
-            </div>
+              <div>
+                <Text type="secondary">Tổng số khoa</Text>
+                <Title level={3} style={{ margin: "2px 0 0", color: "#0f172a" }}>
+                  {departments.length}
+                </Title>
+              </div>
+            </Space>
           </Card>
         </Col>
-        <Col>
+        <Col xs={24} md={8}>
           <Card
             style={{
-              borderRadius: 12,
-              background: "linear-gradient(135deg, #f6ffed 0%, #b7eb8f 100%)",
-              border: "none",
-              minWidth: 160,
+              ...panelStyle,
+              height: "100%",
             }}
           >
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 28, fontWeight: 700, color: "#52c41a" }}>
-                {totalSpecializations}
+            <Space align="center" size={14}>
+              <div style={{ ...iconBoxStyle, background: "#dcfce7", color: "#059669" }}>
+                <BookOutlined />
               </div>
-              <Text style={{ color: "#52c41a", fontWeight: 500 }}>
-                <BookOutlined /> Tổng số Chuyên ngành
-              </Text>
-            </div>
+              <div>
+                <Text type="secondary">Tổng số chuyên ngành</Text>
+                <Title level={3} style={{ margin: "2px 0 0", color: "#0f172a" }}>
+                  {totalSpecializations}
+                </Title>
+              </div>
+            </Space>
+          </Card>
+        </Col>
+        <Col xs={24} md={8}>
+          <Card style={{ ...panelStyle, height: "100%" }}>
+            <Space align="center" size={14}>
+              <div style={{ ...iconBoxStyle, background: "#fef3c7", color: "#d97706" }}>
+                <SearchOutlined />
+              </div>
+              <div>
+                <Text type="secondary">Đang hiển thị</Text>
+                <Title level={3} style={{ margin: "2px 0 0", color: "#0f172a" }}>
+                  {filteredDepartments.length}
+                </Title>
+              </div>
+            </Space>
           </Card>
         </Col>
       </Row>
 
       {/* Search */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12} md={8}>
+      <Card style={{ ...panelStyle, marginBottom: 16 }}>
+      <Row gutter={[16, 16]} align="middle" justify="space-between">
+        <Col xs={24} lg={12}>
+          <Space size={12}>
+            <div style={{ ...iconBoxStyle, width: 36, height: 36, borderRadius: 10, fontSize: 16 }}>
+              <BankOutlined />
+            </div>
+            <div>
+              <Title level={4} style={{ margin: 0, color: "#0f172a" }}>
+                Danh sách khoa
+              </Title>
+              <Text type="secondary">Mở từng khoa để quản lý các chuyên ngành trực thuộc.</Text>
+            </div>
+          </Space>
+        </Col>
+        <Col xs={24} lg={8}>
           <Input
-            placeholder="Tìm kiếm theo tên hoặc mã khoa..."
+            placeholder="Tìm theo tên hoặc mã khoa..."
             prefix={<SearchOutlined />}
             allowClear
+            size="large"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
+            style={{ borderRadius: 8 }}
           />
         </Col>
         <Col>
@@ -464,6 +557,7 @@ const AdminDepartmentPage: React.FC = () => {
           </Button>
         </Col>
       </Row>
+      </Card>
 
       {/* Department List with Specializations */}
       <Collapse
@@ -471,33 +565,44 @@ const AdminDepartmentPage: React.FC = () => {
         onChange={handleCollapseChange}
         expandIcon={({ isActive }) =>
           isActive ? (
-            <DownOutlined style={{ color: "#1677ff" }} />
+            <DownOutlined style={{ color: "#2563eb" }} />
           ) : (
-            <RightOutlined style={{ color: "#8c8c8c" }} />
+            <RightOutlined style={{ color: "#64748b" }} />
           )
         }
-        style={{ borderRadius: 12, overflow: "hidden" }}
+        style={{ background: "transparent", border: "none" }}
       >
         {loading && filteredDepartments.length === 0 ? (
-          <div style={{ textAlign: "center", padding: 48 }}>
-            <div style={{ fontSize: 32 }}>⏳</div>
-            <Text type="secondary">Đang tải...</Text>
-          </div>
+          <Card style={panelStyle}>
+            <div style={{ textAlign: "center", padding: 48 }}>
+              <Text type="secondary">Đang tải...</Text>
+            </div>
+          </Card>
         ) : filteredDepartments.length === 0 ? (
-          <Empty
-            description="Chưa có khoa nào"
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            style={{ padding: 48 }}
-          />
+          <Card style={panelStyle}>
+            <Empty
+              description="Chưa có khoa nào"
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              style={{ padding: 48 }}
+            />
+          </Card>
         ) : (
           filteredDepartments.map((dept) => (
             <Panel
               key={String(dept.id)}
+              style={{
+                ...panelStyle,
+                overflow: "hidden",
+                marginBottom: 14,
+                background: "#fff",
+              }}
               header={
                 <Row align="middle" justify="space-between" style={{ width: "100%" }}>
                   <Col flex="auto">
-                    <Space align="center">
-                      <BankOutlined style={{ color: "#1677ff", fontSize: 18 }} />
+                    <Space align="center" size={12}>
+                      <div style={{ ...iconBoxStyle, width: 38, height: 38, borderRadius: 10, fontSize: 17 }}>
+                        <BankOutlined />
+                      </div>
                       <div>
                         <Text strong style={{ fontSize: 15 }}>
                           {dept.name}
@@ -506,7 +611,8 @@ const AdminDepartmentPage: React.FC = () => {
                           color="blue"
                           style={{
                             marginLeft: 8,
-                            fontFamily: "monospace",
+                            borderRadius: 6,
+                            fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
                             fontSize: 12,
                           }}
                         >
@@ -528,13 +634,9 @@ const AdminDepartmentPage: React.FC = () => {
                       onClick={(e) => e.stopPropagation()}
                       style={{ marginRight: 16 }}
                     >
-                      <Badge
-                        count={
-                          specializationsMap[dept.id]?.length ?? "?"
-                        }
-                        style={{ backgroundColor: "#52c41a" }}
-                        title="Số chuyên ngành"
-                      />
+                      <Tag color="green" style={{ margin: 0, borderRadius: 6 }}>
+                        {specializationsMap[dept.id]?.length ?? "..."} chuyên ngành
+                      </Tag>
                       <Tooltip title="Sửa khoa">
                         <Button
                           type="text"
@@ -772,6 +874,16 @@ const AdminDepartmentPage: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+      {importType && (
+        <AdminBulkImportModal
+          open={!!importType}
+          type={importType}
+          departments={departments}
+          onCancel={() => setImportType(null)}
+          onImportRow={handleImportRow}
+          onSuccess={handleImportSuccess}
+        />
+      )}
     </div>
   );
 };

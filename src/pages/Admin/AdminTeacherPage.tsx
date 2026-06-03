@@ -12,7 +12,7 @@ import {
   Col,
   Modal,
   Form,
-  message,
+  App,
   Popconfirm,
   Statistic,
   Divider,
@@ -22,6 +22,29 @@ import {
 
 const { Title, Text } = Typography;
 const { Option } = Select;
+
+const pageStyle: React.CSSProperties = {
+  minHeight: "100vh",
+  padding: "32px 48px",
+  background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)",
+};
+
+const panelStyle: React.CSSProperties = {
+  border: "none",
+  borderRadius: 16,
+  boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+};
+
+const headerIconStyle: React.CSSProperties = {
+  width: 54,
+  height: 54,
+  borderRadius: 16,
+  background: "linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  boxShadow: "0 12px 28px rgba(37, 99, 235, 0.16)",
+};
 import {
   PlusOutlined,
   EditOutlined,
@@ -62,12 +85,16 @@ import {
   uploadAvatar,
   validateImageFile,
 } from "@/apis/fileAPIs/file";
+import { listTenantSettings } from "@/apis/tenantSettingsAPIs/tenantSettings";
 import PasswordRequirements from "@/components/PasswordRequirements";
 import ResetPasswordModal from "@/components/ResetPasswordModal";
 import CSVImportModal from "@/components/CSVImportModal";
 import { validatePassword } from "@/utils/passwordValidation";
 
+const DEFAULT_TEACHER_EMAIL_DOMAIN = "dut.udn.vn";
+
 const AdminTeacherPage: React.FC = () => {
+  const { message } = App.useApp();
   // ==================== State Management ====================
   const [teachers, setTeachers] = useState<TeacherResponse[]>([]);
   const [loading, setLoading] = useState(false);
@@ -118,6 +145,7 @@ const AdminTeacherPage: React.FC = () => {
   // Avatar upload state
   const [avatarUrl, setAvatarUrl] = useState<string>("");
   const [avatarUploading, setAvatarUploading] = useState<boolean>(false);
+  const [teacherEmailDomain, setTeacherEmailDomain] = useState(DEFAULT_TEACHER_EMAIL_DOMAIN);
 
   // ==================== Helper Functions ====================
   /**
@@ -153,6 +181,7 @@ const AdminTeacherPage: React.FC = () => {
   useEffect(() => {
     fetchDepartments();
     fetchSpecializations();
+    fetchTenantSettings();
   }, []);
 
   useEffect(() => {
@@ -207,6 +236,18 @@ const AdminTeacherPage: React.FC = () => {
     }
   };
 
+  const fetchTenantSettings = async () => {
+    try {
+      const response = await listTenantSettings();
+      const domain =
+        response.settings.find((setting) => setting.key_name === "teacher_email_domain")?.value ||
+        DEFAULT_TEACHER_EMAIL_DOMAIN;
+      setTeacherEmailDomain(domain);
+    } catch (error) {
+      console.error("Error fetching tenant settings:", error);
+    }
+  };
+
   // ==================== Modal Handlers ====================
   const showCreateModal = async () => {
     setEditingTeacher(null);
@@ -227,8 +268,10 @@ const AdminTeacherPage: React.FC = () => {
     setEditingTeacher(teacher);
     setAvatarUrl(teacher.avatar_url || "");
     
-    // Extract email prefix (remove @dut.udn.vn)
-    const emailPrefix = teacher.email.replace('@dut.udn.vn', '');
+    const configuredSuffix = `@${teacherEmailDomain}`;
+    const emailPrefix = teacher.email.endsWith(configuredSuffix)
+      ? teacher.email.slice(0, -configuredSuffix.length)
+      : teacher.email.split("@")[0];
     
     form.setFieldsValue({
       full_name: teacher.full_name,
@@ -307,7 +350,7 @@ const AdminTeacherPage: React.FC = () => {
       setLoading(true);
       
       // Construct full email
-      const fullEmail = `${values.email}@dut.udn.vn`;
+      const fullEmail = `${values.email}@${teacherEmailDomain}`;
       
       const createData: CreateTeacherRequest = {
         full_name: values.full_name,
@@ -497,7 +540,7 @@ const AdminTeacherPage: React.FC = () => {
 
   // ==================== Render ====================
   return (
-    <div style={{ padding: "0 24px 24px" }}>
+    <div style={pageStyle}>
       {/* Breadcrumb */}
       <Breadcrumb
         items={[
@@ -506,16 +549,28 @@ const AdminTeacherPage: React.FC = () => {
         ]}
       />
 
-      {/* Page Title */}
-      <Title level={2} style={{ marginTop: 16, marginBottom: 24 }}>
-        <UserOutlined style={{ marginRight: 8 }} />
-        Quản lý Giáo viên
-      </Title>
+      <Row align="middle" justify="space-between" gutter={[16, 16]} style={{ marginTop: 18, marginBottom: 24 }}>
+        <Col>
+          <Space align="center" size={14}>
+            <div style={headerIconStyle}>
+              <UserOutlined style={{ fontSize: 26, color: "#2563eb" }} />
+            </div>
+            <div>
+              <Title level={2} style={{ margin: 0, color: "#1d4ed8", fontWeight: 800 }}>
+                Quản lý Giáo viên
+              </Title>
+              <Text type="secondary" style={{ fontSize: 15 }}>
+                Quản lý tài khoản, khoa chuyên môn và trạng thái hoạt động của giáo viên
+              </Text>
+            </div>
+          </Space>
+        </Col>
+      </Row>
 
       {/* Statistics Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={8}>
-          <Card>
+          <Card style={panelStyle}>
             <Statistic
               title="Tổng Giáo viên"
               value={stats.total}
@@ -525,7 +580,7 @@ const AdminTeacherPage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card>
+          <Card style={panelStyle}>
             <Statistic
               title="Đang hoạt động"
               value={stats.active}
@@ -535,7 +590,7 @@ const AdminTeacherPage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card>
+          <Card style={panelStyle}>
             <Statistic
               title="Không hoạt động"
               value={stats.inactive}
@@ -547,7 +602,7 @@ const AdminTeacherPage: React.FC = () => {
       </Row>
 
       {/* Main Content Card */}
-      <Card>
+      <Card style={panelStyle}>
         {/* Filters & Actions */}
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           <Col xs={24} sm={24} md={8} lg={6}>
@@ -663,7 +718,7 @@ const AdminTeacherPage: React.FC = () => {
             ]}
           >
             <Input
-              placeholder="John Doe"
+              placeholder="Nguyễn Văn A"
               disabled={!!editingTeacher}
             />
           </Form.Item>
@@ -672,20 +727,20 @@ const AdminTeacherPage: React.FC = () => {
             <Col xs={24} sm={12}>
               {/* Email */}
               <Form.Item
-                label="Email (username)"
+                label="Tên email"
                 name="email"
                 rules={[
-                  { required: true, message: "Please enter email!" },
+                  { required: true, message: "Vui lòng nhập tên email!" },
                   {
                     pattern: /^[a-zA-Z0-9._%+-]+$/,
-                    message: "Invalid email format!",
+                    message: "Tên email không hợp lệ!",
                   },
                 ]}
-                tooltip="Nhập phần trước @. Hệ thống sẽ tự thêm @dut.udn.vn"
+                tooltip={`Nhập phần trước @. Hệ thống sẽ tự thêm @${teacherEmailDomain}`}
               >
                 <Input
                   placeholder="ten.giaovien"
-                  addonAfter="@dut.udn.vn"
+                  addonAfter={`@${teacherEmailDomain}`}
                   disabled={!!editingTeacher}
                 />
               </Form.Item>
@@ -726,7 +781,6 @@ const AdminTeacherPage: React.FC = () => {
               <Form.Item
                 label="Khoa"
                 name="department_id"
-                rules={[{ required: true, message: "Vui lòng chọn khoa!" }]}
               >
                 <Select
                   placeholder="Chọn khoa"
@@ -785,7 +839,7 @@ const AdminTeacherPage: React.FC = () => {
               <Col xs={24} sm={12}>
                 {/* Active Status (only for edit) */}
                 <Form.Item
-                  label="Status"
+                  label="Trạng thái"
                   name="is_active"
                   valuePropName="checked"
                   initialValue={true}
@@ -800,7 +854,7 @@ const AdminTeacherPage: React.FC = () => {
           </Row>
 
           {/* Avatar Upload */}
-          <Form.Item label="Avatar">
+          <Form.Item label="Ảnh đại diện">
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               {avatarUrl ? (
                 <Avatar

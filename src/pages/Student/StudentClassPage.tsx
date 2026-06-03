@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { 
+  App,
   Typography, 
   Card, 
   Row, 
@@ -10,7 +11,6 @@ import {
   Modal,
   Form,
   Input,
-  message,
   Spin,
   Empty,
   Alert,
@@ -40,6 +40,17 @@ import { formatScheduleDisplay } from "../../apis/classesAPIs/teacherClass";
 
 const { Title, Text, Paragraph } = Typography;
 
+const headerIconStyle: React.CSSProperties = {
+  width: 54,
+  height: 54,
+  borderRadius: 16,
+  background: "linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  boxShadow: "0 12px 28px rgba(37, 99, 235, 0.16)",
+};
+
 interface ClassData {
   id: number;
   name: string;
@@ -55,6 +66,7 @@ interface ClassData {
 
 const StudentClassPage: React.FC = () => {
   const navigate = useNavigate();
+  const { message } = App.useApp();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
   
@@ -195,10 +207,6 @@ const StudentClassPage: React.FC = () => {
               gap: 16px;
             }
             
-            .student-class-title {
-              font-size: 24px !important;
-            }
-            
             .student-class-subtitle {
               font-size: 14px !important;
             }
@@ -228,23 +236,19 @@ const StudentClassPage: React.FC = () => {
         alignItems: "center", 
         marginBottom: 24 
       }}>
-        <div>
-          <Title level={1} className="student-class-title" style={{ 
-            marginBottom: 8, 
-            color: "#2563eb",
-            fontSize: 36,
-            fontWeight: 700
-          }}>
-            📚 Lớp học của tôi
-          </Title>
-          <Text className="student-class-subtitle" style={{ 
-            fontSize: 18, 
-            color: "#64748b",
-            display: "block"
-          }}>
-            Quản lý và theo dõi các lớp bạn đã tham gia
-          </Text>
-        </div>
+        <Space align="center" size={14}>
+          <div style={headerIconStyle}>
+            <BookOutlined style={{ fontSize: 26, color: "#2563eb" }} />
+          </div>
+          <div>
+            <Title level={2} className="student-class-title" style={{ margin: 0, color: "#1d4ed8", fontWeight: 800 }}>
+              Lớp học của tôi
+            </Title>
+            <Text className="student-class-subtitle" style={{ fontSize: 15, color: "#64748b", display: "block", marginTop: 4 }}>
+              Quản lý và theo dõi các lớp bạn đã tham gia
+            </Text>
+          </div>
+        </Space>
         <div className="student-class-actions">
           <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
             <Button 

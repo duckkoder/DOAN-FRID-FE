@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
+  App,
   Typography,
   Card,
   Button,
@@ -9,7 +10,6 @@ import {
   Table,
   Spin,
   Alert,
-  message,
   Progress
 } from "antd";
 import {
@@ -34,8 +34,20 @@ import {
 
 const { Title, Text } = Typography;
 
+const headerIconStyle: React.CSSProperties = {
+  width: 54,
+  height: 54,
+  borderRadius: 16,
+  background: "linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  boxShadow: "0 12px 28px rgba(37, 99, 235, 0.16)",
+};
+
 const StudentAttendanceListPage: React.FC = () => {
   const navigate = useNavigate();
+  const { message } = App.useApp();
   const params = useParams<{ classId: string }>();
   const classId = parseInt(params.classId || "0", 10);
 
@@ -344,10 +356,20 @@ const StudentAttendanceListPage: React.FC = () => {
           Quay lại Lớp
         </Button>
         
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Title level={2} style={{ margin: 0, color: "#2563eb" }}>
-            📹 {attendanceSession.session_name}
-          </Title>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Space align="center" size={14}>
+            <div style={headerIconStyle}>
+              <ClockCircleOutlined style={{ fontSize: 26, color: "#2563eb" }} />
+            </div>
+            <div>
+              <Title level={2} style={{ margin: 0, color: "#1d4ed8", fontWeight: 800 }}>
+                {attendanceSession.session_name}
+              </Title>
+              <Text style={{ fontSize: 15, color: "#64748b", display: "block", marginTop: 4 }}>
+                Theo dõi danh sách điểm danh đang cập nhật theo thời gian thực
+              </Text>
+            </div>
+          </Space>
           
           <Space>
             <Button 

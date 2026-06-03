@@ -1,7 +1,6 @@
 ﻿import React, { useContext, useState, useEffect } from "react";
 import { Outlet, Navigate, useNavigate, useParams } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { logout as apiLogout } from "../apis/authAPIs/auth";
 
 import Header from "../components/Header";
 import LeftBar from "../components/LeftBar";
@@ -125,14 +124,7 @@ const RoleLayout: React.FC = () => {
   // Handler cho logout
   const handleLogout = async () => {
     try {
-      const refreshToken = auth?.tokens.refreshToken;
-      
-      if (refreshToken) {
-        await apiLogout({ refresh_token: refreshToken });
-      }
-      
-      auth?.logout();
-      
+      await auth?.logout();
       message.success("Đăng xuất thành công!");
       
       // Redirect to login
@@ -142,7 +134,7 @@ const RoleLayout: React.FC = () => {
       console.error("Logout error:", error);
       
       // Still clear auth and redirect even if API fails
-      auth?.logout();
+      await auth?.logout();
       message.warning("Đã đăng xuất");
       navigate("/auth");
     }

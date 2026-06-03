@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
+  App,
   Card,
   Form,
   Input,
@@ -9,7 +10,6 @@ import {
   Select,
   Typography,
   Space,
-  message,
   Steps,
   Divider,
   Tag,
@@ -24,7 +24,6 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   PlusOutlined,
-  DeleteOutlined,
   EnvironmentOutlined,
   ExclamationCircleOutlined
 } from "@ant-design/icons";
@@ -39,7 +38,6 @@ import {
 import { getCoursesList, type CourseListItem } from "../../apis/coursesAPIs/course";
 import { getRoomsList, type Room } from "../../apis/roomsAPIs/room";
 import { useAuth } from "../../hooks/useAuth";
-import { useToast } from "../../context/ToastContext";
 import { WEEK_DAYS_OPTIONS, PERIOD_OPTIONS } from "../../constants/mappings";
 
 const { Title, Text } = Typography;
@@ -81,7 +79,7 @@ interface ClassFormData {
 
 const ClassCreatePage: React.FC = () => {
   const navigate = useNavigate();
-  const toast = useToast();
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<ClassFormData>({
@@ -459,7 +457,6 @@ const ClassCreatePage: React.FC = () => {
         class_name: finalClassName,
         teacher_id: teacherId,
         course_id: formData.course_id || null,
-        location: null,
         description: formData.description || null,
         schedule: backendSchedule
       };
@@ -467,7 +464,7 @@ const ClassCreatePage: React.FC = () => {
       // Call API
       const response = await createClass(requestData);
 
-      toast.success(t("class.create_success"));
+      message.success(t("class.create_success"));
 
       // Navigate to class details
       setTimeout(() => {
@@ -496,7 +493,7 @@ const ClassCreatePage: React.FC = () => {
       setErrorMessage(displayMessage);
       setErrorDetails(details);
 
-      toast.error(displayMessage);
+      message.error(displayMessage);
 
       // Scroll to top to show error alert
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -792,13 +789,6 @@ const ClassCreatePage: React.FC = () => {
             </Card>
 
             <Card style={{ marginBottom: 24 }}>
-              <Title level={4} style={{ marginBottom: 16, color: '#10b981' }}>
-                📍 Phòng học
-              </Title>
-              <Text style={{ fontSize: 16 }}>Phòng {formData.room}</Text>
-            </Card>
-
-            <Card style={{ marginBottom: 24 }}>
               <Title level={4} style={{ marginBottom: 16, color: '#f59e0b' }}>
                 📅 Lịch học
               </Title>
@@ -858,33 +848,53 @@ const ClassCreatePage: React.FC = () => {
       {/* Breadcrumb */}
       <Breadcrumb items={breadcrumbItems} />
 
-      {/* Header */}
       <div style={{ 
         display: "flex", 
         justifyContent: "space-between", 
         alignItems: "center", 
-        marginBottom: 32 
+        marginTop: 18,
+        marginBottom: 28 
       }}>
-        <div>
-          <Button 
-            icon={<ArrowLeftOutlined />}
-            onClick={() => navigate(-1)}
-            style={{ borderRadius: 8, marginBottom: 16 }}
+        <Space align="center" size={16}>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 16,
+              background: "linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 14px 30px rgba(37, 99, 235, 0.18)",
+            }}
           >
-            Quay lại
-          </Button>
-          <Title level={1} style={{ 
-            marginBottom: 4, 
-            color: "#2563eb",
-            fontSize: 32,
-            fontWeight: 700
-          }}>
-            ➕ Tạo Lớp Học Mới
-          </Title>
-          <Text style={{ color: "#64748b", fontSize: 16 }}>
-            Thiết lập lớp học mới với đầy đủ thông tin và lịch học chi tiết
-          </Text>
-        </div>
+            <BookOutlined style={{ fontSize: 28, color: "#2563eb" }} />
+          </div>
+          <div>
+            <Title
+              level={1}
+              style={{
+                margin: 0,
+                color: "#2563eb",
+                fontSize: "clamp(30px, 4vw, 40px)",
+                fontWeight: 800,
+                lineHeight: 1.12,
+              }}
+            >
+              Tạo Lớp Học
+            </Title>
+            <Text style={{ color: "#64748b", fontSize: 16 }}>
+              Thiết lập học phần, phòng học và lịch giảng dạy cho từng buổi
+            </Text>
+          </div>
+        </Space>
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate(-1)}
+          style={{ borderRadius: 8 }}
+        >
+          Quay lại
+        </Button>
       </div>
 
       {/* Main Content */}

@@ -169,5 +169,5 @@ export const getStatusColor = (isActive: boolean): string => {
  * Get status text for display
  */
 export const getStatusText = (isActive: boolean): string => {
-  return isActive ? "Active" : "Inactive";
+  return isActive ? "Đang hoạt động" : "Không hoạt động";
 };

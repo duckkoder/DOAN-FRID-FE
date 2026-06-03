@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
+  App,
   Typography,
   Card,
   Table,
@@ -23,6 +24,29 @@ import {
 const { Title, Text } = Typography;
 const { Option } = Select;
 
+const pageStyle: React.CSSProperties = {
+  minHeight: "100vh",
+  padding: "32px 48px",
+  background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)",
+};
+
+const panelStyle: React.CSSProperties = {
+  border: "none",
+  borderRadius: 16,
+  boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+};
+
+const headerIconStyle: React.CSSProperties = {
+  width: 54,
+  height: 54,
+  borderRadius: 16,
+  background: "linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  boxShadow: "0 12px 28px rgba(37, 99, 235, 0.16)",
+};
+
 import {
   UserOutlined,
   PlusOutlined,
@@ -39,7 +63,6 @@ import {
 } from "@ant-design/icons";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import Breadcrumb from "@/components/Breadcrumb";
-import { useToast } from "@/context/ToastContext";
 import {
   getStudentsList,
   createStudent,
@@ -63,6 +86,7 @@ import {
   uploadAvatar,
   validateImageFile,
 } from "@/apis/fileAPIs/file";
+import { listTenantSettings } from "@/apis/tenantSettingsAPIs/tenantSettings";
 import dayjs from "dayjs";
 import AdminFaceRegistrationTable from "@/components/AdminFaceRegistrationTable";
 import PasswordRequirements from "@/components/PasswordRequirements";
@@ -70,9 +94,11 @@ import ResetPasswordModal from "@/components/ResetPasswordModal";
 import CSVImportModal from "@/components/CSVImportModal";
 import { validatePassword } from "@/utils/passwordValidation";
 
+const DEFAULT_STUDENT_EMAIL_DOMAIN = "sv1.dut.udn.vn";
+
 const AdminStudentPage: React.FC = () => {
   // ==================== Hooks ====================
-  const toast = useToast();
+  const { message } = App.useApp();
   
   // ==================== State Management ====================
   const [students, setStudents] = useState<StudentResponse[]>([]);
@@ -132,6 +158,7 @@ const AdminStudentPage: React.FC = () => {
   // Avatar upload state
   const [avatarUrl, setAvatarUrl] = useState<string>("");
   const [avatarUploading, setAvatarUploading] = useState<boolean>(false);
+  const [studentEmailDomain, setStudentEmailDomain] = useState(DEFAULT_STUDENT_EMAIL_DOMAIN);
 
   // ==================== Helper Functions ====================
   /**
@@ -141,7 +168,7 @@ const AdminStudentPage: React.FC = () => {
     // Validate file
     const validation = validateImageFile(file);
     if (!validation.valid) {
-      toast.error(validation.error || "Invalid file");
+      message.error(validation.error || "Tệp không hợp lệ");
       return false;
     }
 
@@ -152,11 +179,11 @@ const AdminStudentPage: React.FC = () => {
       const response = await uploadAvatar(file);
       setAvatarUrl(response.data.url || "");
       
-      toast.success("Tải ảnh đại diện thành công!");
+      message.success("Tải ảnh đại diện thành công!");
       return true;
     } catch (error: any) {
       console.error("Error uploading avatar:", error);
-      toast.error(error?.response?.data?.detail || "Không thể tải ảnh lên");
+      message.error(error?.response?.data?.detail || "Không thể tải ảnh lên");
       return false;
     } finally {
       setAvatarUploading(false);
@@ -166,6 +193,7 @@ const AdminStudentPage: React.FC = () => {
   // ==================== Load Data ====================
   useEffect(() => {
     fetchDepartments();
+    fetchTenantSettings();
   }, []);
 
   useEffect(() => {
@@ -203,7 +231,7 @@ const AdminStudentPage: React.FC = () => {
       setStats(response.stats);
     } catch (error: any) {
       console.error("Error fetching students:", error);
-      toast.error(
+      message.error(
         error?.response?.data?.detail || "Không thể tải danh sách sinh viên"
       );
     } finally {
@@ -217,6 +245,18 @@ const AdminStudentPage: React.FC = () => {
       setDepartments(response);
     } catch (error) {
       console.error("Error fetching departments:", error);
+    }
+  };
+
+  const fetchTenantSettings = async () => {
+    try {
+      const response = await listTenantSettings();
+      const domain =
+        response.settings.find((setting) => setting.key_name === "student_email_domain")?.value ||
+        DEFAULT_STUDENT_EMAIL_DOMAIN;
+      setStudentEmailDomain(domain);
+    } catch (error) {
+      console.error("Error fetching tenant settings:", error);
     }
   };
 
@@ -241,8 +281,10 @@ const AdminStudentPage: React.FC = () => {
     setEditingStudent(student);
     setAvatarUrl(student.avatar_url || "");
     
-    // Extract student code from email (remove @sv1.dut.udn.vn)
-    const emailPrefix = student.email.replace('@sv1.dut.udn.vn', '');
+    const configuredSuffix = `@${studentEmailDomain}`;
+    const emailPrefix = student.email.endsWith(configuredSuffix)
+      ? student.email.slice(0, -configuredSuffix.length)
+      : student.email.split("@")[0];
     
     form.setFieldsValue({
       full_name: student.full_name,
@@ -304,7 +346,7 @@ const AdminStudentPage: React.FC = () => {
       setLoading(true);
       
       // Construct full email from student code
-      const fullEmail = `${values.email}@sv1.dut.udn.vn`;
+      const fullEmail = `${values.email}@${studentEmailDomain}`;
       
       const createData: CreateStudentRequest = {
         full_name: values.full_name,
@@ -321,7 +363,7 @@ const AdminStudentPage: React.FC = () => {
       };
 
       await createStudent(createData);
-      toast.success("Đã tạo tài khoản sinh viên thành công!");
+      message.success("Đã tạo tài khoản sinh viên thành công!");
       handleModalCancel();
       fetchStudents();
     } catch (error: any) {
@@ -339,7 +381,7 @@ const AdminStudentPage: React.FC = () => {
         ]);
       } else {
         // Show general error message
-        toast.error(
+        message.error(
           errorDetail || "Không thể tạo tài khoản sinh viên"
         );
       }
@@ -366,12 +408,12 @@ const AdminStudentPage: React.FC = () => {
       };
 
       await updateStudent(editingStudent.id, updateData);
-      toast.success("Đã cập nhật thông tin sinh viên thành công!");
+      message.success("Đã cập nhật thông tin sinh viên thành công!");
       handleModalCancel();
       fetchStudents();
     } catch (error: any) {
       console.error("Error updating student:", error);
-      toast.error(
+      message.error(
         error?.response?.data?.detail || "Không thể cập nhật thông tin sinh viên"
       );
     } finally {
@@ -383,11 +425,11 @@ const AdminStudentPage: React.FC = () => {
     try {
       setLoading(true);
       await deleteStudent(studentId);
-      toast.success("Đã vô hiệu hóa tài khoản sinh viên thành công!");
+      message.success("Đã vô hiệu hóa tài khoản sinh viên thành công!");
       fetchStudents();
     } catch (error: any) {
       console.error("Error deleting student:", error);
-      toast.error(
+      message.error(
         error?.response?.data?.detail || "Không thể vô hiệu hóa tài khoản"
       );
     } finally {
@@ -544,7 +586,7 @@ const AdminStudentPage: React.FC = () => {
 
   // ==================== Render ====================
   return (
-    <div style={{ padding: "0 24px 24px" }}>
+    <div style={pageStyle}>
       {/* Breadcrumb */}
       <Breadcrumb
         items={[
@@ -553,16 +595,28 @@ const AdminStudentPage: React.FC = () => {
         ]}
       />
 
-      {/* Page Title */}
-      <Title level={2} style={{ marginTop: 16, marginBottom: 24 }}>
-        <UserOutlined style={{ marginRight: 8 }} />
-        Quản lý Sinh viên
-      </Title>
+      <Row align="middle" justify="space-between" gutter={[16, 16]} style={{ marginTop: 18, marginBottom: 24 }}>
+        <Col>
+          <Space align="center" size={14}>
+            <div style={headerIconStyle}>
+              <UserOutlined style={{ fontSize: 26, color: "#2563eb" }} />
+            </div>
+            <div>
+              <Title level={2} style={{ margin: 0, color: "#1d4ed8", fontWeight: 800 }}>
+                Quản lý Sinh viên
+              </Title>
+              <Text type="secondary" style={{ fontSize: 15 }}>
+                Quản lý hồ sơ, xác minh khuôn mặt và trạng thái tài khoản sinh viên
+              </Text>
+            </div>
+          </Space>
+        </Col>
+      </Row>
 
       {/* Statistics Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} md={6}>
-          <Card>
+          <Card style={panelStyle}>
             <Statistic
               title="Tổng Sinh viên"
               value={stats.total}
@@ -572,7 +626,7 @@ const AdminStudentPage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card>
+          <Card style={panelStyle}>
             <Statistic
               title="Đang hoạt động"
               value={stats.active}
@@ -582,7 +636,7 @@ const AdminStudentPage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card>
+          <Card style={panelStyle}>
             <Statistic
               title="Không hoạt động"
               value={stats.inactive}
@@ -592,7 +646,7 @@ const AdminStudentPage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card>
+          <Card style={panelStyle}>
             <Statistic
               title="Đã xác minh"
               value={stats.verified}
@@ -609,7 +663,7 @@ const AdminStudentPage: React.FC = () => {
       </div>
 
       {/* Main Content Card */}
-      <Card>
+      <Card style={panelStyle}>
         {/* Filters & Actions */}
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           <Col xs={24} sm={24} md={6} lg={5}>
@@ -637,19 +691,14 @@ const AdminStudentPage: React.FC = () => {
             </Select>
           </Col>
           <Col xs={12} sm={8} md={4} lg={3}>
-            <Select
-              placeholder="Lọc theo Khóa"
+            <Input
+              placeholder="Nhập khóa học"
               style={{ width: "100%" }}
               allowClear
               value={selectedAcademicYear}
-              onChange={handleAcademicYearFilterChange}
-            >
-              <Option value="2021">Kóa 2021</Option>
-              <Option value="2022">Kóa 2022</Option>
-              <Option value="2023">Kóa 2023</Option>
-              <Option value="2024">Kóa 2024</Option>
-              <Option value="2025">Kóa 2025</Option>
-            </Select>
+              maxLength={4}
+              onChange={(e) => handleAcademicYearFilterChange(e.target.value || undefined)}
+            />
           </Col>
           <Col xs={12} sm={8} md={4} lg={3}>
             <Select
@@ -688,7 +737,7 @@ const AdminStudentPage: React.FC = () => {
                   onClick={() => setIsCSVImportModalOpen(true)}
                   style={{ width: isMobile ? '100%' : 'auto' }}
                 >
-                  {!isMobile && "Import CSV"}
+                  {!isMobile && "Import sinh viên"}
                 </Button>
               </Col>
               <Col flex={isMobile ? "1" : "none"}>
@@ -825,7 +874,7 @@ const AdminStudentPage: React.FC = () => {
               >
                 <Input
                   placeholder="102220347"
-                  addonAfter="@sv1.dut.udn.vn"
+                  addonAfter={`@${studentEmailDomain}`}
                   disabled={true}
                   style={{ 
                     backgroundColor: !editingStudent ? "#f0f0f0" : undefined,
@@ -901,7 +950,6 @@ const AdminStudentPage: React.FC = () => {
               <Form.Item
                 label="Khoa"
                 name="department_id"
-                rules={[{ required: true, message: "Vui lòng chọn khoa!" }]}
               >
                 <Select
                   placeholder="Chọn khoa"

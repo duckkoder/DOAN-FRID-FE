@@ -85,7 +85,7 @@ const AuthPage: React.FC = () => {
         }
 
         // Lưu thông tin user và tokens
-        auth?.login(
+        await auth?.login(
           res.user,
           {
             accessToken: res.access_token,

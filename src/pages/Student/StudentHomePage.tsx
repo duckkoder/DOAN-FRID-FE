@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Card, Row, Col, Typography, Statistic, Button, Progress, Spin, message } from "antd";
+import { App, Card, Row, Col, Typography, Statistic, Button, Progress, Spin, Space } from "antd";
+import { UserOutlined } from "@ant-design/icons";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LineChart, Line, ResponsiveContainer } from 'recharts';
 import { useNavigate } from "react-router-dom";
 import { getStudentDashboardData } from "../../apis/studentAPIs/dashboard";
@@ -7,8 +8,20 @@ import type { StudentDashboardResponseSchema } from "../../types/studentDashboar
 
 const { Title, Text } = Typography;
 
+const headerIconStyle: React.CSSProperties = {
+  width: 54,
+  height: 54,
+  borderRadius: 16,
+  background: "linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  boxShadow: "0 12px 28px rgba(37, 99, 235, 0.16)",
+};
+
 const StudentHomePage: React.FC = () => {
   const navigate = useNavigate();
+  const { message } = App.useApp();
   const [dashboardData, setDashboardData] = useState<StudentDashboardResponseSchema | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -106,10 +119,6 @@ const StudentHomePage: React.FC = () => {
           }
           
           @media (max-width: 480px) {
-            .page-title {
-              font-size: 24px !important;
-            }
-            
             .page-subtitle {
               font-size: 14px !important;
             }
@@ -119,21 +128,19 @@ const StudentHomePage: React.FC = () => {
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <Title level={1} className="page-title" style={{ 
-          marginBottom: 8, 
-          color: "#2563eb",
-          fontSize: 36,
-          fontWeight: 700
-        }}>
-          🎓 Bảng điều khiển Sinh viên
-        </Title>
-        <Text className="page-subtitle" style={{ 
-          fontSize: 18, 
-          color: "#64748b",
-          display: "block"
-        }}>
-          Chào mừng trở lại! Theo dõi điểm danh và tiến độ học tập tại đây.
-        </Text>
+        <Space align="center" size={14}>
+          <div style={headerIconStyle}>
+            <UserOutlined style={{ fontSize: 26, color: "#2563eb" }} />
+          </div>
+          <div>
+            <Title level={2} className="page-title" style={{ margin: 0, color: "#1d4ed8", fontWeight: 800 }}>
+              Bảng điều khiển Sinh viên
+            </Title>
+            <Text className="page-subtitle" style={{ fontSize: 15, color: "#64748b", display: "block", marginTop: 4 }}>
+              Chào mừng trở lại! Theo dõi điểm danh và tiến độ học tập tại đây.
+            </Text>
+          </div>
+        </Space>
       </div>
 
       {/* Quick Actions */}

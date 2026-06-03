@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Modal, Form, Input, message } from "antd";
+import { App, Modal, Form, Input } from "antd";
 import { LockOutlined } from "@ant-design/icons";
 import PasswordRequirements from "./PasswordRequirements";
 import { validatePassword } from "../utils/passwordValidation";
@@ -25,6 +25,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
   userName,
   loading = false,
 }) => {
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const [passwordValue, setPasswordValue] = useState("");
   const [confirmLoading, setConfirmLoading] = useState(false);

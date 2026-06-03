@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { 
   Card, 
   Row, 
@@ -10,7 +10,8 @@ import {
   Tag, 
   Spin,
   message,
-  Progress
+  Progress,
+  Space
 } from "antd";
 import { 
   BookOutlined, 
@@ -246,6 +247,38 @@ const TeacherHomePage: React.FC = () => {
     }
   ];
 
+  const pageHeaderStyle: React.CSSProperties = {
+    marginBottom: 26,
+  };
+
+  const headerIconStyle: React.CSSProperties = {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 16px 34px rgba(37, 99, 235, 0.18)",
+    flexShrink: 0,
+  };
+
+  const headerTitleStyle: React.CSSProperties = {
+    margin: 0,
+    color: "#2563eb",
+    fontSize: "clamp(30px, 4vw, 40px)",
+    fontWeight: 800,
+    lineHeight: 1.12,
+  };
+
+  const headerSubtitleStyle: React.CSSProperties = {
+    display: "block",
+    marginTop: 6,
+    color: "#64748b",
+    fontSize: 16,
+    lineHeight: 1.5,
+  };
+
   if (loading) {
     return (
       <div style={{ 
@@ -287,19 +320,23 @@ const TeacherHomePage: React.FC = () => {
       </style>
 
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2} className="teacher-page-title" style={{ 
-          marginBottom: 8, 
-          color: "#2563eb",
-          fontSize: 32,
-          fontWeight: 700 
-        }}>
-          🎓 Trang chủ
-        </Title>
-        <Text type="secondary" className="teacher-page-subtitle" style={{ fontSize: 16 }}>
-          Chào giáo viên! Tổng quan lớp học và điểm danh của bạn.
-        </Text>
-      </div>
+      <Row align="middle" gutter={[18, 18]} style={pageHeaderStyle}>
+        <Col xs={24}>
+          <Space align="center" size={16}>
+            <div style={headerIconStyle}>
+              <UserOutlined style={{ fontSize: 28, color: "#2563eb" }} />
+            </div>
+            <div>
+              <Title level={1} className="teacher-page-title" style={headerTitleStyle}>
+                Trang chủ
+              </Title>
+              <Text className="teacher-page-subtitle" style={headerSubtitleStyle}>
+                Tổng quan lớp học, lịch dạy và điểm danh của giáo viên
+              </Text>
+            </div>
+          </Space>
+        </Col>
+      </Row>
 
       {/* Statistics */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>

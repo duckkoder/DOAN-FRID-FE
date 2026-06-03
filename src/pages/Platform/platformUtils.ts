@@ -19,8 +19,12 @@ export function toDatabaseUser(slug: string): string {
   return `db_user_${normalized || "school"}`;
 }
 
-export function toStorageBucket(slug: string): string {
-  return `bucket-s3-${slug || "school"}`;
+export function toStorageBucket(): string {
+  return "Bucket hệ thống";
+}
+
+export function toStoragePrefix(slug: string): string {
+  return `${slug || "school"}/`;
 }
 
 export function tenantLoginPath(slug: string): string {
