@@ -46,6 +46,35 @@ type TeacherClassImportModalProps = {
 };
 
 const headers = ["class_name", "course_code", "description", "day", "periods", "room"];
+const friendlyHeaders = ["Tên lớp", "Mã học phần", "Mô tả", "Thứ", "Tiết học", "Phòng học"];
+const headerLabels: Record<string, string> = {
+  class_name: "Tên lớp",
+  course_code: "Mã học phần",
+  description: "Mô tả",
+  day: "Thứ",
+  periods: "Tiết học",
+  room: "Phòng học",
+};
+const headerAliases: Record<string, keyof Pick<ImportRow, "class_name" | "course_code" | "description" | "day" | "periods" | "room">> = {
+  class_name: "class_name",
+  "ten lop": "class_name",
+  "tên lớp": "class_name",
+  course_code: "course_code",
+  "ma hoc phan": "course_code",
+  "mã học phần": "course_code",
+  description: "description",
+  "mo ta": "description",
+  "mô tả": "description",
+  day: "day",
+  "thu": "day",
+  "thứ": "day",
+  periods: "periods",
+  "tiet hoc": "periods",
+  "tiết học": "periods",
+  room: "room",
+  "phong hoc": "room",
+  "phòng học": "room",
+};
 const buildSampleRows = (rooms: Room[]) => {
   const firstRoom = rooms[0]?.name || "A101";
   const secondRoom = rooms[1]?.name || firstRoom;
@@ -106,6 +135,15 @@ const normalizeKey = (value: string) => (
     .trim()
 );
 
+const normalizeImportRow = (raw: Record<string, any>) => {
+  const normalized: Record<string, any> = {};
+  Object.entries(raw).forEach(([key, value]) => {
+    const mappedKey = headerAliases[normalizeKey(key)] || headerAliases[key];
+    if (mappedKey) normalized[mappedKey] = value;
+  });
+  return normalized;
+};
+
 const parseDay = (value: string) => {
   const key = normalizeKey(value);
   if (key in dayMap) return dayMap[key];
@@ -135,7 +173,7 @@ const parsePeriods = (value: string) => {
 };
 
 const getErrorDetail = (error: any) => (
-  error?.response?.data?.detail || error?.message || "Import thất bại"
+  error?.response?.data?.detail || error?.message || "Tạo lớp thất bại"
 );
 
 const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
@@ -235,21 +273,21 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
     const localRoomMap = new Map<string, Room>();
     availableRooms.forEach((room) => localRoomMap.set(normalizeKey(room.name), room));
 
-    if (!row.class_name) row.errors.push("class_name không được để trống");
-    if (!row.day) row.errors.push("day không được để trống");
-    if (!row.periods) row.errors.push("periods không được để trống");
-    if (!row.room) row.errors.push("room không được để trống");
+    if (!row.class_name) row.errors.push("Tên lớp không được để trống");
+    if (!row.day) row.errors.push("Thứ không được để trống");
+    if (!row.periods) row.errors.push("Tiết học không được để trống");
+    if (!row.room) row.errors.push("Phòng học không được để trống");
 
     const parsedDay = parseDay(row.day);
     if (parsedDay === null) {
-      row.errors.push("day phải là monday-sunday, thứ hai-chủ nhật, hoặc số 0-6/2-8");
+      row.errors.push("Thứ phải là Thứ hai-Chủ nhật hoặc số 2-8");
     } else {
       row.parsed_day = parsedDay;
     }
 
     const parsedPeriods = parsePeriods(row.periods);
     if (parsedPeriods.length === 0 || parsedPeriods.some(period => period < 1 || period > 10)) {
-      row.errors.push("periods phải nằm trong tiết 1-10, ví dụ 1-3 hoặc 1,2,3");
+      row.errors.push("Tiết học phải nằm trong tiết 1-10, ví dụ 1-3 hoặc 1,2,3");
     } else {
       row.parsed_periods = parsedPeriods;
     }
@@ -257,7 +295,7 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
     if (row.course_code) {
       const course = localCourseMap.get(normalizeKey(row.course_code));
       if (!course) {
-        row.errors.push("course_code không khớp học phần hiện có");
+        row.errors.push("Mã học phần không khớp học phần hiện có");
       } else {
         row.course_id = course.id;
         row.course_code = course.code;
@@ -268,7 +306,7 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
 
     const room = localRoomMap.get(normalizeKey(row.room));
     if (!room) {
-      row.errors.push("room không khớp phòng học active trong hệ thống");
+      row.errors.push("Phòng học không có trong danh sách phòng đang sử dụng");
     } else {
       row.room = room.name;
     }
@@ -296,7 +334,7 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
       defval: "",
     });
 
-    return sheetRows.map((row, index) => validateRow(row, index + 2, nextCourses, nextRooms));
+    return sheetRows.map((row, index) => validateRow(normalizeImportRow(row), index + 2, nextCourses, nextRooms));
   };
 
   const handleUpload = async (file: File) => {
@@ -307,12 +345,12 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
       setRows(parsedRows);
       const invalidCount = parsedRows.filter(row => !row.is_valid).length;
       if (invalidCount > 0) {
-        message.warning(`Có ${invalidCount} dòng lỗi, kiểm tra lại trước khi import`);
+        message.warning(`Có ${invalidCount} dòng cần sửa trước khi tạo lớp`);
       } else {
-        message.success("File hợp lệ, có thể import");
+        message.success("File hợp lệ, có thể tạo lớp");
       }
     } catch (error: any) {
-      message.error(error?.message || "Không thể đọc file import");
+      message.error(error?.message || "Không thể đọc file tạo lớp");
       setRows([]);
     } finally {
       setLoading(false);
@@ -330,20 +368,20 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
 
   const downloadTemplate = async (format: "xlsx" | "csv") => {
     const { nextRooms } = await ensureLookups();
-    const data = [headers, ...buildSampleRows(nextRooms)];
+    const data = [friendlyHeaders, ...buildSampleRows(nextRooms)];
     if (format === "xlsx") {
       const worksheet = XLSX.utils.aoa_to_sheet(data);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Import");
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Danh sách lớp");
       XLSX.utils.book_append_sheet(
         workbook,
         XLSX.utils.aoa_to_sheet([
-          ["room", "capacity", "description"],
+          ["Phòng học", "Sức chứa", "Mô tả"],
           ...nextRooms.map(room => [room.name, room.capacity, room.description || ""]),
         ]),
-        "Rooms"
+        "Phòng học"
       );
-      XLSX.writeFile(workbook, "mau_import_lop_hoc_giao_vien.xlsx");
+      XLSX.writeFile(workbook, "mau_tao_lop_hoc_hang_loat.xlsx");
       message.success("Đã tải file mẫu Excel");
       return;
     }
@@ -352,7 +390,7 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "mau_import_lop_hoc_giao_vien.csv";
+    link.download = "mau_tao_lop_hoc_hang_loat.csv";
     link.click();
     URL.revokeObjectURL(link.href);
     message.success("Đã tải file mẫu CSV");
@@ -397,11 +435,11 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
 
   const handleConfirmImport = async () => {
     if (!teacherId) {
-      message.error("Không tìm thấy thông tin giảng viên");
+      message.error("Không tìm thấy thông tin giáo viên");
       return;
     }
     if (validRows.length === 0) {
-      message.error("Không có dòng hợp lệ để import");
+      message.error("Chưa có dòng hợp lệ để tạo lớp");
       return;
     }
 
@@ -422,9 +460,9 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
     setResult({ successful, failed: errors.length, errors });
     if (successful > 0) onSuccess();
     if (errors.length > 0) {
-      message.warning(`Import xong ${successful} lớp, lỗi ${errors.length} lớp`);
+      message.warning(`Đã tạo ${successful} lớp, còn ${errors.length} lớp chưa tạo được`);
     } else {
-      message.success(`Import thành công ${successful} lớp`);
+      message.success(`Đã tạo thành công ${successful} lớp`);
       handleClose();
     }
   };
@@ -443,19 +481,19 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
       ),
     },
     ...headers.map(header => ({
-      title: header,
+      title: headerLabels[header] || header,
       dataIndex: header,
       width: header === "room" ? 230 : 170,
       render: (value: string, row: ImportRow) => (
         header === "room" ? (
           <Select
             showSearch
-            placeholder="Chọn phòng"
+            placeholder="Chọn phòng học"
             value={value || undefined}
             options={roomOptions}
             optionFilterProp="label"
             style={{ width: "100%" }}
-            status={row.errors.some(error => error.includes("room")) ? "error" : undefined}
+            status={row.errors.some(error => normalizeKey(error).includes("phong hoc")) ? "error" : undefined}
             onChange={(roomName) => updateRowRoom(row.row_number, roomName)}
           />
         ) : value
@@ -473,23 +511,23 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
 
   return (
     <Modal
-      title="Import hàng loạt lớp học"
+      title="Tạo lớp học hàng loạt"
       open={open}
       onCancel={handleClose}
       width={1080}
       destroyOnClose
       footer={[
-        <Button key="csv" icon={<DownloadOutlined />} onClick={() => downloadTemplate("csv")}>Tải CSV mẫu</Button>,
-        <Button key="xlsx" icon={<FileExcelOutlined />} onClick={() => downloadTemplate("xlsx")}>Tải Excel mẫu</Button>,
+        <Button key="csv" icon={<DownloadOutlined />} onClick={() => downloadTemplate("csv")}>Tải mẫu CSV</Button>,
+        <Button key="xlsx" icon={<FileExcelOutlined />} onClick={() => downloadTemplate("xlsx")}>Tải mẫu Excel</Button>,
         <Button key="cancel" onClick={handleClose}>Đóng</Button>,
         <Button
-          key="import"
+          key="create"
           type="primary"
           loading={importing}
           disabled={validRows.length === 0}
           onClick={handleConfirmImport}
         >
-          Import {buildClassPayloads().length || 0} lớp
+          Tạo {buildClassPayloads().length || 0} lớp
         </Button>,
       ]}
     >
@@ -497,25 +535,25 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
         <Alert
           type="info"
           showIcon
-          message="Một dòng là một buổi học. Nhiều dòng cùng class_name + course_code sẽ được gộp thành một lớp có nhiều buổi."
-          description="course_code có thể để trống. day nhận monday-sunday, thứ hai-chủ nhật, số 0-6 hoặc 2-8. periods nhận dạng 1-3 hoặc 1,2,3."
+          message="Một dòng trong file là một buổi học. Các dòng cùng tên lớp và mã học phần sẽ được gộp thành một lớp có nhiều buổi."
+          description="Mã học phần có thể để trống. Cột Thứ nhận Thứ hai-Chủ nhật hoặc số 2-8. Cột Tiết học nhận dạng 1-3 hoặc 1,2,3."
         />
 
         <Alert
           type={rooms.length > 0 ? "success" : "warning"}
           showIcon
-          message={rooms.length > 0 ? `Đã tải ${rooms.length} phòng học active` : "Chưa tải được danh sách phòng học active"}
+          message={rooms.length > 0 ? `Đã tải ${rooms.length} phòng học đang sử dụng` : "Chưa tải được danh sách phòng học"}
           description={rooms.length > 0 ? (
             <Space wrap size={[6, 6]}>
               {rooms.slice(0, 18).map(room => <Tag key={room.id}>{room.name}</Tag>)}
               {rooms.length > 18 && <Tag>+{rooms.length - 18} phòng khác</Tag>}
             </Space>
-          ) : "Cột room chỉ nhận phòng đang active trong hệ thống. Bấm tải lại modal hoặc kiểm tra cấu hình phòng học nếu danh sách trống."}
+          ) : "Cột Phòng học chỉ nhận phòng đang có trong danh sách phòng học. Đóng mở lại cửa sổ này hoặc kiểm tra danh mục phòng học nếu danh sách trống."}
         />
 
         <Dragger {...uploadProps} style={{ padding: 18 }}>
           <p className="ant-upload-drag-icon"><InboxOutlined /></p>
-          <p className="ant-upload-text">Kéo thả file lớp học vào đây hoặc bấm để chọn file</p>
+          <p className="ant-upload-text">Kéo thả file danh sách lớp vào đây hoặc bấm để chọn file</p>
           <p className="ant-upload-hint">Hỗ trợ .xlsx, .xls, .csv</p>
         </Dragger>
 
@@ -535,7 +573,7 @@ const TeacherClassImportModal: React.FC<TeacherClassImportModalProps> = ({
           <Alert
             type={result.failed ? "warning" : "success"}
             showIcon
-            message={`Đã import ${result.successful} lớp, lỗi ${result.failed} lớp`}
+            message={`Đã tạo ${result.successful} lớp, còn ${result.failed} lớp chưa tạo được`}
             description={result.errors.length > 0 ? (
               <Space direction="vertical" size={4}>
                 {result.errors.map(item => (

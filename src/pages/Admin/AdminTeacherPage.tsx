@@ -650,7 +650,7 @@ const AdminTeacherPage: React.FC = () => {
                 icon={<UploadOutlined />}
                 onClick={() => setIsCSVImportModalOpen(true)}
               >
-                Nhập CSV
+                Tạo hàng loạt
               </Button>
               <Button
                 type="primary"

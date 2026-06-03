@@ -737,7 +737,7 @@ const AdminStudentPage: React.FC = () => {
                   onClick={() => setIsCSVImportModalOpen(true)}
                   style={{ width: isMobile ? '100%' : 'auto' }}
                 >
-                  {!isMobile && "Import sinh viên"}
+                  {!isMobile && "Tạo hàng loạt"}
                 </Button>
               </Col>
               <Col flex={isMobile ? "1" : "none"}>

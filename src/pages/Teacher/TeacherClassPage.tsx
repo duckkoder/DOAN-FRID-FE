@@ -524,7 +524,7 @@ const TeacherClassPage: React.FC = () => {
               onClick={() => setImportOpen(true)}
               style={{ borderRadius: 10, fontWeight: 600, height: 44 }}
             >
-              Import lớp
+              Tạo hàng loạt
             </Button>
             <Button
               type="primary"
