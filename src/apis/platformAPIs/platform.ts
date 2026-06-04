@@ -408,6 +408,16 @@ export async function updateAiModelEnvConfig(values: Record<string, string | num
   return response.data;
 }
 
+export async function getSecurityEnvConfig(): Promise<PlatformEnvConfigResponse> {
+  const response = await platformApi.get<PlatformEnvConfigResponse>("/platform/env/security");
+  return response.data;
+}
+
+export async function updateSecurityEnvConfig(values: Record<string, string | number | boolean | null>): Promise<PlatformEnvConfigResponse> {
+  const response = await platformApi.put<PlatformEnvConfigResponse>("/platform/env/security", { values });
+  return response.data;
+}
+
 export async function listTenantSecuritySummaries(): Promise<TenantSecuritySummary[]> {
   const response = await platformApi.get<TenantSecuritySummary[]>("/platform/security/tenants", {
     timeout: 120_000,

@@ -28,6 +28,12 @@
   gap: 16px;
 }
 
+.platform-security-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .platform-ai-hero {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -121,6 +127,15 @@
 .platform-ai-config-card {
   padding: 0;
   overflow: hidden;
+}
+
+.platform-security-config-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.platform-session-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .platform-ai-card-head {

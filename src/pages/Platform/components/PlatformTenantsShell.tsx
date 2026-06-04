@@ -66,9 +66,13 @@ type PlatformTenantsShellProps = {
     geminiConfigured: number;
   };
   securitySummaries: TenantSecuritySummary[];
+  securityConfig: PlatformEnvConfigItem[];
+  securityForm: Parameters<typeof SecurityTab>[0]["form"];
+  securityConfigSaving: boolean;
   sessionActionKey: string | null;
   onRevokeAdminSessions: (tenant: TenantSecuritySummary, userId?: number) => void;
   onLogoutAllTenantUsers: (tenant: TenantSecuritySummary) => void;
+  onSaveSecurityConfig: Parameters<typeof SecurityTab>[0]["onSaveSecurityConfig"];
   aiModelConfig: PlatformEnvConfigItem[];
   aiModelForm: Parameters<typeof AiModelConfigTab>[0]["form"];
   aiModelSaving: boolean;
@@ -116,9 +120,13 @@ const PlatformTenantsShell: React.FC<PlatformTenantsShellProps> = ({
   onShowAuditDetails,
   securitySummary,
   securitySummaries,
+  securityConfig,
+  securityForm,
+  securityConfigSaving,
   sessionActionKey,
   onRevokeAdminSessions,
   onLogoutAllTenantUsers,
+  onSaveSecurityConfig,
   aiModelConfig,
   aiModelForm,
   aiModelSaving,
@@ -207,10 +215,14 @@ const PlatformTenantsShell: React.FC<PlatformTenantsShellProps> = ({
             <SecurityTab
               securitySummary={securitySummary}
               securitySummaries={securitySummaries}
+              securityConfig={securityConfig}
+              form={securityForm}
+              configSaving={securityConfigSaving}
               loading={securityLoading}
               sessionActionKey={sessionActionKey}
               onRevokeAdminSessions={onRevokeAdminSessions}
               onLogoutAllTenantUsers={onLogoutAllTenantUsers}
+              onSaveSecurityConfig={onSaveSecurityConfig}
             />
           ) : activeSection === "ai-model" ? (
             <AiModelConfigTab

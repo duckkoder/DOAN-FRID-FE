@@ -42,7 +42,14 @@ import {
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
-const FACE_IMAGE_TARGET = 14;
+
+const getFaceImageCount = (registration?: Pick<FaceRegistrationDetail, "total_images_captured" | "verification_data"> | null) => {
+  const steps = registration?.verification_data?.steps;
+  if (Array.isArray(steps) && steps.length > 0) return steps.length;
+  return registration?.total_images_captured || 0;
+};
+
+const renderFaceImageRatio = (count: number) => `${count}/${count}`;
 
 const AdminFaceRegistrationTable: React.FC = () => {
   const { message } = App.useApp();
@@ -280,7 +287,7 @@ const AdminFaceRegistrationTable: React.FC = () => {
       width: 90,
       render: (count: number) => (
         <Tag color="blue" icon={<CameraOutlined />}>
-          {count}/{FACE_IMAGE_TARGET}
+          {renderFaceImageRatio(count)}
         </Tag>
       ),
     },
@@ -463,7 +470,7 @@ const AdminFaceRegistrationTable: React.FC = () => {
             {/* Registration Info */}
             <Row gutter={[16, 16]}>
               <Col span={8}>
-                <Text strong>Ảnh đã thu thập:</Text> {viewingRegistration.total_images_captured}/{FACE_IMAGE_TARGET}
+                <Text strong>Ảnh đã thu thập:</Text> {renderFaceImageRatio(getFaceImageCount(viewingRegistration))}
               </Col>
               <Col span={8}>
                 <Text strong>Tiến độ:</Text> {viewingRegistration.registration_progress}%
@@ -633,7 +640,7 @@ const AdminFaceRegistrationTable: React.FC = () => {
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Spin />
                 <Text type="secondary">
-                  Hệ thống đang trích xuất đặc trưng khuôn mặt từ {FACE_IMAGE_TARGET} ảnh.
+                  Hệ thống đang trích xuất đặc trưng khuôn mặt từ {getFaceImageCount(viewingRegistration)} ảnh.
                   Quá trình này có thể mất 10-30 giây, vui lòng chờ.
                 </Text>
               </Space>
@@ -673,7 +680,7 @@ const AdminFaceRegistrationTable: React.FC = () => {
           {actionType === 'approve' && (
             <Alert
               message="Lưu ý"
-              description={`Sau khi duyệt, hệ thống sẽ tự động trích xuất embedding từ ${FACE_IMAGE_TARGET} ảnh khuôn mặt. Quá trình này thường mất khoảng 10-30 giây.`}
+              description={`Sau khi duyệt, hệ thống sẽ tự động trích xuất embedding từ ${getFaceImageCount(viewingRegistration)} ảnh khuôn mặt. Quá trình này thường mất khoảng 10-30 giây.`}
               type="warning"
               showIcon
               style={{ marginTop: 16 }}
