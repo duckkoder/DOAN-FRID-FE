@@ -344,7 +344,7 @@ const PlatformTenantsPage: React.FC = () => {
           return acc;
         }, {}),
       );
-      message.success("Đã lưu cấu hình bảo mật vào file env production");
+      message.success("Đã lưu cấu hình");
     } catch (err) {
       message.error(getErrorDetail(err, "Không thể lưu cấu hình bảo mật"));
     } finally {
