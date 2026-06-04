@@ -1,5 +1,5 @@
-import React from "react";
-import { Button, Space, Table, Tag, Typography } from "antd";
+import React, { useMemo, useState } from "react";
+import { Button, Checkbox, Select, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FiClock, FiPower, FiShield } from "react-icons/fi";
 
@@ -16,6 +16,27 @@ type AuditTabProps = {
 };
 
 const AuditTab: React.FC<AuditTabProps> = ({ auditSummary, auditLogs, loading, onShowDetails }) => {
+  const [errorsOnly, setErrorsOnly] = useState(false);
+  const [selectedTenant, setSelectedTenant] = useState<string | undefined>();
+  const [selectedAction, setSelectedAction] = useState<string | undefined>();
+
+  const tenantOptions = useMemo(() => {
+    const tenants = Array.from(new Set(auditLogs.map(log => log.tenant_school_code).filter(Boolean))) as string[];
+    return tenants.sort().map(tenant => ({ label: tenant, value: tenant }));
+  }, [auditLogs]);
+
+  const actionOptions = useMemo(() => {
+    const actions = Array.from(new Set(auditLogs.map(log => log.action).filter(Boolean)));
+    return actions.sort().map(action => ({ label: action, value: action }));
+  }, [auditLogs]);
+
+  const filteredLogs = useMemo(() => auditLogs.filter(log => {
+    if (errorsOnly && log.status !== "failed") return false;
+    if (selectedTenant && log.tenant_school_code !== selectedTenant) return false;
+    if (selectedAction && log.action !== selectedAction) return false;
+    return true;
+  }), [auditLogs, errorsOnly, selectedAction, selectedTenant]);
+
   const columns: ColumnsType<PlatformAuditLog> = [
     {
       title: "Người thao tác",
@@ -89,15 +110,43 @@ const AuditTab: React.FC<AuditTabProps> = ({ auditSummary, auditLogs, loading, o
         <div className="platform-toolbar">
           <div>
             <h2>Bảng nhật ký hệ thống</h2>
-            <p>Theo dõi ai tạo tenant, migrate, downgrade, tạo admin, khóa hoặc mở tenant.</p>
+            <p>Theo dõi thao tác platform và lỗi backend theo từng tenant.</p>
           </div>
-          <span className="platform-toolbar-chip">{auditLogs.length} sự kiện gần nhất</span>
+          <span className="platform-toolbar-chip">{filteredLogs.length}/{auditLogs.length} sự kiện</span>
+        </div>
+        <div className="platform-audit-filters">
+          <Checkbox checked={errorsOnly} onChange={(event) => setErrorsOnly(event.target.checked)}>
+            Chỉ hiện lỗi
+          </Checkbox>
+          <Select
+            allowClear
+            showSearch
+            placeholder="Lọc tenant"
+            value={selectedTenant}
+            options={tenantOptions}
+            optionFilterProp="label"
+            onChange={setSelectedTenant}
+            style={{ minWidth: 180 }}
+          />
+          <Select
+            allowClear
+            showSearch
+            placeholder="Lọc action"
+            value={selectedAction}
+            options={actionOptions}
+            optionFilterProp="label"
+            onChange={setSelectedAction}
+            style={{ minWidth: 220 }}
+          />
+          <Button onClick={() => { setErrorsOnly(false); setSelectedTenant(undefined); setSelectedAction(undefined); }}>
+            Xóa lọc
+          </Button>
         </div>
         <Table<PlatformAuditLog>
           className="platform-tenants-table platform-audit-table"
           rowKey="id"
           columns={columns}
-          dataSource={auditLogs}
+          dataSource={filteredLogs}
           loading={loading}
           pagination={{ pageSize: 10, showSizeChanger: false }}
         />

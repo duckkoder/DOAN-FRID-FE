@@ -631,6 +631,16 @@
 }
 
 /* ─── STATUS BADGE ────────────────────────── */
+.platform-audit-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--p-border);
+  background: #ffffff;
+}
+
 .platform-status {
   display: inline-flex;
   align-items: center;
