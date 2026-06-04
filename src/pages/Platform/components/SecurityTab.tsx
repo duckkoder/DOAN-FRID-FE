@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Button, Form, InputNumber, Popover, Space, Table, Tag, Typography } from "antd";
+import { Button, Form, InputNumber, Popover, Space, Switch, Table, Tag, Typography } from "antd";
 import type { FormInstance } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { FiClock, FiHelpCircle, FiSave, FiShield, FiUserPlus } from "react-icons/fi";
@@ -27,7 +27,7 @@ type SecurityTabProps = {
   onSaveSecurityConfig: (values: Record<string, string | number | boolean | null>) => void;
 };
 
-const securityHelp: Record<string, { title: string; summary: string; tips: string[]; suffix: string }> = {
+const securityHelp: Record<string, { title: string; summary: string; tips: string[]; suffix?: string }> = {
   ACCESS_TOKEN_EXPIRE_MINUTES: {
     title: "Thời hạn đăng nhập",
     summary: "Thời gian access token còn hiệu lực. Khi hết hạn, frontend sẽ dùng refresh token để xin token mới.",
@@ -46,9 +46,33 @@ const securityHelp: Record<string, { title: string; summary: string; tips: strin
     tips: ["120 phút phù hợp với lớp dài hoặc thao tác chậm.", "Nếu đặt quá ngắn, phiên điểm danh có thể rớt giữa chừng.", "Nếu lớp thường ngắn, có thể đặt 60-90 phút."],
     suffix: "phút",
   },
+  FACE_VERIFICATION_TIMEOUT: {
+    title: "Timeout xác thực khuôn mặt",
+    summary: "Thời gian tối đa một phiên xác thực khuôn mặt được phép chạy trước khi hệ thống coi là hết hạn.",
+    tips: ["300 giây tương đương 5 phút.", "Tăng nếu quy trình đăng ký hoặc điểm danh cần nhiều thời gian hơn.", "Giảm nếu muốn giải phóng phiên nhanh hơn."],
+    suffix: "giây",
+  },
+  ATTENDANCE_ALLOW_CREATE_ANYTIME: {
+    title: "Tạo điểm danh ngoài lịch",
+    summary: "Cho phép giáo viên tạo phiên điểm danh dù hiện tại không nằm trong khung lịch lớp.",
+    tips: ["Tắt để hệ thống bám lịch học chặt hơn.", "Bật khi trường hay có học bù, đổi tiết hoặc lịch linh hoạt.", "Nếu bật, nên theo dõi log thao tác tạo phiên."],
+  },
+  ATTENDANCE_CREATE_WINDOW_GRACE_MINUTES: {
+    title: "Khoảng nới lịch điểm danh",
+    summary: "Số phút nới thêm trước hoặc sau khung lịch khi kiểm tra quyền tạo phiên điểm danh.",
+    tips: ["5-10 phút phù hợp nếu giáo viên thường mở phiên sớm hoặc muộn.", "Để 0 nếu muốn đúng lịch tuyệt đối.", "Không nên đặt quá cao nếu không bật vận hành linh hoạt."],
+    suffix: "phút",
+  },
 };
 
-const getNumericValue = (item: PlatformEnvConfigItem) => {
+const groupLabel: Record<string, string> = {
+  "Dang nhap": "Đăng nhập",
+  "Diem danh realtime": "Phiên realtime",
+  "Van hanh": "Vận hành hệ thống",
+};
+
+const getNumericValue = (item?: PlatformEnvConfigItem) => {
+  if (!item) return 0;
   if (typeof item.value === "number") return item.value;
   const parsed = Number(item.value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -70,6 +94,12 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
     () => Object.fromEntries(securityConfig.map(item => [item.key, item])),
     [securityConfig],
   );
+  const securityGroups = useMemo(() => (
+    securityConfig.reduce<Record<string, PlatformEnvConfigItem[]>>((acc, item) => {
+      acc[item.group] = [...(acc[item.group] || []), item];
+      return acc;
+    }, {})
+  ), [securityConfig]);
 
   const accessMinutes = getNumericValue(configByKey.ACCESS_TOKEN_EXPIRE_MINUTES);
   const websocketMinutes = getNumericValue(configByKey.AI_WEBSOCKET_TOKEN_EXPIRE_MINUTES);
@@ -208,8 +238,8 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
       <div className="platform-table-card platform-security-config-card">
         <div className="platform-ai-card-head">
           <div>
-            <h2>Thông số phiên</h2>
-            <p>Chỉnh thời hạn token đăng nhập và token điểm danh realtime. Giá trị mới áp dụng cho token được cấp sau khi lưu.</p>
+            <h2>Cấu hình hệ thống</h2>
+            <p>Quản lý thời hạn phiên, token và các quy tắc vận hành. Các tham số model được tách riêng ở tab AI model.</p>
           </div>
           <Button type="primary" icon={<FiSave />} loading={configSaving} onClick={() => form.submit()}>
             Lưu cấu hình
@@ -217,42 +247,57 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
         </div>
 
         <Form form={form} layout="vertical" onFinish={onSaveSecurityConfig} className="platform-env-config-form">
-          <section className="platform-env-group">
-            <div className="platform-env-list">
-              {securityConfig.map(item => {
-                const help = securityHelp[item.key];
-                return (
-                  <div className="platform-env-row" key={item.key}>
-                    <div className="platform-env-meta">
-                      <div className="platform-env-title-line">
-                        <strong>{help?.title || item.label}</strong>
-                        <Popover
-                          placement="left"
-                          title={help?.title || item.label}
-                          content={
-                            <div className="platform-env-help">
-                              <p>{help?.summary || item.description}</p>
-                              {help?.tips?.map(tip => <div key={tip}>• {tip}</div>)}
-                            </div>
-                          }
-                        >
-                          <button className="platform-env-help-button" type="button" aria-label={`Giải thích ${item.key}`}>
-                            <FiHelpCircle />
-                          </button>
-                        </Popover>
-                      </div>
-                      <code>{item.key}</code>
-                      <p>{help?.summary || item.description}</p>
-                    </div>
+          {Object.entries(securityGroups).map(([group, items]) => (
+            <section className="platform-env-group" key={group}>
+              <div className="platform-env-group-head">
+                <span>{groupLabel[group] || group}</span>
+                <small>{items.length} biến</small>
+              </div>
 
-                    <Form.Item name={item.key} style={{ marginBottom: 0 }}>
-                      <InputNumber min={1} addonAfter={help?.suffix} controls style={{ width: "100%" }} />
-                    </Form.Item>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+              <div className="platform-env-list">
+                {items.map(item => {
+                  const help = securityHelp[item.key];
+                  return (
+                    <div className="platform-env-row" key={item.key}>
+                      <div className="platform-env-meta">
+                        <div className="platform-env-title-line">
+                          <strong>{help?.title || item.label}</strong>
+                          <Popover
+                            placement="left"
+                            title={help?.title || item.label}
+                            content={
+                              <div className="platform-env-help">
+                                <p>{help?.summary || item.description}</p>
+                                {help?.tips?.map(tip => <div key={tip}>• {tip}</div>)}
+                              </div>
+                            }
+                          >
+                            <button className="platform-env-help-button" type="button" aria-label={`Giải thích ${item.key}`}>
+                              <FiHelpCircle />
+                            </button>
+                          </Popover>
+                        </div>
+                        <code>{item.key}</code>
+                        <p>{help?.summary || item.description}</p>
+                      </div>
+
+                      <Form.Item
+                        name={item.key}
+                        valuePropName={item.value_type === "bool" ? "checked" : "value"}
+                        style={{ marginBottom: 0 }}
+                      >
+                        {item.value_type === "bool" ? (
+                          <Switch checkedChildren="Bật" unCheckedChildren="Tắt" />
+                        ) : (
+                          <InputNumber min={0} addonAfter={help?.suffix} controls style={{ width: "100%" }} />
+                        )}
+                      </Form.Item>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </Form>
       </div>
 
