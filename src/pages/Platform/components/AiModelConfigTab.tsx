@@ -41,16 +41,6 @@ const aiModelHelp: Record<string, { title: string; summary: string; tips: string
     summary: "Chiều cao khung hình dùng khi xử lý xác thực, thường đi cùng frame width để giữ tỉ lệ hợp lý.",
     tips: ["480 đi cùng width 640 là cấu hình 4:3 ổn định.", "Không nên tăng riêng chiều cao quá nhiều nếu không cần.", "Giữ đồng bộ với camera để tránh crop hoặc scale xấu."],
   },
-  ATTENDANCE_ALLOW_CREATE_ANYTIME: {
-    title: "Cho tạo điểm danh ngoài lịch",
-    summary: "Cho phép giáo viên tạo phiên điểm danh dù hiện tại không nằm trong khung lịch lớp. Đây là tùy chọn vận hành, không phải thông số nhận diện.",
-    tips: ["Tắt để hệ thống bám lịch học chặt hơn.", "Bật khi trường hay có học bù, đổi tiết hoặc lịch thực tế linh hoạt.", "Nếu bật, nên audit thao tác tạo phiên để tránh lạm dụng."],
-  },
-  ATTENDANCE_CREATE_WINDOW_GRACE_MINUTES: {
-    title: "Khoảng nới lịch điểm danh",
-    summary: "Số phút nới thêm trước hoặc sau khung lịch khi kiểm tra quyền tạo phiên điểm danh.",
-    tips: ["5-10 phút phù hợp nếu giáo viên thường mở phiên sớm hoặc muộn.", "Để 0 nếu muốn đúng lịch tuyệt đối.", "Không nên đặt quá cao nếu không bật học linh hoạt."],
-  },
 };
 
 type AiModelConfigTabProps = {

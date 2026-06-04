@@ -116,7 +116,17 @@ export interface ClassSessionsResponse {
   total: number;
 }
 
+export interface AttendanceConfig {
+  allow_create_anytime: boolean;
+  create_window_grace_minutes: number;
+}
+
 // ============= API Functions =============
+
+export const getAttendanceConfig = async (): Promise<AttendanceConfig> => {
+  const response = await api.get(`${API_BASE}/config`);
+  return response.data;
+};
 
 /**
  * Bắt đầu phiên điểm danh với AI-Service

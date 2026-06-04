@@ -73,6 +73,7 @@ import AttendanceCamera from "../../components/AttendanceCamera";
 import TeacherClassPostsPanel from "../../components/TeacherClassPostsPanel";
 import {
   endAttendanceSession,
+  getAttendanceConfig,
   type SessionWithStats,
   getClassSessions as getClassSessionsAPI
 } from "../../apis/attendanceAPIs/attendanceAPIs";
@@ -95,12 +96,15 @@ const TIME_SLOTS: Record<number, { start: string; end: string }> = {
   10: { start: "17:00", end: "17:50" },
 };
 
-const ALLOW_CREATE_ATTENDANCE_ANYTIME =
-  String(import.meta.env.VITE_ATTENDANCE_ALLOW_CREATE_ANYTIME || "").toLowerCase() === "true";
-const ATTENDANCE_CREATE_WINDOW_GRACE_MINUTES = Number(
-  import.meta.env.VITE_ATTENDANCE_CREATE_WINDOW_GRACE_MINUTES || 0
-);
+interface AttendanceCreatePolicy {
+  allowCreateAnytime: boolean;
+  createWindowGraceMinutes: number;
+}
 
+const DEFAULT_ATTENDANCE_CREATE_POLICY: AttendanceCreatePolicy = {
+  allowCreateAnytime: false,
+  createWindowGraceMinutes: 0,
+};
 
 interface ClassData {
   id: number;
@@ -201,8 +205,8 @@ const parseTimeToday = (timeValue: string) => {
   return dayjs().hour(hour).minute(minute).second(0).millisecond(0);
 };
 
-const getSessionStartState = (day: number, periods: number[]) => {
-  if (ALLOW_CREATE_ATTENDANCE_ANYTIME) {
+const getSessionStartState = (day: number, periods: number[], policy: AttendanceCreatePolicy) => {
+  if (policy.allowCreateAnytime) {
     return { canStart: true };
   }
 
@@ -225,8 +229,8 @@ const getSessionStartState = (day: number, periods: number[]) => {
     return { canStart: false, disabledReason: "Tiết học không hợp lệ" };
   }
 
-  const grace = Number.isFinite(ATTENDANCE_CREATE_WINDOW_GRACE_MINUTES)
-    ? Math.max(ATTENDANCE_CREATE_WINDOW_GRACE_MINUTES, 0)
+  const grace = Number.isFinite(policy.createWindowGraceMinutes)
+    ? Math.max(policy.createWindowGraceMinutes, 0)
     : 0;
   const startTime = parseTimeToday(slotStart).subtract(grace, "minute");
   const endTime = parseTimeToday(slotEnd).add(grace, "minute");
@@ -290,6 +294,7 @@ const ClassDetailPage: React.FC = () => {
   const [classData, setClassData] = useState<ClassData | null>(null);
   const [loadingClass, setLoadingClass] = useState<boolean>(false);
   const [classError, setClassError] = useState<string | null>(null);
+  const [attendancePolicy, setAttendancePolicy] = useState<AttendanceCreatePolicy>(DEFAULT_ATTENDANCE_CREATE_POLICY);
 
   // ✅ Students state
   const [studentsData, setStudentsData] = useState<StudentDetailInClass[]>([]);
@@ -301,6 +306,23 @@ const ClassDetailPage: React.FC = () => {
 
   // ✅ Schedule collapse state
   const [isScheduleExpanded, setIsScheduleExpanded] = useState(false);
+
+  useEffect(() => {
+    const fetchAttendancePolicy = async () => {
+      try {
+        const config = await getAttendanceConfig();
+        setAttendancePolicy({
+          allowCreateAnytime: Boolean(config.allow_create_anytime),
+          createWindowGraceMinutes: Number(config.create_window_grace_minutes || 0),
+        });
+      } catch (error) {
+        console.error("Failed to load attendance config:", error);
+        setAttendancePolicy(DEFAULT_ATTENDANCE_CREATE_POLICY);
+      }
+    };
+
+    void fetchAttendancePolicy();
+  }, []);
 
   const weekDays = [
     { value: 0, label: "Thứ Hai" },
@@ -431,7 +453,7 @@ const ClassDetailPage: React.FC = () => {
       const end = periods[periods.length - 1];
       const startTime = TIME_SLOTS[start]?.start || '00:00';
       const endTime = TIME_SLOTS[end]?.end || '00:00';
-      const startState = getSessionStartState(day, periods);
+      const startState = getSessionStartState(day, periods, attendancePolicy);
 
       sessions.push({
         day,
