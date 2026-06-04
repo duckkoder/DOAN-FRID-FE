@@ -6,41 +6,6 @@ import { FiCheckCircle, FiCpu, FiHelpCircle, FiRefreshCw, FiSave, FiSettings, Fi
 import type { PlatformEnvConfigItem } from "@/apis/platformAPIs/platform";
 
 const aiModelHelp: Record<string, { title: string; summary: string; tips: string[] }> = {
-  AI_CONFIDENCE_THRESHOLD: {
-    title: "Ngưỡng xác nhận AI",
-    summary: "Điểm tin cậy trung bình tối thiểu để hệ thống tự xác nhận sinh viên có mặt. Dưới ngưỡng này, bản ghi sẽ chuyển sang trạng thái cần giáo viên xác nhận.",
-    tips: ["0.70 là mức cân bằng thường dùng.", "Tăng lên 0.80-0.90 để giảm nhận nhầm, nhưng sẽ có nhiều bản ghi chờ duyệt hơn.", "Giảm dưới 0.70 chỉ nên dùng khi camera và ánh sáng ổn định."],
-  },
-  FACE_VERIFICATION_FPS: {
-    title: "FPS xử lý",
-    summary: "Số frame mỗi giây gửi vào luồng xác thực khuôn mặt. FPS cao phản hồi nhanh hơn nhưng tốn tài nguyên AI service và băng thông hơn.",
-    tips: ["8-12 FPS phù hợp cho lớp học thông thường.", "Giảm FPS nếu máy AI service yếu hoặc nhiều lớp điểm danh cùng lúc.", "Tăng FPS khi cần bắt chuyển động nhanh và mạng ổn định."],
-  },
-  FACE_VERIFICATION_JPEG_QUALITY: {
-    title: "Chất lượng JPEG",
-    summary: "Mức nén ảnh gửi sang AI service. Giá trị cao giữ chi tiết khuôn mặt tốt hơn nhưng file lớn hơn.",
-    tips: ["80 là mức cân bằng.", "70-75 phù hợp khi mạng yếu.", "85-90 phù hợp khi cần ảnh rõ hơn, đổi lại upload nặng hơn."],
-  },
-  FACE_VERIFICATION_TIMEOUT: {
-    title: "Timeout phiên xác thực",
-    summary: "Thời gian tối đa một phiên xác thực khuôn mặt được phép chạy trước khi hệ thống coi là hết hạn.",
-    tips: ["300 giây tương đương 5 phút.", "Tăng khi lớp đông hoặc quy trình điểm danh chậm.", "Giảm khi muốn giải phóng session AI nhanh hơn."],
-  },
-  FACE_VERIFICATION_MIN_FACE_WIDTH: {
-    title: "Kích thước mặt tối thiểu",
-    summary: "Chiều rộng khuôn mặt tối thiểu trong frame để frame được chấp nhận. Giá trị cao buộc khuôn mặt gần và rõ hơn.",
-    tips: ["200px giúp giảm ảnh mặt quá xa hoặc mờ.", "Giảm nếu camera đặt xa.", "Tăng nếu hay bị nhận sai do mặt quá nhỏ."],
-  },
-  FACE_VERIFICATION_FRAME_WIDTH: {
-    title: "Chiều rộng frame",
-    summary: "Chiều rộng khung hình dùng khi xử lý xác thực. Kích thước cao tăng chi tiết nhưng cũng tăng tải xử lý.",
-    tips: ["640 là mức phổ biến cho realtime.", "Tăng nếu camera tốt và AI service đủ mạnh.", "Giảm nếu bị lag hoặc mạng yếu."],
-  },
-  FACE_VERIFICATION_FRAME_HEIGHT: {
-    title: "Chiều cao frame",
-    summary: "Chiều cao khung hình dùng khi xử lý xác thực, thường đi cùng frame width để giữ tỉ lệ hợp lý.",
-    tips: ["480 đi cùng width 640 là cấu hình 4:3 ổn định.", "Không nên tăng riêng chiều cao quá nhiều nếu không cần.", "Giữ đồng bộ với camera để tránh crop hoặc scale xấu."],
-  },
 };
 
 type AiModelConfigTabProps = {
@@ -63,8 +28,7 @@ const renderInput = (item: PlatformEnvConfigItem) => {
   if (item.value_type === "float") {
     return (
       <InputNumber
-        min={item.key === "AI_CONFIDENCE_THRESHOLD" ? 0 : undefined}
-        max={item.key === "AI_CONFIDENCE_THRESHOLD" ? 1 : undefined}
+        min={0}
         step={0.01}
         controls
         style={{ width: "100%" }}

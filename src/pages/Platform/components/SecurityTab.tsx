@@ -46,11 +46,10 @@ const securityHelp: Record<string, { title: string; summary: string; tips: strin
     tips: ["120 phút phù hợp với lớp dài hoặc thao tác chậm.", "Nếu đặt quá ngắn, phiên điểm danh có thể rớt giữa chừng.", "Nếu lớp thường ngắn, có thể đặt 60-90 phút."],
     suffix: "phút",
   },
-  FACE_VERIFICATION_TIMEOUT: {
-    title: "Timeout xác thực khuôn mặt",
-    summary: "Thời gian tối đa một phiên xác thực khuôn mặt được phép chạy trước khi hệ thống coi là hết hạn.",
-    tips: ["300 giây tương đương 5 phút.", "Tăng nếu quy trình đăng ký hoặc điểm danh cần nhiều thời gian hơn.", "Giảm nếu muốn giải phóng phiên nhanh hơn."],
-    suffix: "giây",
+  AI_CONFIDENCE_THRESHOLD: {
+    title: "Ngưỡng tự xác nhận điểm danh",
+    summary: "Backend dùng ngưỡng này sau khi nhận avg_confidence từ AI callback. Đủ ngưỡng thì tự ghi PRESENT, thấp hơn thì để PENDING cho giáo viên duyệt.",
+    tips: ["0.70 là mức cân bằng thường dùng.", "Tăng lên 0.80-0.90 để giảm nhận nhầm nhưng sẽ có nhiều bản ghi chờ duyệt hơn.", "Đây là rule xử lý điểm danh của backend, không phải threshold model trong AI service."],
   },
   ATTENDANCE_ALLOW_CREATE_ANYTIME: {
     title: "Tạo điểm danh ngoài lịch",
