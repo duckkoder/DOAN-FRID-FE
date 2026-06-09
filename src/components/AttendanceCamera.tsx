@@ -36,7 +36,6 @@ import ConfirmedStudentsPanel from './ConfirmedStudentsPanel';
 const { Text } = Typography;
 
 const LABEL_CACHE_TTL_MS = 1500;
-const BBOX_SMOOTHING_ALPHA = 0.35;
 const readNumberEnv = (key: string, fallback: number) => {
   const raw = import.meta.env?.[key] as string | undefined;
   const value = raw ? Number(raw) : NaN;
@@ -53,6 +52,10 @@ const ATTENDANCE_CAMERA_JPEG_QUALITY = Math.min(
 const ATTENDANCE_CAMERA_MAX_WIDTH = readNumberEnv('VITE_ATTENDANCE_CAMERA_MAX_WIDTH', 960);
 const ATTENDANCE_CAMERA_MAX_HEIGHT = readNumberEnv('VITE_ATTENDANCE_CAMERA_MAX_HEIGHT', 540);
 const ATTENDANCE_WS_MAX_BUFFERED_BYTES = readNumberEnv('VITE_ATTENDANCE_WS_MAX_BUFFERED_BYTES', 256 * 1024);
+const BBOX_SMOOTHING_ALPHA = Math.min(
+  1,
+  Math.max(0, readNumberEnv('VITE_ATTENDANCE_BBOX_SMOOTHING_ALPHA', 0.75))
+);
 
 interface AttendanceCameraProps {
   classId: number;
@@ -672,13 +675,19 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
     const drawDetections = () => {
       if (!isRunning) return;
       
-      // Get video element display size (getBoundingClientRect)
       const rect = video.getBoundingClientRect();
-      
-      // Set canvas size to match video display size exactly
-      if (canvas.width !== rect.width || canvas.height !== rect.height) {
-        canvas.width = rect.width;
-        canvas.height = rect.height;
+
+      const dpr = window.devicePixelRatio || 1;
+      const cssWidth = Math.max(1, rect.width);
+      const cssHeight = Math.max(1, rect.height);
+      const backingWidth = Math.round(cssWidth * dpr);
+      const backingHeight = Math.round(cssHeight * dpr);
+
+      if (canvas.width !== backingWidth || canvas.height !== backingHeight) {
+        canvas.width = backingWidth;
+        canvas.height = backingHeight;
+        canvas.style.width = `${cssWidth}px`;
+        canvas.style.height = `${cssHeight}px`;
       }
       
       const ctx = canvas.getContext('2d');
@@ -686,9 +695,11 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         animationFrameId = requestAnimationFrame(drawDetections);
         return;
       }
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       
       // Clear canvas
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, cssWidth, cssHeight);
 
       // If no detections or video not ready, continue loop
       if (detections.length === 0 || video.videoWidth === 0 || video.videoHeight === 0) {
@@ -702,7 +713,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       const videoHeight = frameCaptureStats.frameHeight || video.videoHeight;
       
       const videoAspect = videoWidth / videoHeight;
-      const containerAspect = canvas.width / canvas.height;
+      const containerAspect = cssWidth / cssHeight;
       
       let scaleX, scaleY, offsetX, offsetY;
       
@@ -711,23 +722,23 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       if (videoAspect > containerAspect) {
         // Video is wider than container - fit to height, crop left/right
         // Video height fills container height completely
-        scaleY = canvas.height / videoHeight;
+        scaleY = cssHeight / videoHeight;
         scaleX = scaleY; // Same scale to maintain aspect ratio
         
         // Calculate how much is cropped from left and right
         const renderedWidth = videoWidth * scaleX;
-        offsetX = (canvas.width - renderedWidth) / 2;
+        offsetX = (cssWidth - renderedWidth) / 2;
         offsetY = 0;
       } else {
         // Video is taller/equal - fit to width, crop top/bottom  
         // Video width fills container width completely
-        scaleX = canvas.width / videoWidth;
+        scaleX = cssWidth / videoWidth;
         scaleY = scaleX; // Same scale to maintain aspect ratio
         
         // Calculate how much is cropped from top and bottom
         const renderedHeight = videoHeight * scaleY;
         offsetX = 0;
-        offsetY = (canvas.height - renderedHeight) / 2;
+        offsetY = (cssHeight - renderedHeight) / 2;
       }
     
       // Draw each detection
@@ -739,8 +750,13 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         const displayY1 = y1 * scaleY + offsetY;
         const displayX2 = x2 * scaleX + offsetX;
         const displayY2 = y2 * scaleY + offsetY;
-        const width = displayX2 - displayX1;
-        const height = displayY2 - displayY1;
+        const clampedX1 = Math.max(0, Math.min(cssWidth, displayX1));
+        const clampedY1 = Math.max(0, Math.min(cssHeight, displayY1));
+        const clampedX2 = Math.max(0, Math.min(cssWidth, displayX2));
+        const clampedY2 = Math.max(0, Math.min(cssHeight, displayY2));
+        const width = clampedX2 - clampedX1;
+        const height = clampedY2 - clampedY1;
+        if (width <= 1 || height <= 1) return;
       
       // ✅ DETERMINE ANTI-SPOOFING STATUS - HIGHEST PRIORITY
       // Only use is_live which already has threshold applied from backend
@@ -821,31 +837,33 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       // Draw bounding box with determined color
       ctx.strokeStyle = color;
       ctx.lineWidth = lineWidth;
-      ctx.strokeRect(displayX1, displayY1, width, height);
+      ctx.strokeRect(clampedX1, clampedY1, width, height);
 
       if (labelText) {
         ctx.font = 'bold 14px Arial';
         const textMetrics = ctx.measureText(labelText);
         const textWidth = textMetrics.width + 10;
         const textHeight = 20;
+        const labelX = Math.max(0, Math.min(cssWidth - textWidth, clampedX1));
+        const labelY = clampedY1 - textHeight - 5 >= 0 ? clampedY1 - textHeight - 5 : clampedY1 + 5;
 
         // Draw label background - use labelColor instead of color
         ctx.fillStyle = labelColor;
-        ctx.fillRect(displayX1, displayY1 - textHeight - 5, textWidth, textHeight);
+        ctx.fillRect(labelX, labelY, textWidth, textHeight);
 
         // Draw label text
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(labelText, displayX1 + 5, displayY1 - 10);
+        ctx.fillText(labelText, labelX + 5, labelY + 15);
       }
       
         // Draw track ID if available
         if (detection.track_id) {
           const trackLabel = `#${detection.track_id}`;
           ctx.fillStyle = labelColor; // Use labelColor for consistency
-          ctx.fillRect(displayX2 - 40, displayY1, 40, 20);
+          ctx.fillRect(clampedX2 - 40, clampedY1, 40, 20);
           ctx.fillStyle = '#ffffff';
           ctx.font = 'bold 12px Arial';
-          ctx.fillText(trackLabel, displayX2 - 35, displayY1 + 14);
+          ctx.fillText(trackLabel, clampedX2 - 35, clampedY1 + 14);
         }
       });
       
