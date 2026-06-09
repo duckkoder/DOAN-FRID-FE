@@ -36,6 +36,8 @@ import ConfirmedStudentsPanel from './ConfirmedStudentsPanel';
 const { Text } = Typography;
 
 const LABEL_CACHE_TTL_MS = 1500;
+const LABEL_CACHE_MIN_IOU = 0.2;
+const BBOX_SMOOTH_MIN_IOU = 0.15;
 const readNumberEnv = (key: string, fallback: number) => {
   const raw = import.meta.env?.[key] as string | undefined;
   const value = raw ? Number(raw) : NaN;
@@ -96,6 +98,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   // Detection & Recognition states
   const [detections, setDetections] = useState<DetectionInfo[]>([]);
   const [totalFaces, setTotalFaces] = useState(0);
+  const [detectionFrameSize, setDetectionFrameSize] = useState<{ width: number; height: number } | null>(null);
   
   // ✅ Frame capture stats từ hook
   const [captureStats, setCaptureStats] = useState({ fps: 0, skipped: 0 });
@@ -173,12 +176,11 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
     const direct = detectionCacheRef.current.get(cacheKey);
     const isTrackMatch = detection.track_id !== null && detection.track_id !== undefined;
 
-    if (
-      direct &&
-      now - direct.lastSeenAt <= LABEL_CACHE_TTL_MS &&
-      (isTrackMatch || getBboxIou(direct.bbox, detection.bbox) >= 0.35)
-    ) {
-      return direct;
+    if (direct && now - direct.lastSeenAt <= LABEL_CACHE_TTL_MS) {
+      const iou = getBboxIou(direct.bbox, detection.bbox);
+      if ((isTrackMatch && iou >= LABEL_CACHE_MIN_IOU) || iou >= 0.35) {
+        return direct;
+      }
     }
 
     let bestMatch: CachedDetectionInfo | undefined;
@@ -217,8 +219,12 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
     return incoming.map((detection, index) => {
       const indexedPrior = previous[index];
       const prior = previous.find(prev =>
-        (detection.track_id !== null && prev.track_id === detection.track_id) ||
-        getBboxIou(prev.bbox, detection.bbox) >= 0.35
+        getBboxIou(prev.bbox, detection.bbox) >= 0.35 ||
+        (
+          detection.track_id !== null &&
+          prev.track_id === detection.track_id &&
+          getBboxIou(prev.bbox, detection.bbox) >= BBOX_SMOOTH_MIN_IOU
+        )
       ) ?? (
         indexedPrior && getBboxIou(indexedPrior.bbox, detection.bbox) >= 0.35
           ? indexedPrior
@@ -229,23 +235,25 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         ? findCachedDetection(detection, index, now)
         : undefined;
       const source = cached ?? prior;
+      const sourceIou = source ? getBboxIou(source.bbox, detection.bbox) : 0;
+      const canCarryStableLabel = sourceIou >= LABEL_CACHE_MIN_IOU;
       const merged = source
         ? {
-            ...source,
+            ...(canCarryStableLabel ? source : {}),
             ...detection,
-            bbox: smoothBbox(source.bbox, detection.bbox),
+            bbox: sourceIou >= BBOX_SMOOTH_MIN_IOU ? smoothBbox(source.bbox, detection.bbox) : detection.bbox,
             student_id: detection.student_id && detection.student_id !== 'Unknown'
               ? detection.student_id
-              : source.student_id,
+              : canCarryStableLabel ? source.student_id : detection.student_id,
             student_name: detection.student_name && detection.student_name !== 'Unknown'
               ? detection.student_name
-              : source.student_name,
-            recognition_confidence: detection.recognition_confidence ?? source.recognition_confidence,
-            is_live: detection.is_live ?? source.is_live,
-            spoofing_type: detection.spoofing_type ?? source.spoofing_type,
-            spoofing_confidence: detection.spoofing_confidence ?? source.spoofing_confidence,
-            status: detection.status ?? source.status,
-            is_validated: detection.is_validated ?? source.is_validated,
+              : canCarryStableLabel ? source.student_name : detection.student_name,
+            recognition_confidence: detection.recognition_confidence ?? (canCarryStableLabel ? source.recognition_confidence : undefined),
+            is_live: detection.is_live ?? (canCarryStableLabel ? source.is_live : undefined),
+            spoofing_type: detection.spoofing_type ?? (canCarryStableLabel ? source.spoofing_type : undefined),
+            spoofing_confidence: detection.spoofing_confidence ?? (canCarryStableLabel ? source.spoofing_confidence : undefined),
+            status: detection.status ?? (canCarryStableLabel ? source.status : undefined),
+            is_validated: detection.is_validated ?? (canCarryStableLabel ? source.is_validated : undefined),
           } as DetectionInfo
         : detection;
 
@@ -340,6 +348,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       // ✅ Reset tất cả states khi mở modal mới
       setDetections([]);
       setTotalFaces(0);
+      setDetectionFrameSize(null);
       setCaptureStats({ fps: 0, skipped: 0 });
       setError(null);
       setCameraActive(false);
@@ -595,7 +604,10 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         }
       });
 
-      wsClient.onFrameProcessed((detections, totalFaces, processingStage, heavyProcessed) => {
+      wsClient.onFrameProcessed((detections, totalFaces, processingStage, heavyProcessed, frameSize) => {
+        if (frameSize?.width && frameSize?.height) {
+          setDetectionFrameSize(frameSize);
+        }
         setDetections(prev => mergeDetectionUpdates(prev, detections, processingStage, heavyProcessed));
         setTotalFaces(totalFaces);
         
@@ -709,8 +721,8 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
 
       // BBox coordinates come from the encoded frame sent to AI, which may be
       // downscaled from the camera stream. Scale from that coordinate space.
-      const videoWidth = frameCaptureStats.frameWidth || video.videoWidth;
-      const videoHeight = frameCaptureStats.frameHeight || video.videoHeight;
+      const videoWidth = detectionFrameSize?.width || frameCaptureStats.frameWidth || video.videoWidth;
+      const videoHeight = detectionFrameSize?.height || frameCaptureStats.frameHeight || video.videoHeight;
       
       const videoAspect = videoWidth / videoHeight;
       const containerAspect = cssWidth / cssHeight;
@@ -880,7 +892,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [detections, frameCaptureStats.frameWidth, frameCaptureStats.frameHeight]);
+  }, [detections, detectionFrameSize, frameCaptureStats.frameWidth, frameCaptureStats.frameHeight]);
 
   /**
    * Stop session
