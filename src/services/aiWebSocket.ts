@@ -211,12 +211,18 @@ export class AIWebSocketClient {
   /**
    * Send frame to AI-Service
    */
-  sendFrame(frameBlob: Blob) {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(frameBlob);
-    } else {
+  sendFrame(frameBlob: Blob, maxBufferedBytes = 256 * 1024): boolean {
+    if (this.ws?.readyState !== WebSocket.OPEN) {
       console.warn('[AIWebSocket] Cannot send frame, connection not open');
+      return false;
     }
+
+    if (this.ws.bufferedAmount > maxBufferedBytes) {
+      return false;
+    }
+
+    this.ws.send(frameBlob);
+    return true;
   }
 
   /**

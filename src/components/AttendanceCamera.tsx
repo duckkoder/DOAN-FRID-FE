@@ -37,6 +37,22 @@ const { Text } = Typography;
 
 const LABEL_CACHE_TTL_MS = 1500;
 const BBOX_SMOOTHING_ALPHA = 0.35;
+const readNumberEnv = (key: string, fallback: number) => {
+  const raw = import.meta.env?.[key] as string | undefined;
+  const value = raw ? Number(raw) : NaN;
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+};
+
+const ATTENDANCE_CAMERA_FPS = readNumberEnv('VITE_ATTENDANCE_CAMERA_FPS', 5);
+const ATTENDANCE_CAMERA_MIN_FPS = readNumberEnv('VITE_ATTENDANCE_CAMERA_MIN_FPS', 2);
+const ATTENDANCE_CAMERA_MAX_FPS = readNumberEnv('VITE_ATTENDANCE_CAMERA_MAX_FPS', 5);
+const ATTENDANCE_CAMERA_JPEG_QUALITY = Math.min(
+  1,
+  Math.max(0.35, readNumberEnv('VITE_ATTENDANCE_CAMERA_JPEG_QUALITY', 0.65))
+);
+const ATTENDANCE_CAMERA_MAX_WIDTH = readNumberEnv('VITE_ATTENDANCE_CAMERA_MAX_WIDTH', 960);
+const ATTENDANCE_CAMERA_MAX_HEIGHT = readNumberEnv('VITE_ATTENDANCE_CAMERA_MAX_HEIGHT', 540);
+const ATTENDANCE_WS_MAX_BUFFERED_BYTES = readNumberEnv('VITE_ATTENDANCE_WS_MAX_BUFFERED_BYTES', 256 * 1024);
 
 interface AttendanceCameraProps {
   classId: number;
@@ -248,16 +264,17 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
     markFrameComplete, 
     stats: frameCaptureStats 
   } = useFrameCapture({
-    targetFps: 10,
-    minFps: 3,
-    maxFps: 15,
-    quality: 0.8,
+    targetFps: ATTENDANCE_CAMERA_FPS,
+    minFps: ATTENDANCE_CAMERA_MIN_FPS,
+    maxFps: ATTENDANCE_CAMERA_MAX_FPS,
+    quality: ATTENDANCE_CAMERA_JPEG_QUALITY,
+    maxWidth: ATTENDANCE_CAMERA_MAX_WIDTH,
+    maxHeight: ATTENDANCE_CAMERA_MAX_HEIGHT,
     useWorker: true,
     onFrameReady: (blob) => {
-      if (wsClientRef.current?.isConnected()) {
-        wsClientRef.current.sendFrame(blob);
-      } else {
-        markFrameComplete(); // Reset nếu không gửi được
+      const sent = wsClientRef.current?.sendFrame(blob, ATTENDANCE_WS_MAX_BUFFERED_BYTES) ?? false;
+      if (!sent) {
+        markFrameComplete();
       }
     },
     onError: (error) => {
@@ -276,9 +293,15 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
   }, [frameCaptureStats.actualFps, frameCaptureStats.skippedFrames]);
 
   // Smart polling cho attendance records từ Backend
-  const { data: attendanceData, currentInterval } = useSmartPolling({
+  const {
+    data: attendanceData,
+    currentInterval,
+    refresh: refreshAttendanceData,
+  } = useSmartPolling({
     sessionId: sessionInfo?.session_id || null,
     enabled: sessionInfo !== null && wsConnected,
+    initialInterval: 1000,
+    maxInterval: 3000,
   });
 
   /**
@@ -580,8 +603,23 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
       });
 
       wsClient.onStudentValidated((student) => {
-        
-        // Validated student info will be fetched from backend via polling
+        refreshAttendanceData();
+        setDetections(prev => prev.map(detection => {
+          const sameStudent = detection.student_code === student.student_code
+            || detection.student_id === student.student_code;
+          const sameTrack = detection.track_id === student.track_id;
+          if (!sameStudent && !sameTrack) return detection;
+
+          return {
+            ...detection,
+            student_id: student.student_code,
+            student_code: student.student_code,
+            student_name: student.student_name || student.student_code,
+            recognition_confidence: student.avg_confidence,
+            is_validated: true,
+            status: 'validated' as const,
+          };
+        }));
       });
 
       wsClient.onSessionStatus((status, stats) => {
@@ -658,10 +696,10 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         return;
       }
 
-      // Calculate aspect ratio and scaling for object-fit: cover
-      // Video actual resolution (from camera stream)
-      const videoWidth = video.videoWidth;
-      const videoHeight = video.videoHeight;
+      // BBox coordinates come from the encoded frame sent to AI, which may be
+      // downscaled from the camera stream. Scale from that coordinate space.
+      const videoWidth = frameCaptureStats.frameWidth || video.videoWidth;
+      const videoHeight = frameCaptureStats.frameHeight || video.videoHeight;
       
       const videoAspect = videoWidth / videoHeight;
       const containerAspect = canvas.width / canvas.height;
@@ -824,7 +862,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [detections]);
+  }, [detections, frameCaptureStats.frameWidth, frameCaptureStats.frameHeight]);
 
   /**
    * Stop session
@@ -1020,6 +1058,11 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
               <Text type="secondary" style={{ fontSize: isMobile ? 10 : 12 }}>
                 {captureStats.fps} FPS
               </Text>
+              {captureStats.skipped > 0 && (
+                <Text type="secondary" style={{ fontSize: isMobile ? 10 : 12 }}>
+                  Skip: {captureStats.skipped}
+                </Text>
+              )}
               <Text type="secondary" style={{ fontSize: isMobile ? 10 : 12 }}>
                 Faces: {totalFaces}
               </Text>
@@ -1149,6 +1192,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
           >
             <Space size={8}>
               <Text style={{ color: '#fff', fontSize: 10 }}>{captureStats.fps} FPS</Text>
+              {captureStats.skipped > 0 && <Text style={{ color: '#fff', fontSize: 10 }}>Skip: {captureStats.skipped}</Text>}
               <Text style={{ color: '#fff', fontSize: 10 }}>Faces: {totalFaces}</Text>
               {wsConnected && <Tag color="success" style={{ fontSize: 9, padding: '0 4px', margin: 0 }}>OK</Tag>}
             </Space>
@@ -1592,9 +1636,7 @@ const AttendanceCamera: React.FC<AttendanceCameraProps> = ({
         onClose={() => setPendingPanelVisible(false)}
         sessionId={sessionInfo?.session_id || null}
         onConfirmed={() => {
-          // Force refresh polling data ngay lập tức sau khi xác nhận
-          
-          // Smart polling sẽ tự động fetch lại trong vài giây
+          refreshAttendanceData();
         }}
       />
     </Modal>

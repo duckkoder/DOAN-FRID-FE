@@ -74,18 +74,10 @@ const headerIconStyle: React.CSSProperties = {
 
 // Time slots mapping moved to src/constants/mappings.ts
 
-// day_of_week from backend: 0=Sun, 1=Mon, ..., 6=Sat (JS standard)
+// day_of_week from backend: 0=Monday, ..., 6=Sunday.
 const getDayOfWeekText = (dayOfWeek: number): string => {
-  const map: Record<number, string> = {
-    0: "Chủ Nhật",
-    1: "Thứ Hai",
-    2: "Thứ Ba",
-    3: "Thứ Tư",
-    4: "Thứ Năm",
-    5: "Thứ Sáu",
-    6: "Thứ Bảy",
-  };
-  return map[dayOfWeek] ?? `Ngày ${dayOfWeek}`;
+  const dayLabels = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"];
+  return dayLabels[dayOfWeek] ?? `Ngày ${dayOfWeek}`;
 };
 
 const getAttendanceStatusConfig = (status: string | null | undefined) => {

@@ -83,8 +83,13 @@ const TeacherLeaveRequestPage: React.FC = () => {
     { title: "Quản lý Đơn Xin Nghỉ" }
   ];
 
-  // ✅ Convert English day to Vietnamese
-  const convertDayToVietnamese = (englishDay: string): string => {
+  const convertDayToVietnamese = (day: string | number | null | undefined): string => {
+    if (day === null || day === undefined || day === "") return "N/A";
+    if (typeof day === "number") {
+      const dayLabels = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"];
+      return dayLabels[day] || `Ngày ${day}`;
+    }
+
     const dayMap: { [key: string]: string } = {
       'Monday': 'Thứ Hai',
       'Tuesday': 'Thứ Ba',
@@ -94,7 +99,7 @@ const TeacherLeaveRequestPage: React.FC = () => {
       'Saturday': 'Thứ Bảy',
       'Sunday': 'Chủ Nhật'
     };
-    return dayMap[englishDay] || englishDay;
+    return dayMap[day] || day;
   };
 
   // ✅ Fetch data when filters change

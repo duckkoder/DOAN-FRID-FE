@@ -894,10 +894,10 @@ const ClassDetailPage: React.FC = () => {
       title: 'Phiên Điểm danh',
       key: 'session',
       render: (record: SessionWithStats) => {
-        // ✅ Fix: Chuyển đổi day_of_week (0=Chủ Nhật, 1=Thứ Hai, ...) sang nhãn tiếng Việt
-        const dayLabels = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+        // Backend stores day_of_week as 0=Monday, ..., 6=Sunday.
+        const normalizedDayLabels = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ Nhật'];
         const dayLabel = record.day_of_week !== null && record.day_of_week !== undefined
-          ? dayLabels[record.day_of_week]
+          ? normalizedDayLabels[record.day_of_week]
           : 'N/A';
 
         // ✅ Cơ sở dữ liệu đã lưu giờ Việt Nam, hiển thị trực tiếp

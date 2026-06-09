@@ -25,7 +25,7 @@ function ensureCanvas(width, height) {
  * Process frame: draw ImageBitmap and convert to Blob
  * Auto-initializes canvas based on ImageBitmap size
  */
-async function processFrame(imageBitmap, quality) {
+async function processFrame(imageBitmap, quality, maxWidth, maxHeight) {
   // Validate ImageBitmap
   if (!imageBitmap) {
     throw new Error('ImageBitmap is null or undefined');
@@ -35,12 +35,18 @@ async function processFrame(imageBitmap, quality) {
     throw new Error('Invalid ImageBitmap - missing dimensions');
   }
 
-  const width = imageBitmap.width;
-  const height = imageBitmap.height;
+  const sourceWidth = imageBitmap.width;
+  const sourceHeight = imageBitmap.height;
   
-  if (width === 0 || height === 0) {
+  if (sourceWidth === 0 || sourceHeight === 0) {
     throw new Error('ImageBitmap has zero dimensions');
   }
+
+  const limitWidth = Number(maxWidth) || 960;
+  const limitHeight = Number(maxHeight) || 540;
+  const scale = Math.min(1, limitWidth / sourceWidth, limitHeight / sourceHeight);
+  const width = Math.max(1, Math.round(sourceWidth * scale));
+  const height = Math.max(1, Math.round(sourceHeight * scale));
   
   // Auto-init canvas với kích thước của ImageBitmap
   if (!ensureCanvas(width, height)) {
@@ -49,7 +55,7 @@ async function processFrame(imageBitmap, quality) {
   }
 
   // Draw image
-  offscreenCtx.drawImage(imageBitmap, 0, 0);
+  offscreenCtx.drawImage(imageBitmap, 0, 0, width, height);
   
   // Close the ImageBitmap to free memory
   if (imageBitmap.close) {
@@ -76,7 +82,12 @@ workerSelf.onmessage = async function(event) {
       case 'processFrame': {
         const startTime = performance.now();
         // imageBitmap và quality nằm trực tiếp trong message
-        const blob = await processFrame(message.imageBitmap, message.quality);
+        const blob = await processFrame(
+          message.imageBitmap,
+          message.quality,
+          message.maxWidth,
+          message.maxHeight
+        );
         const processingTime = performance.now() - startTime;
         
         // Send blob back to main thread

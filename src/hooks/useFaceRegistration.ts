@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { message as antMessage } from "antd";
-import { getAccessToken } from "../apis/axios";
+import { getFreshAccessToken } from "../apis/axios";
 import type {
   FaceRegistrationOptions,
   ProcessedFrame,
@@ -53,11 +53,20 @@ interface UseFaceRegistrationReturn {
   confirmImages: (accept: boolean) => void; // New: confirm collected images
 }
 
-// Get WebSocket URL from environment variable
-const DEFAULT_SERVER_URL = import.meta.env.VITE_WS_BASE_URL || "ws://localhost:8000";
+// Face registration runs on the Backend WebSocket, not the AI service WebSocket.
+const DEFAULT_SERVER_URL = import.meta.env.VITE_WS_FaceRegister_URL || "ws://localhost:8000";
 const DEFAULT_FPS = 10;
 const MAX_RECONNECT_ATTEMPTS = 3;
 const RECONNECT_DELAY = 2000; // 2 seconds
+const FACE_REGISTRATION_WS_PATH = "/api/v1/ws/face-registration";
+
+const buildFaceRegistrationWsUrl = (baseUrl: string, studentId: number, token: string | null) => {
+  const trimmedBase = baseUrl.replace(/\/$/, "");
+  const endpoint = trimmedBase.endsWith(FACE_REGISTRATION_WS_PATH)
+    ? `${trimmedBase}/${studentId}`
+    : `${trimmedBase}${FACE_REGISTRATION_WS_PATH}/${studentId}`;
+  return token ? `${endpoint}?token=${encodeURIComponent(token)}` : endpoint;
+};
 
 export function useFaceRegistration({
   studentId,
@@ -323,7 +332,7 @@ export function useFaceRegistration({
   /**
    * Connect WebSocket
    */
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     // Clear existing reconnect timeout
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
@@ -336,11 +345,9 @@ export function useFaceRegistration({
       wsRef.current = null;
     }
 
-    // Always get fresh URL from environment variable to support mobile testing
-    const wsBaseUrl = import.meta.env.VITE_WS_BASE_URL || serverUrl;
-    const token = getAccessToken();
-    const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : "";
-    const wsUrl = `${wsBaseUrl}/api/v1/ws/face-registration/${studentId}${tokenQuery}`;
+    const wsBaseUrl = import.meta.env.VITE_WS_FaceRegister_URL || serverUrl;
+    const token = await getFreshAccessToken();
+    const wsUrl = buildFaceRegistrationWsUrl(wsBaseUrl, studentId, token);
     
 
     setConnectionStatus("connecting");
@@ -378,7 +385,7 @@ export function useFaceRegistration({
 
     wsRef.current = ws;
   }, [
-    , serverUrl, handleMessage, attemptReconnect]);
+    studentId, serverUrl, handleMessage, attemptReconnect]);
 
   /**
    * Disconnect WebSocket

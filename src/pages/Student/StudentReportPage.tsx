@@ -85,7 +85,13 @@ const StudentReportPage: React.FC = () => {
   ];
 
   // ✅ Convert English day to Vietnamese
-  const convertDayToVietnamese = (englishDay: string): string => {
+  const convertDayToVietnamese = (englishDay: string | number | null | undefined): string => {
+    if (englishDay === null || englishDay === undefined || englishDay === "") return "N/A";
+    if (typeof englishDay === "number") {
+      const dayLabels = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"];
+      return dayLabels[englishDay] || `Ngày ${englishDay}`;
+    }
+
     const dayMap: { [key: string]: string } = {
       'Monday': 'Thứ Hai',
       'Tuesday': 'Thứ Ba',

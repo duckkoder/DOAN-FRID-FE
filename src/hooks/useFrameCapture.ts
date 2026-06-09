@@ -18,6 +18,10 @@ interface FrameCaptureConfig {
   maxFps?: number;
   /** JPEG quality (0-1, default: 0.8) */
   quality?: number;
+  /** Max encoded frame width before sending to AI */
+  maxWidth?: number;
+  /** Max encoded frame height before sending to AI */
+  maxHeight?: number;
   /** Enable Web Worker (default: true, fallback nếu không support) */
   useWorker?: boolean;
   /** Callback khi frame ready */
@@ -39,6 +43,8 @@ interface FrameCaptureStats {
   skippedFrames: number;
   /** Worker có đang được sử dụng không */
   usingWorker: boolean;
+  frameWidth: number;
+  frameHeight: number;
 }
 
 interface UseFrameCaptureReturn {
@@ -60,6 +66,8 @@ export function useFrameCapture(config: FrameCaptureConfig = {}): UseFrameCaptur
     minFps = 2,
     maxFps = 15,
     quality = 0.8,
+    maxWidth = 960,
+    maxHeight = 540,
     useWorker = true,
     onFrameReady,
     onError,
@@ -87,6 +95,8 @@ export function useFrameCapture(config: FrameCaptureConfig = {}): UseFrameCaptur
     avgProcessingTime: 0,
     skippedFrames: 0,
     usingWorker: false,
+    frameWidth: 0,
+    frameHeight: 0,
   });
   
   // FPS counter
@@ -206,6 +216,22 @@ export function useFrameCapture(config: FrameCaptureConfig = {}): UseFrameCaptur
   /**
    * Capture frame using main thread (fallback)
    */
+  const getOutputSize = useCallback((sourceWidth: number, sourceHeight: number) => {
+    const scale = Math.min(1, maxWidth / sourceWidth, maxHeight / sourceHeight);
+    return {
+      width: Math.max(1, Math.round(sourceWidth * scale)),
+      height: Math.max(1, Math.round(sourceHeight * scale)),
+    };
+  }, [maxWidth, maxHeight]);
+
+  const updateFrameSize = useCallback((width: number, height: number) => {
+    setStats(prev => (
+      prev.frameWidth === width && prev.frameHeight === height
+        ? prev
+        : { ...prev, frameWidth: width, frameHeight: height }
+    ));
+  }, []);
+
   const captureFrameMainThread = useCallback(async () => {
     const video = videoRef.current;
     if (!video || video.videoWidth === 0) {
@@ -219,8 +245,10 @@ export function useFrameCapture(config: FrameCaptureConfig = {}): UseFrameCaptur
     }
     const canvas = canvasRef.current;
     
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    const outputSize = getOutputSize(video.videoWidth, video.videoHeight);
+    updateFrameSize(outputSize.width, outputSize.height);
+    canvas.width = outputSize.width;
+    canvas.height = outputSize.height;
     
     const ctx = canvas.getContext('2d');
     if (!ctx) {
@@ -230,7 +258,7 @@ export function useFrameCapture(config: FrameCaptureConfig = {}): UseFrameCaptur
 
     const startTime = performance.now();
     
-    ctx.drawImage(video, 0, 0);
+    ctx.drawImage(video, 0, 0, outputSize.width, outputSize.height);
     
     canvas.toBlob(
       (blob) => {
@@ -245,7 +273,7 @@ export function useFrameCapture(config: FrameCaptureConfig = {}): UseFrameCaptur
       'image/jpeg',
       quality
     );
-  }, [quality, onFrameReady, updateProcessingTime]);
+  }, [quality, onFrameReady, updateProcessingTime, getOutputSize, updateFrameSize]);
 
   /**
    * Capture frame using Web Worker
@@ -271,6 +299,9 @@ export function useFrameCapture(config: FrameCaptureConfig = {}): UseFrameCaptur
         await captureFrameMainThread();
         return;
       }
+
+      const outputSize = getOutputSize(imageBitmap.width, imageBitmap.height);
+      updateFrameSize(outputSize.width, outputSize.height);
       
       // Send to worker for processing
       worker.postMessage({
@@ -278,6 +309,8 @@ export function useFrameCapture(config: FrameCaptureConfig = {}): UseFrameCaptur
         id: Date.now(),
         imageBitmap,
         quality,
+        maxWidth,
+        maxHeight,
       }, [imageBitmap]); // Transfer ownership of ImageBitmap
       
     } catch (err) {
@@ -286,7 +319,7 @@ export function useFrameCapture(config: FrameCaptureConfig = {}): UseFrameCaptur
       workerReadyRef.current = false;
       await captureFrameMainThread();
     }
-  }, [quality, captureFrameMainThread]);
+  }, [quality, maxWidth, maxHeight, captureFrameMainThread, getOutputSize, updateFrameSize]);
 
   /**
    * Main capture loop with dynamic timing

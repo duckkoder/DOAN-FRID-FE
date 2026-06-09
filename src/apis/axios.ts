@@ -440,6 +440,13 @@ export function getAccessToken(): string | null {
 }
 
 /**
+ * Get a valid access token for non-Axios transports such as WebSocket.
+ */
+export async function getFreshAccessToken(): Promise<string | null> {
+  return ensureFreshAccessToken();
+}
+
+/**
  * Check if user is authenticated (has valid token)
  */
 export async function isAuthenticated(): Promise<boolean> {
