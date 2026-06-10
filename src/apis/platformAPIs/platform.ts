@@ -398,16 +398,6 @@ export async function listPlatformAuditLogs(limit = 100): Promise<PlatformAuditL
   return response.data;
 }
 
-export async function getAiModelEnvConfig(): Promise<PlatformEnvConfigResponse> {
-  const response = await platformApi.get<PlatformEnvConfigResponse>("/platform/env/ai-model");
-  return response.data;
-}
-
-export async function updateAiModelEnvConfig(values: Record<string, string | number | boolean | null>): Promise<PlatformEnvConfigResponse> {
-  const response = await platformApi.put<PlatformEnvConfigResponse>("/platform/env/ai-model", { values });
-  return response.data;
-}
-
 export async function getSecurityEnvConfig(): Promise<PlatformEnvConfigResponse> {
   const response = await platformApi.get<PlatformEnvConfigResponse>("/platform/env/security");
   return response.data;

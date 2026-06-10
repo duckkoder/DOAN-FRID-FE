@@ -172,6 +172,7 @@ interface UpcomingSession {
   date: string; // Next occurrence date
   location?: string;
   canStart: boolean;
+  statusLabel: string;
   disabledReason?: string;
 }
 
@@ -206,10 +207,6 @@ const parseTimeToday = (timeValue: string) => {
 };
 
 const getSessionStartState = (day: number, periods: number[], policy: AttendanceCreatePolicy) => {
-  if (policy.allowCreateAnytime) {
-    return { canStart: true };
-  }
-
   const now = dayjs();
   const currentDay = getCurrentScheduleDay();
   if (day !== currentDay) {
@@ -234,6 +231,14 @@ const getSessionStartState = (day: number, periods: number[], policy: Attendance
     : 0;
   const startTime = parseTimeToday(slotStart).subtract(grace, "minute");
   const endTime = parseTimeToday(slotEnd).add(grace, "minute");
+  const isInsideWindow = now.isBetween(startTime, endTime, null, "[]");
+
+  if (policy.allowCreateAnytime) {
+    return {
+      canStart: true,
+      statusLabel: isInsideWindow ? "Đang trong giờ" : "Cho tạo ngoài giờ",
+    };
+  }
 
   if (now.isBefore(startTime)) {
     return { canStart: false, disabledReason: `Chưa đến giờ học (${slotStart} - ${slotEnd})` };
@@ -244,6 +249,13 @@ const getSessionStartState = (day: number, periods: number[], policy: Attendance
   }
 
   return { canStart: true };
+};
+
+const getNextScheduleDate = (scheduleDay: number) => {
+  const now = dayjs();
+  const currentDay = getCurrentScheduleDay();
+  const daysUntil = (scheduleDay - currentDay + 7) % 7;
+  return now.add(daysUntil, "day").format("DD/MM/YYYY");
 };
 
 const ClassDetailPage: React.FC = () => {
@@ -428,7 +440,6 @@ const ClassDetailPage: React.FC = () => {
   const calculateUpcomingSessions = (): UpcomingSession[] => {
     if (!classData || !classData.schedule) return [];
 
-    const now = dayjs();
     const dayLabelMapping: Record<number, string> = {
       0: 'Thứ Hai',
       1: 'Thứ Ba',
@@ -461,9 +472,10 @@ const ClassDetailPage: React.FC = () => {
         sessionIndex: index,
         periods: start === end ? `Tiết ${start}` : `Tiết ${start}-${end}`,
         timeRange: `${startTime} - ${endTime}`,
-        date: now.format('DD/MM/YYYY'),
+        date: getNextScheduleDate(day),
         location: getScheduleEntryLocation(entry) || classData.room,
         canStart: startState.canStart,
+        statusLabel: (startState as { statusLabel?: string }).statusLabel || (startState.canStart ? "Đang trong giờ" : "Ngoài giờ"),
         disabledReason: startState.disabledReason,
       });
     });
@@ -1847,7 +1859,7 @@ const ClassDetailPage: React.FC = () => {
                               {session.date}
                             </Text>
                             <Tag color={session.canStart ? "success" : "default"} style={{ fontSize: 11, marginTop: 4 }}>
-                              {session.canStart ? "Đang trong giờ" : "Ngoài giờ"}
+                              {session.statusLabel}
                             </Tag>
                           </Space>
                         </Col>

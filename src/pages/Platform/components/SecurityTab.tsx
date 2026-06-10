@@ -30,44 +30,38 @@ type SecurityTabProps = {
 const securityHelp: Record<string, { title: string; summary: string; tips: string[]; suffix?: string }> = {
   ACCESS_TOKEN_EXPIRE_MINUTES: {
     title: "Thời hạn đăng nhập",
-    summary: "Thời gian access token còn hiệu lực. Khi hết hạn, frontend sẽ dùng refresh token để xin token mới.",
-    tips: ["120 phút tương đương khoảng 2 giờ.", "Giảm nếu muốn tài khoản tự hết hạn nhanh hơn trên máy lạ.", "Thay đổi này áp dụng cho token mới, token đã cấp vẫn giữ hạn cũ."],
+    summary: "Thời gian access token còn hiệu lực. Khi hết hạn, frontend dùng refresh token để xin token mới.",
+    tips: [
+      "120 phút tương đương khoảng 2 giờ.",
+      "Giảm nếu muốn tài khoản tự hết hạn nhanh hơn trên máy lạ.",
+      "Thay đổi này áp dụng cho token mới, token đã cấp vẫn giữ hạn cũ.",
+    ],
     suffix: "phút",
   },
   REFRESH_TOKEN_EXPIRE_DAYS: {
     title: "Thời hạn duy trì phiên",
-    summary: "Refresh token quyết định người dùng có thể duy trì đăng nhập bao lâu nếu chưa logout hoặc chưa bị revoke.",
-    tips: ["Logout sẽ revoke refresh token ngay.", "Revoke trong bảng tenant cũng thu hồi refresh token.", "7 ngày là mức cân bằng cho hệ thống nội bộ trường."],
+    summary: "Refresh token quyết định người dùng duy trì đăng nhập bao lâu nếu chưa logout hoặc chưa bị revoke.",
+    tips: [
+      "Logout sẽ revoke refresh token ngay.",
+      "Revoke trong bảng tenant cũng thu hồi refresh token.",
+      "7 ngày là mức cân bằng cho hệ thống nội bộ trường.",
+    ],
     suffix: "ngày",
   },
-  AI_WEBSOCKET_TOKEN_EXPIRE_MINUTES: {
-    title: "Phiên điểm danh realtime",
-    summary: "Token WebSocket dùng khi giáo viên/sinh viên tham gia phiên điểm danh AI realtime.",
-    tips: ["120 phút phù hợp với lớp dài hoặc thao tác chậm.", "Nếu đặt quá ngắn, phiên điểm danh có thể rớt giữa chừng.", "Nếu lớp thường ngắn, có thể đặt 60-90 phút."],
-    suffix: "phút",
-  },
-  AI_CONFIDENCE_THRESHOLD: {
-    title: "Ngưỡng tự xác nhận điểm danh",
-    summary: "Backend dùng ngưỡng này sau khi nhận avg_confidence từ AI callback. Đủ ngưỡng thì tự ghi PRESENT, thấp hơn thì để PENDING cho giáo viên duyệt.",
-    tips: ["0.70 là mức cân bằng thường dùng.", "Tăng lên 0.80-0.90 để giảm nhận nhầm nhưng sẽ có nhiều bản ghi chờ duyệt hơn.", "Đây là rule xử lý điểm danh của backend, không phải threshold model trong AI service."],
-  },
   ATTENDANCE_ALLOW_CREATE_ANYTIME: {
-    title: "Tạo điểm danh ngoài lịch",
+    title: "Tạo điểm danh ngoài giờ",
     summary: "Cho phép giáo viên tạo phiên điểm danh dù hiện tại không nằm trong khung lịch lớp.",
-    tips: ["Tắt để hệ thống bám lịch học chặt hơn.", "Bật khi trường hay có học bù, đổi tiết hoặc lịch linh hoạt.", "Nếu bật, nên theo dõi log thao tác tạo phiên."],
-  },
-  ATTENDANCE_CREATE_WINDOW_GRACE_MINUTES: {
-    title: "Khoảng nới lịch điểm danh",
-    summary: "Số phút nới thêm trước hoặc sau khung lịch khi kiểm tra quyền tạo phiên điểm danh.",
-    tips: ["5-10 phút phù hợp nếu giáo viên thường mở phiên sớm hoặc muộn.", "Để 0 nếu muốn đúng lịch tuyệt đối.", "Không nên đặt quá cao nếu không bật vận hành linh hoạt."],
-    suffix: "phút",
+    tips: [
+      "Tắt để hệ thống bám lịch học chặt hơn.",
+      "Bật khi trường hay có học bù, đổi tiết hoặc lịch linh hoạt.",
+      "Đây là quy tắc vận hành backend, không phải tham số model AI.",
+    ],
   },
 };
 
 const groupLabel: Record<string, string> = {
   "Dang nhap": "Đăng nhập",
-  "Diem danh realtime": "Phiên realtime",
-  "Van hanh": "Vận hành hệ thống",
+  "Van hanh": "Vận hành",
 };
 
 const getNumericValue = (item?: PlatformEnvConfigItem) => {
@@ -101,7 +95,7 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
   ), [securityConfig]);
 
   const accessMinutes = getNumericValue(configByKey.ACCESS_TOKEN_EXPIRE_MINUTES);
-  const websocketMinutes = getNumericValue(configByKey.AI_WEBSOCKET_TOKEN_EXPIRE_MINUTES);
+  const refreshDays = getNumericValue(configByKey.REFRESH_TOKEN_EXPIRE_DAYS);
 
   const columns: ColumnsType<TenantSecuritySummary> = [
     {
@@ -224,8 +218,8 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
         </div>
         <div>
           <FiShield />
-          <strong>{websocketMinutes || "-"}</strong>
-          <span>Phút phiên AI realtime</span>
+          <strong>{refreshDays || "-"}</strong>
+          <span>Ngày refresh token</span>
         </div>
         <div>
           <FiUserPlus />
@@ -238,7 +232,7 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
         <div className="platform-ai-card-head">
           <div>
             <h2>Cấu hình hệ thống</h2>
-            <p>Quản lý thời hạn phiên, token và các quy tắc vận hành. Các tham số model được tách riêng ở tab AI model.</p>
+            <p>Quản lý thời hạn đăng nhập cấp hệ thống. Quy tắc điểm danh theo từng trường nằm trong trang cấu hình tích hợp của tenant admin.</p>
           </div>
           <Button type="primary" icon={<FiSave />} loading={configSaving} onClick={() => form.submit()}>
             Lưu cấu hình
@@ -267,7 +261,7 @@ const SecurityTab: React.FC<SecurityTabProps> = ({
                             content={
                               <div className="platform-env-help">
                                 <p>{help?.summary || item.description}</p>
-                                {help?.tips?.map(tip => <div key={tip}>• {tip}</div>)}
+                                {help?.tips?.map(tip => <div key={tip}>- {tip}</div>)}
                               </div>
                             }
                           >

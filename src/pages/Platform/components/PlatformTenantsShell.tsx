@@ -1,7 +1,7 @@
 import React from "react";
 import { Button, Space } from "antd";
 import { useNavigate } from "react-router-dom";
-import { FiClock, FiCpu, FiDatabase, FiGrid, FiLogOut, FiPlus, FiRefreshCw, FiServer, FiShield, FiUploadCloud } from "react-icons/fi";
+import { FiClock, FiDatabase, FiGrid, FiLogOut, FiPlus, FiRefreshCw, FiServer, FiShield, FiUploadCloud } from "react-icons/fi";
 
 import type {
   PlatformAuditLog,
@@ -11,14 +11,13 @@ import type {
   TenantStorageUsage,
 } from "@/apis/platformAPIs/platform";
 import { clearPlatformToken } from "@/apis/platformAPIs/platform";
-import AiModelConfigTab from "./AiModelConfigTab";
 import AuditTab from "./AuditTab";
 import SecurityTab from "./SecurityTab";
 import StorageTab from "./StorageTab";
 import TenantsTab from "./TenantsTab";
 import type { TenantMigrationSummary } from "./platformPageTypes";
 
-export type PlatformSection = "tenants" | "storage" | "audit" | "security" | "ai-model";
+export type PlatformSection = "tenants" | "storage" | "audit" | "security";
 
 type PlatformTenantsShellProps = {
   activeSection: PlatformSection;
@@ -30,14 +29,12 @@ type PlatformTenantsShellProps = {
   onRefreshStorage: () => void;
   onRefreshAudit: () => void;
   onRefreshSecurity: () => void;
-  onRefreshAiModel: () => void;
   migratingAll: boolean;
   allTenantsAtHead: boolean;
   tenantsLoading: boolean;
   storageLoading: boolean;
   auditLoading: boolean;
   securityLoading: boolean;
-  aiModelLoading: boolean;
   tenants: Tenant[];
   tenantSummary: { total: number; active: number; suspended: number };
   migrationSummaryByTenant: Record<number, TenantMigrationSummary>;
@@ -73,10 +70,6 @@ type PlatformTenantsShellProps = {
   onRevokeAdminSessions: (tenant: TenantSecuritySummary, userId?: number) => void;
   onLogoutAllTenantUsers: (tenant: TenantSecuritySummary) => void;
   onSaveSecurityConfig: Parameters<typeof SecurityTab>[0]["onSaveSecurityConfig"];
-  aiModelConfig: PlatformEnvConfigItem[];
-  aiModelForm: Parameters<typeof AiModelConfigTab>[0]["form"];
-  aiModelSaving: boolean;
-  onSaveAiModelConfig: Parameters<typeof AiModelConfigTab>[0]["onSave"];
 };
 
 const PlatformTenantsShell: React.FC<PlatformTenantsShellProps> = ({
@@ -89,14 +82,12 @@ const PlatformTenantsShell: React.FC<PlatformTenantsShellProps> = ({
   onRefreshStorage,
   onRefreshAudit,
   onRefreshSecurity,
-  onRefreshAiModel,
   migratingAll,
   allTenantsAtHead,
   tenantsLoading,
   storageLoading,
   auditLoading,
   securityLoading,
-  aiModelLoading,
   tenants,
   tenantSummary,
   migrationSummaryByTenant,
@@ -127,10 +118,6 @@ const PlatformTenantsShell: React.FC<PlatformTenantsShellProps> = ({
   onRevokeAdminSessions,
   onLogoutAllTenantUsers,
   onSaveSecurityConfig,
-  aiModelConfig,
-  aiModelForm,
-  aiModelSaving,
-  onSaveAiModelConfig,
 }) => {
   const navigate = useNavigate();
 
@@ -151,7 +138,6 @@ const PlatformTenantsShell: React.FC<PlatformTenantsShellProps> = ({
           <button className={activeSection === "storage" ? "active" : ""} type="button" onClick={() => onChangeSection("storage")}><FiDatabase /> Lưu trữ</button>
           <button className={activeSection === "audit" ? "active" : ""} type="button" onClick={() => onChangeSection("audit")}><FiClock /> Nhật ký</button>
           <button className={activeSection === "security" ? "active" : ""} type="button" onClick={() => onChangeSection("security")}><FiShield /> Bảo mật</button>
-          <button className={activeSection === "ai-model" ? "active" : ""} type="button" onClick={() => onChangeSection("ai-model")}><FiCpu /> AI model</button>
         </nav>
 
         <button className="platform-rail-logout" type="button" onClick={() => { clearPlatformToken(); navigate("/platform/login"); }}>
@@ -172,8 +158,6 @@ const PlatformTenantsShell: React.FC<PlatformTenantsShellProps> = ({
               <Button icon={<FiRefreshCw />} loading={auditLoading} onClick={onRefreshAudit}>Làm mới nhật ký</Button>
             ) : activeSection === "security" ? (
               <Button icon={<FiRefreshCw />} loading={securityLoading} onClick={onRefreshSecurity}>Làm mới bảo mật</Button>
-            ) : activeSection === "ai-model" ? (
-              <Button icon={<FiRefreshCw />} loading={aiModelLoading} onClick={onRefreshAiModel}>Làm mới cấu hình</Button>
             ) : (
               <>
                 <Button icon={<FiRefreshCw />} onClick={onRefreshTenants}>Làm mới</Button>
@@ -223,15 +207,6 @@ const PlatformTenantsShell: React.FC<PlatformTenantsShellProps> = ({
               onRevokeAdminSessions={onRevokeAdminSessions}
               onLogoutAllTenantUsers={onLogoutAllTenantUsers}
               onSaveSecurityConfig={onSaveSecurityConfig}
-            />
-          ) : activeSection === "ai-model" ? (
-            <AiModelConfigTab
-              aiModelConfig={aiModelConfig}
-              form={aiModelForm}
-              loading={aiModelLoading}
-              saving={aiModelSaving}
-              onReload={onRefreshAiModel}
-              onSave={onSaveAiModelConfig}
             />
           ) : (
             <TenantsTab

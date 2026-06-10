@@ -6,12 +6,10 @@ import { useNavigate } from "react-router-dom";
 import {
   activateTenant, clearPlatformToken, createTenant, createTenantAdmin,
   downgradeTenantMigration, getTenantMigrationHistory,
-  getAiModelEnvConfig,
   getSecurityEnvConfig,
   inspectTenantDbSchema, inspectTenantStorageUsage, listPlatformAuditLogs, listTenants, listTenantStorageUsage,
   listTenantSecuritySummaries, logoutAllTenantUsers, migrateAllTenants, migrateTenant,
   revokeTenantAdminSessions, suspendTenant, updateTenant,
-  updateAiModelEnvConfig,
   updateSecurityEnvConfig,
   uploadTenantLogo,
   upgradeTenantMigration,
@@ -62,7 +60,7 @@ const getLogoFile = (fileList?: TenantFormValues["logo_file"] | TenantEditFormVa
   fileList?.[0]?.originFileObj as File | undefined;
 
 const PLATFORM_SECTION_KEY = "platformActiveSection";
-const platformSections: PlatformSection[] = ["tenants", "storage", "audit", "security", "ai-model"];
+const platformSections: PlatformSection[] = ["tenants", "storage", "audit", "security"];
 
 const getInitialPlatformSection = (): PlatformSection => {
   if (typeof window === "undefined") return "tenants";
@@ -87,9 +85,6 @@ const PlatformTenantsPage: React.FC = () => {
   const [securityConfigLoading, setSecurityConfigLoading] = useState(false);
   const [securityConfigSaving, setSecurityConfigSaving] = useState(false);
   const [sessionActionKey, setSessionActionKey] = useState<string | null>(null);
-  const [aiModelConfig, setAiModelConfig] = useState<PlatformEnvConfigItem[]>([]);
-  const [aiModelLoading, setAiModelLoading] = useState(false);
-  const [aiModelSaving, setAiModelSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -117,7 +112,6 @@ const PlatformTenantsPage: React.FC = () => {
   const watchedSchoolCode = Form.useWatch("school_code", tenantForm);
   const [adminForm] = Form.useForm<TenantAdminCreateRequest>();
   const [editForm] = Form.useForm<TenantEditFormValues>();
-  const [aiModelForm] = Form.useForm<Record<string, string | number | boolean | null>>();
   const [securityForm] = Form.useForm<Record<string, string | number | boolean | null>>();
 
   const changeSection = (section: PlatformSection) => {
@@ -251,9 +245,6 @@ const PlatformTenantsPage: React.FC = () => {
       if (securitySummaries.length === 0) void fetchSecuritySummaries();
       if (securityConfig.length === 0) void fetchSecurityConfig();
     }
-    if (activeSection === "ai-model" && aiModelConfig.length === 0) {
-      void fetchAiModelConfig();
-    }
   }, [activeSection]);
 
   const fetchSecuritySummaries = async () => {
@@ -287,46 +278,6 @@ const PlatformTenantsPage: React.FC = () => {
 
   const refreshSecurityTab = async () => {
     await Promise.all([fetchSecuritySummaries(), fetchSecurityConfig()]);
-  };
-
-  const fetchAiModelConfig = async () => {
-    try {
-      setAiModelLoading(true);
-      const data = await getAiModelEnvConfig();
-      setAiModelConfig(data.items);
-      const formValues = data.items.reduce<Record<string, string | number | boolean | null>>((acc, item) => {
-        if (!item.secret) acc[item.key] = item.value;
-        return acc;
-      }, {});
-      aiModelForm.setFieldsValue(formValues);
-    } catch (err) {
-      message.error(getErrorDetail(err, "Không thể tải cấu hình AI model"));
-    } finally {
-      setAiModelLoading(false);
-    }
-  };
-
-  const handleSaveAiModelConfig = async (values: Record<string, string | number | boolean | null>) => {
-    const payload = Object.fromEntries(
-      Object.entries(values).filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== ""),
-    );
-
-    try {
-      setAiModelSaving(true);
-      const data = await updateAiModelEnvConfig(payload);
-      setAiModelConfig(data.items);
-      aiModelForm.setFieldsValue(
-        data.items.reduce<Record<string, string | number | boolean | null>>((acc, item) => {
-          if (!item.secret) acc[item.key] = item.value;
-          return acc;
-        }, {}),
-      );
-      message.success("Đã lưu cấu hình AI model vào .env");
-    } catch (err) {
-      message.error(getErrorDetail(err, "Không thể lưu cấu hình AI model"));
-    } finally {
-      setAiModelSaving(false);
-    }
   };
 
   const handleSaveSecurityConfig = async (values: Record<string, string | number | boolean | null>) => {
@@ -671,7 +622,6 @@ const PlatformTenantsPage: React.FC = () => {
     activeSection === "storage" ? "Quản lý lưu trữ" :
     activeSection === "audit" ? "Nhật ký hệ thống" :
     activeSection === "security" ? "Bảo mật" :
-    activeSection === "ai-model" ? "AI model config" :
     "Quản lý Tenant";
 
   return (
@@ -686,14 +636,12 @@ const PlatformTenantsPage: React.FC = () => {
         onRefreshStorage={fetchStorageUsage}
         onRefreshAudit={fetchAuditLogs}
         onRefreshSecurity={refreshSecurityTab}
-        onRefreshAiModel={fetchAiModelConfig}
         migratingAll={migratingAll}
         allTenantsAtHead={allTenantsAtHead}
         tenantsLoading={loading}
         storageLoading={storageLoading}
         auditLoading={auditLoading}
         securityLoading={securityLoading || securityConfigLoading}
-        aiModelLoading={aiModelLoading}
         tenants={tenants}
         tenantSummary={summary}
         migrationSummaryByTenant={migrationSummaryByTenant}
@@ -732,10 +680,6 @@ const PlatformTenantsPage: React.FC = () => {
         onRevokeAdminSessions={handleRevokeAdminSessions}
         onLogoutAllTenantUsers={handleLogoutAllTenantUsers}
         onSaveSecurityConfig={handleSaveSecurityConfig}
-        aiModelConfig={aiModelConfig}
-        aiModelForm={aiModelForm}
-        aiModelSaving={aiModelSaving}
-        onSaveAiModelConfig={handleSaveAiModelConfig}
       />
       <CreateTenantDrawer
         open={drawerOpen}
