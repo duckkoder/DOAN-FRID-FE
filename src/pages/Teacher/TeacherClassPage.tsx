@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   Typography, 
   Card, 
@@ -126,7 +126,7 @@ const TeacherClassPage: React.FC = () => {
         const { day, periods, location, room } = daySchedule as any;
         if (!periods || periods.length === 0) return;
 
-        // day 0=Monday..6=Sunday â†’ display as 1=Monday..7=Sunday
+        // day 0=Monday..6=Sunday → display as 1=Monday..7=Sunday
         const dayNumber = day + 1;
 
         const start = periods[0];

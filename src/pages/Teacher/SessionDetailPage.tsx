@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   Typography,
   Card,
@@ -44,13 +44,10 @@ import {
   confirmAttendance,
   rejectAttendance,
   confirmAllPending,
-  getSessionSpoofDetections,
   overrideAttendanceToPresent,
   getStudentFaceImageByRecordId,
   type SessionAttendanceResponse,
-  type AttendanceRecord,
-  type SpoofDetection,
-  type SpoofDetectionsResponse
+  type AttendanceRecord
 } from "../../apis/attendanceAPIs/attendanceAPIs";
 
 const { Title, Text } = Typography;
@@ -74,15 +71,11 @@ const SessionDetailPage: React.FC = () => {
   const [studentFaceImage, setStudentFaceImage] = useState<string | null>(null);
   const [loadingFaceImage, setLoadingFaceImage] = useState<boolean>(false);
 
-  // Spoof detections state
-  const [spoofDetections, setSpoofDetections] = useState<SpoofDetection[]>([]);
-  const [spoofLoading, setSpoofLoading] = useState<boolean>(false);
-
   // Fetch session details
   useEffect(() => {
     const fetchSessionDetails = async () => {
       if (!sessionId) {
-        setError("ID phiên không hợp lệ");
+        setError("ID phiÃªn khÃ´ng há»£p lá»‡");
         setLoading(false);
         return;
       }
@@ -95,7 +88,7 @@ const SessionDetailPage: React.FC = () => {
         setSessionData(response);
       } catch (err: any) {
         console.error("Failed to load session details:", err);
-        const errorMsg = err?.response?.data?.detail || err?.message || "Không thể tải chi tiết phiên điểm danh";
+        const errorMsg = err?.response?.data?.detail || err?.message || "KhÃ´ng thá»ƒ táº£i chi tiáº¿t phiÃªn Ä‘iá»ƒm danh";
         setError(errorMsg);
         message.error(errorMsg);
       } finally {
@@ -106,28 +99,6 @@ const SessionDetailPage: React.FC = () => {
     fetchSessionDetails();
   }, [sessionId]);
 
-  // Fetch spoof detections
-  useEffect(() => {
-    const fetchSpoofDetections = async () => {
-      if (!sessionId || !sessionData) return;
-      
-      // Chỉ fetch nếu phiên đã kết thúc
-      if (sessionData.session.status !== "finished") return;
-      
-      setSpoofLoading(true);
-      try {
-        const response = await getSessionSpoofDetections(parseInt(sessionId));
-        setSpoofDetections(response.spoof_detections);
-      } catch (err: any) {
-        console.error("Failed to load spoof detections:", err);
-        // Không hiện message lỗi cho spoof (optional feature)
-      } finally {
-        setSpoofLoading(false);
-      }
-    };
-
-    fetchSpoofDetections();
-  }, [sessionId, sessionData?.session.status]);
 
   // Refetch session data
   const refetchData = async () => {
@@ -138,7 +109,7 @@ const SessionDetailPage: React.FC = () => {
       setSessionData(response);
     } catch (err: any) {
       console.error("Failed to refresh session details:", err);
-      message.error("Không thể làm mới dữ liệu");
+      message.error("KhÃ´ng thá»ƒ lÃ m má»›i dá»¯ liá»‡u");
     }
   };
 
@@ -151,17 +122,17 @@ const SessionDetailPage: React.FC = () => {
         notes: `Confirmed by teacher - ${dayjs().format("HH:mm DD/MM/YYYY")}`
       });
       
-      message.success(`Đã xác nhận ${studentName} có mặt`);
+      message.success(`ÄÃ£ xÃ¡c nháº­n ${studentName} cÃ³ máº·t`);
       await refetchData();
     } catch (err: any) {
       console.error("Failed to confirm attendance:", err);
-      message.error(err?.response?.data?.detail || "Không thể xác nhận điểm danh");
+      message.error(err?.response?.data?.detail || "KhÃ´ng thá»ƒ xÃ¡c nháº­n Ä‘iá»ƒm danh");
     } finally {
       setActionLoading(prev => ({ ...prev, [recordId]: false }));
     }
   };
 
-  // Handle reject attendance — just open modal
+  // Handle reject attendance â€” just open modal
   const handleRejectAttendance = (recordId: number, studentName: string) => {
     setRejectModal({ open: true, recordId, studentName });
   };
@@ -171,18 +142,18 @@ const SessionDetailPage: React.FC = () => {
     const { recordId, studentName } = rejectModal;
     setActionLoading(prev => ({ ...prev, [recordId]: true }));
     try {
-      await rejectAttendance(recordId, { notes: `Giáo viên từ chối - AI nhận diện sai` });
-      message.success(`Đã đánh dấu ${studentName} vắng mặt`);
+      await rejectAttendance(recordId, { notes: `GiÃ¡o viÃªn tá»« chá»‘i - AI nháº­n diá»‡n sai` });
+      message.success(`ÄÃ£ Ä‘Ã¡nh dáº¥u ${studentName} váº¯ng máº·t`);
       setRejectModal(null);
       await refetchData();
     } catch (err: any) {
-      message.error(err?.response?.data?.detail || "Không thể từ chối điểm danh");
+      message.error(err?.response?.data?.detail || "KhÃ´ng thá»ƒ tá»« chá»‘i Ä‘iá»ƒm danh");
     } finally {
       setActionLoading(prev => ({ ...prev, [recordId]: false }));
     }
   };
 
-  // Handle override absent → present — just open modal
+  // Handle override absent â†’ present â€” just open modal
   const handleOverrideToPresent = async (recordId: number, studentName: string) => {
     setOverrideModal({ open: true, recordId, studentName });
     setStudentFaceImage(null);
@@ -205,22 +176,22 @@ const SessionDetailPage: React.FC = () => {
     setActionLoading(prev => ({ ...prev, [recordId]: true }));
     try {
       await overrideAttendanceToPresent(recordId);
-      message.success(`Đã cập nhật ${studentName} thành Có mặt`);
+      message.success(`ÄÃ£ cáº­p nháº­t ${studentName} thÃ nh CÃ³ máº·t`);
       setOverrideModal(null);
       setStudentFaceImage(null);
       await refetchData();
     } catch (err: any) {
-      message.error(err?.response?.data?.detail || "Không thể cập nhật điểm danh");
+      message.error(err?.response?.data?.detail || "KhÃ´ng thá»ƒ cáº­p nháº­t Ä‘iá»ƒm danh");
     } finally {
       setActionLoading(prev => ({ ...prev, [recordId]: false }));
     }
   };
 
-  // Handle confirm all pending — just open modal
+  // Handle confirm all pending â€” just open modal
   const handleConfirmAllPending = () => {
     if (!sessionId || !sessionData) return;
     const pendingCount = sessionData.statistics.pending_count || 0;
-    if (pendingCount === 0) { message.info("Không có sinh viên nào chờ xác nhận"); return; }
+    if (pendingCount === 0) { message.info("KhÃ´ng cÃ³ sinh viÃªn nÃ o chá» xÃ¡c nháº­n"); return; }
     setConfirmAllModal(true);
   };
 
@@ -230,11 +201,11 @@ const SessionDetailPage: React.FC = () => {
     setConfirmingAll(true);
     try {
       await confirmAllPending(parseInt(sessionId));
-      message.success(`Đã xác nhận tất cả ${pendingCount} sinh viên`);
+      message.success(`ÄÃ£ xÃ¡c nháº­n táº¥t cáº£ ${pendingCount} sinh viÃªn`);
       setConfirmAllModal(false);
       await refetchData();
     } catch (err: any) {
-      message.error(err?.response?.data?.detail || "Không thể xác nhận tất cả");
+      message.error(err?.response?.data?.detail || "KhÃ´ng thá»ƒ xÃ¡c nháº­n táº¥t cáº£");
     } finally {
       setConfirmingAll(false);
     }
@@ -244,15 +215,15 @@ const SessionDetailPage: React.FC = () => {
   const getStatusConfig = (status: string) => {
     switch (status) {
       case "pending":
-        return { color: "#faad14", text: "Chờ", icon: <ClockCircleOutlined /> };
+        return { color: "#faad14", text: "Chá»", icon: <ClockCircleOutlined /> };
       case "present":
-        return { color: "#10b981", text: "Có mặt", icon: <CheckCircleOutlined /> };
+        return { color: "#10b981", text: "CÃ³ máº·t", icon: <CheckCircleOutlined /> };
       case "absent":
-        return { color: "#ef4444", text: "Vắng mặt", icon: <CloseCircleOutlined /> };
+        return { color: "#ef4444", text: "Váº¯ng máº·t", icon: <CloseCircleOutlined /> };
       case "excused":
-        return { color: "#8b5cf6", text: "Nghỉ phép", icon: <CheckCircleOutlined /> };
+        return { color: "#8b5cf6", text: "Nghá»‰ phÃ©p", icon: <CheckCircleOutlined /> };
       default:
-        return { color: "#64748b", text: "Không rõ", icon: <UserOutlined /> };
+        return { color: "#64748b", text: "KhÃ´ng rÃµ", icon: <UserOutlined /> };
     }
   };
 
@@ -266,7 +237,7 @@ const SessionDetailPage: React.FC = () => {
       render: (_: any, __: any, index: number) => index + 1
     },
     {
-      title: "Sinh viên",
+      title: "Sinh viÃªn",
       key: "student",
       render: (record: AttendanceRecord) => (
         <Space>
@@ -282,7 +253,7 @@ const SessionDetailPage: React.FC = () => {
       )
     },
     {
-      title: "Trạng thái",
+      title: "Tráº¡ng thÃ¡i",
       dataIndex: "status",
       key: "status",
       width: 120,
@@ -297,7 +268,7 @@ const SessionDetailPage: React.FC = () => {
       }
     },
     {
-      title: "Giờ vào",
+      title: "Giá» vÃ o",
       dataIndex: "recorded_at",
       key: "recorded_at",
       width: 180,
@@ -305,11 +276,11 @@ const SessionDetailPage: React.FC = () => {
         time ? (
           <Text>{dayjs(time).format("HH:mm:ss - DD/MM/YYYY")}</Text>
         ) : (
-          <Text type="secondary">Chưa vào</Text>
+          <Text type="secondary">ChÆ°a vÃ o</Text>
         )
     },
     {
-      title: "Nhật ký khuôn mặt",
+      title: "Nháº­t kÃ½ khuÃ´n máº·t",
       dataIndex: "image_path",
       key: "image_path",
       width: 100,
@@ -335,14 +306,14 @@ const SessionDetailPage: React.FC = () => {
         )
     },
     {
-      title: "Ghi chú",
+      title: "Ghi chÃº",
       dataIndex: "notes",
       key: "notes",
       render: (notes: string | null) =>
         notes ? <Text style={{ fontSize: 12 }}>{notes}</Text> : <Text type="secondary">-</Text>
     },
     {
-      title: "Hành động",
+      title: "HÃ nh Ä‘á»™ng",
       key: "actions",
       width: 160,
       align: "center" as const,
@@ -353,7 +324,7 @@ const SessionDetailPage: React.FC = () => {
         if (record.status === 'pending') {
           return (
             <Space size="small">
-              <Tooltip title="Xác nhận có mặt">
+              <Tooltip title="XÃ¡c nháº­n cÃ³ máº·t">
                 <Button
                   type="primary"
                   size="small"
@@ -364,7 +335,7 @@ const SessionDetailPage: React.FC = () => {
                   style={{ backgroundColor: '#10b981', borderColor: '#10b981' }}
                 />
               </Tooltip>
-              <Tooltip title="Đánh dấu vắng mặt">
+              <Tooltip title="ÄÃ¡nh dáº¥u váº¯ng máº·t">
                 <Button
                   danger
                   size="small"
@@ -381,7 +352,7 @@ const SessionDetailPage: React.FC = () => {
         // Absent: show override button so teacher can fix AI miss-recognition
         if (record.status === 'absent') {
           return (
-            <Tooltip title="AI không nhận diện được? Chỉnh thành Có mặt">
+            <Tooltip title="AI khÃ´ng nháº­n diá»‡n Ä‘Æ°á»£c? Chá»‰nh thÃ nh CÃ³ máº·t">
               <Button
                 size="small"
                 icon={<EditOutlined />}
@@ -394,7 +365,7 @@ const SessionDetailPage: React.FC = () => {
                   fontSize: 12
                 }}
               >
-                Sửa
+                Sá»­a
               </Button>
             </Tooltip>
           );
@@ -409,12 +380,12 @@ const SessionDetailPage: React.FC = () => {
   // Handle export Excel
   const handleExportExcel = async () => {
     if (!sessionData) {
-      message.error("Không có dữ liệu để xuất");
+      message.error("KhÃ´ng cÃ³ dá»¯ liá»‡u Ä‘á»ƒ xuáº¥t");
       return;
     }
 
     setExporting(true);
-    const loadingMsg = message.loading("Đang tạo file Excel...", 0);
+    const loadingMsg = message.loading("Äang táº¡o file Excel...", 0);
 
     try {
       // Small delay for UI to render loading state
@@ -425,22 +396,22 @@ const SessionDetailPage: React.FC = () => {
       // Create Excel data
       const excelData = [
         // Session header info
-        ["DANH SÁCH ĐIỂM DANH"],
-        [`Phiên: ${session.session_name || `Phiên #${session.id}`}`],
-        [`Thời gian: ${dayjs(session.start_time).format("HH:mm - DD/MM/YYYY")}`],
-        [`Địa điểm: ${session.location || "Chưa xác định"}`],
+        ["DANH SÃCH ÄIá»‚M DANH"],
+        [`PhiÃªn: ${session.session_name || `PhiÃªn #${session.id}`}`],
+        [`Thá»i gian: ${dayjs(session.start_time).format("HH:mm - DD/MM/YYYY")}`],
+        [`Äá»‹a Ä‘iá»ƒm: ${session.location || "ChÆ°a xÃ¡c Ä‘á»‹nh"}`],
         [],
         // Statistics
-        ["THỐNG KÊ"],
-        [`Tổng sinh viên: ${statistics.total_students}`],
-        [`Có mặt: ${statistics.present_count}`],
-        [`Chờ: ${statistics.pending_count || 0}`],
-        [`Vắng mặt: ${statistics.absent_count}`],
-        [`Nghỉ phép: ${statistics.excused_count}`],
-        [`Tỷ lệ: ${statistics.attendance_rate.toFixed(2)}%`],
+        ["THá»NG KÃŠ"],
+        [`Tá»•ng sinh viÃªn: ${statistics.total_students}`],
+        [`CÃ³ máº·t: ${statistics.present_count}`],
+        [`Chá»: ${statistics.pending_count || 0}`],
+        [`Váº¯ng máº·t: ${statistics.absent_count}`],
+        [`Nghá»‰ phÃ©p: ${statistics.excused_count}`],
+        [`Tá»· lá»‡: ${statistics.attendance_rate.toFixed(2)}%`],
         [],
         // Table header
-        ["STT", "Mã sinh viên", "Họ tên", "Trạng thái", "Giờ vào", "Ghi chú"]
+        ["STT", "MÃ£ sinh viÃªn", "Há» tÃªn", "Tráº¡ng thÃ¡i", "Giá» vÃ o", "Ghi chÃº"]
       ];
 
       // Add student data
@@ -450,7 +421,7 @@ const SessionDetailPage: React.FC = () => {
           record.student_code,
           record.student_name,
           getStatusConfig(record.status).text,
-          record.recorded_at ? dayjs(record.recorded_at).format("HH:mm:ss - DD/MM/YYYY") : "Chưa vào",
+          record.recorded_at ? dayjs(record.recorded_at).format("HH:mm:ss - DD/MM/YYYY") : "ChÆ°a vÃ o",
           record.notes || "-"
         ]);
       });
@@ -475,11 +446,11 @@ const SessionDetailPage: React.FC = () => {
       XLSX.writeFile(wb, fileName);
 
       loadingMsg(); // Close loading message
-      message.success("Đã xuất Excel thành công!", 2);
+      message.success("ÄÃ£ xuáº¥t Excel thÃ nh cÃ´ng!", 2);
     } catch (error) {
       loadingMsg(); // Close loading message
       console.error("Export Excel error:", error);
-      message.error("Lỗi xuất Excel");
+      message.error("Lá»—i xuáº¥t Excel");
     } finally {
       setExporting(false);
     }
@@ -488,8 +459,8 @@ const SessionDetailPage: React.FC = () => {
   // Breadcrumb
   const breadcrumbItems = [
     { title: "Dashboard", href: "/teacher" },
-    { title: "Quản lý Lớp", href: "/teacher/classes" },
-    { title: "Chi tiết Phiên Điểm danh" }
+    { title: "Quáº£n lÃ½ Lá»›p", href: "/teacher/classes" },
+    { title: "Chi tiáº¿t PhiÃªn Äiá»ƒm danh" }
   ];
 
   // Loading state
@@ -504,7 +475,7 @@ const SessionDetailPage: React.FC = () => {
           background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)"
         }}
       >
-        <Spin size="large" tip="Đang tải chi tiết phiên điểm danh..." />
+        <Spin size="large" tip="Äang táº£i chi tiáº¿t phiÃªn Ä‘iá»ƒm danh..." />
       </div>
     );
   }
@@ -522,7 +493,7 @@ const SessionDetailPage: React.FC = () => {
         <Breadcrumb items={breadcrumbItems} />
         <Card style={{ marginTop: 24, textAlign: "center" }}>
           <Empty
-            description={error || "Không tìm thấy dữ liệu"}
+            description={error || "KhÃ´ng tÃ¬m tháº¥y dá»¯ liá»‡u"}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           >
             <Button 
@@ -537,7 +508,7 @@ const SessionDetailPage: React.FC = () => {
                 }
               }}
             >
-              Quay lại
+              Quay láº¡i
             </Button>
           </Empty>
         </Card>
@@ -564,7 +535,7 @@ const SessionDetailPage: React.FC = () => {
             type="text"
             icon={<ArrowLeftOutlined />}
             onClick={() => {
-              // ✅ Navigate back with preserved tab
+              // âœ… Navigate back with preserved tab
               const state = location.state as { from?: string; tab?: string } | null;
               if (state?.from && state?.tab) {
                 // Go back to specific class detail page with tab
@@ -590,25 +561,25 @@ const SessionDetailPage: React.FC = () => {
         }}
       >
         <Title level={3} style={{ marginBottom: 24 }}>
-          📋 {session.session_name || `Phiên Điểm danh #${session.id}`}
+          ðŸ“‹ {session.session_name || `PhiÃªn Äiá»ƒm danh #${session.id}`}
         </Title>
 
         <Descriptions bordered column={{ xs: 1, sm: 2, md: 3 }}>
-          <Descriptions.Item label={<><CalendarOutlined /> Giờ bắt đầu</>}>
+          <Descriptions.Item label={<><CalendarOutlined /> Giá» báº¯t Ä‘áº§u</>}>
             {dayjs(session.start_time).format("HH:mm - DD/MM/YYYY")}
           </Descriptions.Item>
-          <Descriptions.Item label={<><CalendarOutlined /> Giờ kết thúc</>}>
+          <Descriptions.Item label={<><CalendarOutlined /> Giá» káº¿t thÃºc</>}>
             {session.end_time
               ? dayjs(session.end_time).format("HH:mm - DD/MM/YYYY")
-              : "Đang diễn ra"}
+              : "Äang diá»…n ra"}
           </Descriptions.Item>
-          <Descriptions.Item label="Trạng thái">
+          <Descriptions.Item label="Tráº¡ng thÃ¡i">
             <Tag color={session.status === "finished" ? "success" : "processing"}>
-              {session.status === "finished" ? "Hoàn thành" : "Đang diễn ra"}
+              {session.status === "finished" ? "HoÃ n thÃ nh" : "Äang diá»…n ra"}
             </Tag>
           </Descriptions.Item>
           {session.location && (
-            <Descriptions.Item label={<><EnvironmentOutlined /> Địa điểm</>} span={2}>
+            <Descriptions.Item label={<><EnvironmentOutlined /> Äá»‹a Ä‘iá»ƒm</>} span={2}>
               {session.location}
             </Descriptions.Item>
           )}
@@ -620,7 +591,7 @@ const SessionDetailPage: React.FC = () => {
         <Col xs={24} sm={12} md={6} lg={4.8}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
-              title="Tổng sinh viên"
+              title="Tá»•ng sinh viÃªn"
               value={statistics.total_students}
               prefix={<UserOutlined />}
               valueStyle={{ color: "#2563eb" }}
@@ -630,7 +601,7 @@ const SessionDetailPage: React.FC = () => {
         <Col xs={24} sm={12} md={6} lg={4.8}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
-              title="Có mặt"
+              title="CÃ³ máº·t"
               value={statistics.present_count}
               prefix={<CheckCircleOutlined />}
               valueStyle={{ color: "#10b981" }}
@@ -640,7 +611,7 @@ const SessionDetailPage: React.FC = () => {
         <Col xs={24} sm={12} md={6} lg={4.8}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
-              title="Chờ"
+              title="Chá»"
               value={statistics.pending_count || 0}
               prefix={<ClockCircleOutlined />}
               valueStyle={{ color: "#faad14" }}
@@ -650,7 +621,7 @@ const SessionDetailPage: React.FC = () => {
         <Col xs={24} sm={12} md={6} lg={4.8}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
-              title="Vắng mặt"
+              title="Váº¯ng máº·t"
               value={statistics.absent_count}
               prefix={<CloseCircleOutlined />}
               valueStyle={{ color: "#ef4444" }}
@@ -660,7 +631,7 @@ const SessionDetailPage: React.FC = () => {
         <Col xs={24} sm={12} md={6} lg={4.8}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
-              title="Nghỉ phép"
+              title="Nghá»‰ phÃ©p"
               value={statistics.excused_count || 0}
               prefix={<CheckCircleOutlined />}
               valueStyle={{ color: "#8b5cf6" }}
@@ -674,7 +645,7 @@ const SessionDetailPage: React.FC = () => {
         <Row align="middle" gutter={24}>
           <Col flex="auto">
             <Title level={4} style={{ marginBottom: 8 }}>
-              Tỷ lệ điểm danh
+              Tá»· lá»‡ Ä‘iá»ƒm danh
             </Title>
             <Progress
               percent={statistics.attendance_rate}
@@ -698,134 +669,9 @@ const SessionDetailPage: React.FC = () => {
         </Row>
       </Card>
 
-      {/* Spoof Detections Section */}
-      {session.status === "finished" && (
-        <Card
-          title={
-            <Space>
-              <WarningOutlined style={{ color: "#ef4444" }} />
-              <span>Phát hiện giả mạo</span>
-              {spoofDetections.length > 0 && (
-                <Tag color="error">{spoofDetections.length} phát hiện</Tag>
-              )}
-            </Space>
-          }
-          style={{ 
-            borderRadius: 16, 
-            boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-            marginBottom: 24,
-            borderLeft: spoofDetections.length > 0 ? "4px solid #ef4444" : undefined
-          }}
-        >
-          {spoofLoading ? (
-            <div style={{ textAlign: "center", padding: "24px" }}>
-              <Spin tip="Đang tải phát hiện giả mạo..." />
-            </div>
-          ) : spoofDetections.length === 0 ? (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={
-                <span style={{ color: "#10b981" }}>
-                  <CheckCircleOutlined style={{ marginRight: 8 }} />
-                  Không phát hiện giả mạo trong phiên này
-                </span>
-              }
-            />
-          ) : (
-            <div>
-              <Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
-                Những khuôn mặt sau đã được phát hiện là giả mạo (hình ảnh, mặt nạ hoặc mặt giả khác).
-                Chúng không được tính là điểm danh hợp lệ.
-              </Text>
-              <Row gutter={[16, 16]}>
-                {spoofDetections.map((spoof) => (
-                  <Col xs={24} sm={12} md={8} lg={6} key={spoof.id}>
-                    <Card
-                      hoverable
-                      size="small"
-                      style={{ 
-                        borderRadius: 8,
-                        border: "1px solid #fecaca",
-                        backgroundColor: "#fef2f2"
-                      }}
-                      cover={
-                        spoof.image_path ? (
-                          <Image
-                            src={spoof.image_path}
-                            alt={`Spoof detection #${spoof.id}`}
-                            style={{ 
-                              height: 150, 
-                              objectFit: "cover",
-                              borderTopLeftRadius: 8,
-                              borderTopRightRadius: 8
-                            }}
-                            preview={{
-                              mask: (
-                                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                                  <EyeOutlined /> Xem
-                                </div>
-                              )
-                            }}
-                          />
-                        ) : (
-                          <div 
-                            style={{ 
-                              height: 150, 
-                              display: "flex", 
-                              alignItems: "center", 
-                              justifyContent: "center",
-                              backgroundColor: "#fee2e2",
-                              borderTopLeftRadius: 8,
-                              borderTopRightRadius: 8
-                            }}
-                          >
-                            <Text type="secondary">Đang tải ảnh</Text>
-                          </div>
-                        )
-                      }
-                    >
-                      <Card.Meta
-                        title={
-                          <Tag color="error" style={{ margin: 0 }}>
-                            <WarningOutlined /> {spoof.spoofing_type.toUpperCase()}
-                          </Tag>
-                        }
-                        description={
-                          <div style={{ marginTop: 8 }}>
-                            <div>
-                              <Text type="secondary" style={{ fontSize: 12 }}>
-                                Độ chính xác: {(spoof.spoofing_confidence * 100).toFixed(1)}%
-                              </Text>
-                            </div>
-                            {spoof.detected_at && (
-                              <div>
-                                <Text type="secondary" style={{ fontSize: 12 }}>
-                                  {dayjs(spoof.detected_at).format("HH:mm:ss")}
-                                </Text>
-                              </div>
-                            )}
-                            {spoof.frame_count !== null && (
-                              <div>
-                                <Text type="secondary" style={{ fontSize: 12 }}>
-                                  Frame #{spoof.frame_count}
-                                </Text>
-                              </div>
-                            )}
-                          </div>
-                        }
-                      />
-                    </Card>
-                  </Col>
-                ))}
-              </Row>
-            </div>
-          )}
-        </Card>
-      )}
-
       {/* Attendance Table */}
       <Card
-        title="📊 Danh sách Điểm danh Chi tiết"
+        title="ðŸ“Š Danh sÃ¡ch Äiá»ƒm danh Chi tiáº¿t"
         style={{ borderRadius: 16, boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
         extra={
           <Space>
@@ -843,7 +689,7 @@ const SessionDetailPage: React.FC = () => {
                   color: '#fff'
                 }}
               >
-                Xác nhận Tất cả ({sessionData.statistics.pending_count})
+                XÃ¡c nháº­n Táº¥t cáº£ ({sessionData.statistics.pending_count})
               </Button>
             )}
             <Button
@@ -878,39 +724,39 @@ const SessionDetailPage: React.FC = () => {
         />
       </Card>
 
-      {/* ── Reject Modal ─────────────────────────── */}
+      {/* â”€â”€ Reject Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Modal
         open={!!rejectModal?.open}
         title={
           <Space>
             <ExclamationCircleOutlined style={{ color: '#ef4444' }} />
-            <span>Từ chối Điểm danh</span>
+            <span>Tá»« chá»‘i Äiá»ƒm danh</span>
           </Space>
         }
-        okText="Xác nhận Vắng"
-        cancelText="Hủy"
+        okText="XÃ¡c nháº­n Váº¯ng"
+        cancelText="Há»§y"
         okButtonProps={{ danger: true, loading: rejectModal ? (actionLoading[rejectModal.recordId] || false) : false }}
         onOk={doRejectAttendance}
         onCancel={() => setRejectModal(null)}
       >
         <p>
-          Bạn có chắc muốn đánh dấu{' '}
+          Báº¡n cÃ³ cháº¯c muá»‘n Ä‘Ã¡nh dáº¥u{' '}
           <strong>{rejectModal?.studentName}</strong>{' '}
-          là <strong style={{ color: '#ef4444' }}>Vắng mặt</strong>?
+          lÃ  <strong style={{ color: '#ef4444' }}>Váº¯ng máº·t</strong>?
         </p>
       </Modal>
 
-      {/* ── Override Modal ───────────────────────── */}
+      {/* â”€â”€ Override Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Modal
         open={!!overrideModal?.open}
         title={
           <Space>
             <EditOutlined style={{ color: '#2563eb' }} />
-            <span>Chỉnh sửa Điểm danh (AI Miss)</span>
+            <span>Chá»‰nh sá»­a Äiá»ƒm danh (AI Miss)</span>
           </Space>
         }
-        okText="Xác nhận Có mặt"
-        cancelText="Hủy"
+        okText="XÃ¡c nháº­n CÃ³ máº·t"
+        cancelText="Há»§y"
         okButtonProps={{
           style: { backgroundColor: '#10b981', borderColor: '#10b981' },
           loading: overrideModal ? (actionLoading[overrideModal.recordId] || false) : false
@@ -924,9 +770,9 @@ const SessionDetailPage: React.FC = () => {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
           <p style={{ margin: 0 }}>
-            Bạn có chắc muốn đánh dấu{' '}
+            Báº¡n cÃ³ cháº¯c muá»‘n Ä‘Ã¡nh dáº¥u{' '}
             <strong>{overrideModal?.studentName}</strong>{' '}
-            là <strong style={{ color: '#10b981' }}>Có mặt</strong>?
+            lÃ  <strong style={{ color: '#10b981' }}>CÃ³ máº·t</strong>?
           </p>
 
           <div 
@@ -942,12 +788,12 @@ const SessionDetailPage: React.FC = () => {
             }}
           >
             <span style={{ fontWeight: 600, color: '#475569', fontSize: 13 }}>
-              Ảnh đối chiếu đăng ký gốc (Đã duyệt)
+              áº¢nh Ä‘á»‘i chiáº¿u Ä‘Äƒng kÃ½ gá»‘c (ÄÃ£ duyá»‡t)
             </span>
             
             {loadingFaceImage ? (
               <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Spin tip="Đang tải ảnh đối chiếu..." size="small" />
+                <Spin tip="Äang táº£i áº£nh Ä‘á»‘i chiáº¿u..." size="small" />
               </div>
             ) : studentFaceImage ? (
               <Image
@@ -963,7 +809,7 @@ const SessionDetailPage: React.FC = () => {
                 preview={{
                   mask: (
                     <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
-                      <EyeOutlined /> Xem ảnh gốc
+                      <EyeOutlined /> Xem áº£nh gá»‘c
                     </div>
                   )
                 }}
@@ -985,29 +831,29 @@ const SessionDetailPage: React.FC = () => {
               >
                 <WarningOutlined style={{ fontSize: 24, color: '#64748b', marginBottom: 8 }} />
                 <span style={{ fontSize: 11, color: '#64748b' }}>
-                  Không tìm thấy ảnh đăng ký đối chiếu
+                  KhÃ´ng tÃ¬m tháº¥y áº£nh Ä‘Äƒng kÃ½ Ä‘á»‘i chiáº¿u
                 </span>
               </div>
             )}
           </div>
 
           <p style={{ color: '#64748b', fontSize: 12, margin: 0 }}>
-            * Vui lòng đối chiếu gương mặt của sinh viên trước khi xác nhận có mặt thủ công để đảm bảo tính trung thực.
+            * Vui lÃ²ng Ä‘á»‘i chiáº¿u gÆ°Æ¡ng máº·t cá»§a sinh viÃªn trÆ°á»›c khi xÃ¡c nháº­n cÃ³ máº·t thá»§ cÃ´ng Ä‘á»ƒ Ä‘áº£m báº£o tÃ­nh trung thá»±c.
           </p>
         </div>
       </Modal>
 
-      {/* ── Confirm All Modal ────────────────────── */}
+      {/* â”€â”€ Confirm All Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Modal
         open={confirmAllModal}
         title={
           <Space>
             <CheckCircleOutlined style={{ color: '#10b981' }} />
-            <span>Xác nhận Tất cả</span>
+            <span>XÃ¡c nháº­n Táº¥t cáº£</span>
           </Space>
         }
-        okText="Xác nhận Tất cả"
-        cancelText="Hủy"
+        okText="XÃ¡c nháº­n Táº¥t cáº£"
+        cancelText="Há»§y"
         okButtonProps={{
           style: { backgroundColor: '#10b981', borderColor: '#10b981' },
           loading: confirmingAll
@@ -1016,9 +862,9 @@ const SessionDetailPage: React.FC = () => {
         onCancel={() => setConfirmAllModal(false)}
       >
         <p>
-          Bạn có muốn xác nhận tất cả{' '}
+          Báº¡n cÃ³ muá»‘n xÃ¡c nháº­n táº¥t cáº£{' '}
           <strong>{sessionData?.statistics.pending_count ?? 0}</strong>{' '}
-          sinh viên đang chờ là <strong style={{ color: '#10b981' }}>Có mặt</strong>?
+          sinh viÃªn Ä‘ang chá» lÃ  <strong style={{ color: '#10b981' }}>CÃ³ máº·t</strong>?
         </p>
       </Modal>
     </div>
@@ -1026,3 +872,4 @@ const SessionDetailPage: React.FC = () => {
 };
 
 export default SessionDetailPage;
+
