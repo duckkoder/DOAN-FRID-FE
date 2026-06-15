@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Typography,
   Card,
@@ -75,7 +75,7 @@ const SessionDetailPage: React.FC = () => {
   useEffect(() => {
     const fetchSessionDetails = async () => {
       if (!sessionId) {
-        setError("ID phiÃªn khÃ´ng há»£p lá»‡");
+        setError("ID phiên không hợp lệ");
         setLoading(false);
         return;
       }
@@ -88,7 +88,7 @@ const SessionDetailPage: React.FC = () => {
         setSessionData(response);
       } catch (err: any) {
         console.error("Failed to load session details:", err);
-        const errorMsg = err?.response?.data?.detail || err?.message || "KhÃ´ng thá»ƒ táº£i chi tiáº¿t phiÃªn Ä‘iá»ƒm danh";
+        const errorMsg = err?.response?.data?.detail || err?.message || "Không thể tải chi tiết phiên điểm danh";
         setError(errorMsg);
         message.error(errorMsg);
       } finally {
@@ -109,7 +109,7 @@ const SessionDetailPage: React.FC = () => {
       setSessionData(response);
     } catch (err: any) {
       console.error("Failed to refresh session details:", err);
-      message.error("KhÃ´ng thá»ƒ lÃ m má»›i dá»¯ liá»‡u");
+      message.error("Không thể làm mới dữ liệu");
     }
   };
 
@@ -122,17 +122,17 @@ const SessionDetailPage: React.FC = () => {
         notes: `Confirmed by teacher - ${dayjs().format("HH:mm DD/MM/YYYY")}`
       });
       
-      message.success(`ÄÃ£ xÃ¡c nháº­n ${studentName} cÃ³ máº·t`);
+      message.success(`Đã xác nhận ${studentName} có mặt`);
       await refetchData();
     } catch (err: any) {
       console.error("Failed to confirm attendance:", err);
-      message.error(err?.response?.data?.detail || "KhÃ´ng thá»ƒ xÃ¡c nháº­n Ä‘iá»ƒm danh");
+      message.error(err?.response?.data?.detail || "Không thể xác nhận điểm danh");
     } finally {
       setActionLoading(prev => ({ ...prev, [recordId]: false }));
     }
   };
 
-  // Handle reject attendance â€” just open modal
+  // Handle reject attendance — just open modal
   const handleRejectAttendance = (recordId: number, studentName: string) => {
     setRejectModal({ open: true, recordId, studentName });
   };
@@ -142,18 +142,18 @@ const SessionDetailPage: React.FC = () => {
     const { recordId, studentName } = rejectModal;
     setActionLoading(prev => ({ ...prev, [recordId]: true }));
     try {
-      await rejectAttendance(recordId, { notes: `GiÃ¡o viÃªn tá»« chá»‘i - AI nháº­n diá»‡n sai` });
-      message.success(`ÄÃ£ Ä‘Ã¡nh dáº¥u ${studentName} váº¯ng máº·t`);
+      await rejectAttendance(recordId, { notes: `Giáo viên từ chối - AI nhận diện sai` });
+      message.success(`Đã đánh dấu ${studentName} vắng mặt`);
       setRejectModal(null);
       await refetchData();
     } catch (err: any) {
-      message.error(err?.response?.data?.detail || "KhÃ´ng thá»ƒ tá»« chá»‘i Ä‘iá»ƒm danh");
+      message.error(err?.response?.data?.detail || "Không thể từ chối điểm danh");
     } finally {
       setActionLoading(prev => ({ ...prev, [recordId]: false }));
     }
   };
 
-  // Handle override absent â†’ present â€” just open modal
+  // Handle override absent → present — just open modal
   const handleOverrideToPresent = async (recordId: number, studentName: string) => {
     setOverrideModal({ open: true, recordId, studentName });
     setStudentFaceImage(null);
@@ -176,22 +176,22 @@ const SessionDetailPage: React.FC = () => {
     setActionLoading(prev => ({ ...prev, [recordId]: true }));
     try {
       await overrideAttendanceToPresent(recordId);
-      message.success(`ÄÃ£ cáº­p nháº­t ${studentName} thÃ nh CÃ³ máº·t`);
+      message.success(`Đã cập nhật ${studentName} thành Có mặt`);
       setOverrideModal(null);
       setStudentFaceImage(null);
       await refetchData();
     } catch (err: any) {
-      message.error(err?.response?.data?.detail || "KhÃ´ng thá»ƒ cáº­p nháº­t Ä‘iá»ƒm danh");
+      message.error(err?.response?.data?.detail || "Không thể cập nhật điểm danh");
     } finally {
       setActionLoading(prev => ({ ...prev, [recordId]: false }));
     }
   };
 
-  // Handle confirm all pending â€” just open modal
+  // Handle confirm all pending — just open modal
   const handleConfirmAllPending = () => {
     if (!sessionId || !sessionData) return;
     const pendingCount = sessionData.statistics.pending_count || 0;
-    if (pendingCount === 0) { message.info("KhÃ´ng cÃ³ sinh viÃªn nÃ o chá» xÃ¡c nháº­n"); return; }
+    if (pendingCount === 0) { message.info("Không có sinh viên nào chờ xác nhận"); return; }
     setConfirmAllModal(true);
   };
 
@@ -201,11 +201,11 @@ const SessionDetailPage: React.FC = () => {
     setConfirmingAll(true);
     try {
       await confirmAllPending(parseInt(sessionId));
-      message.success(`ÄÃ£ xÃ¡c nháº­n táº¥t cáº£ ${pendingCount} sinh viÃªn`);
+      message.success(`Đã xác nhận tất cả ${pendingCount} sinh viên`);
       setConfirmAllModal(false);
       await refetchData();
     } catch (err: any) {
-      message.error(err?.response?.data?.detail || "KhÃ´ng thá»ƒ xÃ¡c nháº­n táº¥t cáº£");
+      message.error(err?.response?.data?.detail || "Không thể xác nhận tất cả");
     } finally {
       setConfirmingAll(false);
     }
@@ -215,15 +215,15 @@ const SessionDetailPage: React.FC = () => {
   const getStatusConfig = (status: string) => {
     switch (status) {
       case "pending":
-        return { color: "#faad14", text: "Chá»", icon: <ClockCircleOutlined /> };
+        return { color: "#faad14", text: "Chờ", icon: <ClockCircleOutlined /> };
       case "present":
-        return { color: "#10b981", text: "CÃ³ máº·t", icon: <CheckCircleOutlined /> };
+        return { color: "#10b981", text: "Có mặt", icon: <CheckCircleOutlined /> };
       case "absent":
-        return { color: "#ef4444", text: "Váº¯ng máº·t", icon: <CloseCircleOutlined /> };
+        return { color: "#ef4444", text: "Vắng mặt", icon: <CloseCircleOutlined /> };
       case "excused":
-        return { color: "#8b5cf6", text: "Nghá»‰ phÃ©p", icon: <CheckCircleOutlined /> };
+        return { color: "#8b5cf6", text: "Nghỉ phép", icon: <CheckCircleOutlined /> };
       default:
-        return { color: "#64748b", text: "KhÃ´ng rÃµ", icon: <UserOutlined /> };
+        return { color: "#64748b", text: "Không rõ", icon: <UserOutlined /> };
     }
   };
 
@@ -237,7 +237,7 @@ const SessionDetailPage: React.FC = () => {
       render: (_: any, __: any, index: number) => index + 1
     },
     {
-      title: "Sinh viÃªn",
+      title: "Sinh viên",
       key: "student",
       render: (record: AttendanceRecord) => (
         <Space>
@@ -253,7 +253,7 @@ const SessionDetailPage: React.FC = () => {
       )
     },
     {
-      title: "Tráº¡ng thÃ¡i",
+      title: "Trạng thái",
       dataIndex: "status",
       key: "status",
       width: 120,
@@ -268,7 +268,7 @@ const SessionDetailPage: React.FC = () => {
       }
     },
     {
-      title: "Giá» vÃ o",
+      title: "Giờ vào",
       dataIndex: "recorded_at",
       key: "recorded_at",
       width: 180,
@@ -276,11 +276,11 @@ const SessionDetailPage: React.FC = () => {
         time ? (
           <Text>{dayjs(time).format("HH:mm:ss - DD/MM/YYYY")}</Text>
         ) : (
-          <Text type="secondary">ChÆ°a vÃ o</Text>
+          <Text type="secondary">Chưa vào</Text>
         )
     },
     {
-      title: "Nháº­t kÃ½ khuÃ´n máº·t",
+      title: "Nhật ký khuôn mặt",
       dataIndex: "image_path",
       key: "image_path",
       width: 100,
@@ -306,14 +306,14 @@ const SessionDetailPage: React.FC = () => {
         )
     },
     {
-      title: "Ghi chÃº",
+      title: "Ghi chú",
       dataIndex: "notes",
       key: "notes",
       render: (notes: string | null) =>
         notes ? <Text style={{ fontSize: 12 }}>{notes}</Text> : <Text type="secondary">-</Text>
     },
     {
-      title: "HÃ nh Ä‘á»™ng",
+      title: "Hành động",
       key: "actions",
       width: 160,
       align: "center" as const,
@@ -324,7 +324,7 @@ const SessionDetailPage: React.FC = () => {
         if (record.status === 'pending') {
           return (
             <Space size="small">
-              <Tooltip title="XÃ¡c nháº­n cÃ³ máº·t">
+              <Tooltip title="Xác nhận có mặt">
                 <Button
                   type="primary"
                   size="small"
@@ -335,7 +335,7 @@ const SessionDetailPage: React.FC = () => {
                   style={{ backgroundColor: '#10b981', borderColor: '#10b981' }}
                 />
               </Tooltip>
-              <Tooltip title="ÄÃ¡nh dáº¥u váº¯ng máº·t">
+              <Tooltip title="Đánh dấu vắng mặt">
                 <Button
                   danger
                   size="small"
@@ -352,7 +352,7 @@ const SessionDetailPage: React.FC = () => {
         // Absent: show override button so teacher can fix AI miss-recognition
         if (record.status === 'absent') {
           return (
-            <Tooltip title="AI khÃ´ng nháº­n diá»‡n Ä‘Æ°á»£c? Chá»‰nh thÃ nh CÃ³ máº·t">
+            <Tooltip title="AI không nhận diện được? Chỉnh thành Có mặt">
               <Button
                 size="small"
                 icon={<EditOutlined />}
@@ -365,7 +365,7 @@ const SessionDetailPage: React.FC = () => {
                   fontSize: 12
                 }}
               >
-                Sá»­a
+                Sửa
               </Button>
             </Tooltip>
           );
@@ -380,12 +380,12 @@ const SessionDetailPage: React.FC = () => {
   // Handle export Excel
   const handleExportExcel = async () => {
     if (!sessionData) {
-      message.error("KhÃ´ng cÃ³ dá»¯ liá»‡u Ä‘á»ƒ xuáº¥t");
+      message.error("Không có dữ liệu để xuất");
       return;
     }
 
     setExporting(true);
-    const loadingMsg = message.loading("Äang táº¡o file Excel...", 0);
+    const loadingMsg = message.loading("Đang tạo file Excel...", 0);
 
     try {
       // Small delay for UI to render loading state
@@ -396,22 +396,22 @@ const SessionDetailPage: React.FC = () => {
       // Create Excel data
       const excelData = [
         // Session header info
-        ["DANH SÃCH ÄIá»‚M DANH"],
-        [`PhiÃªn: ${session.session_name || `PhiÃªn #${session.id}`}`],
-        [`Thá»i gian: ${dayjs(session.start_time).format("HH:mm - DD/MM/YYYY")}`],
-        [`Äá»‹a Ä‘iá»ƒm: ${session.location || "ChÆ°a xÃ¡c Ä‘á»‹nh"}`],
+        ["DANH SÁCH ĐIỂM DANH"],
+        [`Phiên: ${session.session_name || `Phiên #${session.id}`}`],
+        [`Thời gian: ${dayjs(session.start_time).format("HH:mm - DD/MM/YYYY")}`],
+        [`Địa điểm: ${session.location || "Chưa xác định"}`],
         [],
         // Statistics
-        ["THá»NG KÃŠ"],
-        [`Tá»•ng sinh viÃªn: ${statistics.total_students}`],
-        [`CÃ³ máº·t: ${statistics.present_count}`],
-        [`Chá»: ${statistics.pending_count || 0}`],
-        [`Váº¯ng máº·t: ${statistics.absent_count}`],
-        [`Nghá»‰ phÃ©p: ${statistics.excused_count}`],
-        [`Tá»· lá»‡: ${statistics.attendance_rate.toFixed(2)}%`],
+        ["THỐNG KÊ"],
+        [`Tổng sinh viên: ${statistics.total_students}`],
+        [`Có mặt: ${statistics.present_count}`],
+        [`Chờ: ${statistics.pending_count || 0}`],
+        [`Vắng mặt: ${statistics.absent_count}`],
+        [`Nghỉ phép: ${statistics.excused_count}`],
+        [`Tỷ lệ: ${statistics.attendance_rate.toFixed(2)}%`],
         [],
         // Table header
-        ["STT", "MÃ£ sinh viÃªn", "Há» tÃªn", "Tráº¡ng thÃ¡i", "Giá» vÃ o", "Ghi chÃº"]
+        ["STT", "Mã sinh viên", "Họ tên", "Trạng thái", "Giờ vào", "Ghi chú"]
       ];
 
       // Add student data
@@ -421,7 +421,7 @@ const SessionDetailPage: React.FC = () => {
           record.student_code,
           record.student_name,
           getStatusConfig(record.status).text,
-          record.recorded_at ? dayjs(record.recorded_at).format("HH:mm:ss - DD/MM/YYYY") : "ChÆ°a vÃ o",
+          record.recorded_at ? dayjs(record.recorded_at).format("HH:mm:ss - DD/MM/YYYY") : "Chưa vào",
           record.notes || "-"
         ]);
       });
@@ -446,11 +446,11 @@ const SessionDetailPage: React.FC = () => {
       XLSX.writeFile(wb, fileName);
 
       loadingMsg(); // Close loading message
-      message.success("ÄÃ£ xuáº¥t Excel thÃ nh cÃ´ng!", 2);
+      message.success("Đã xuất Excel thành công!", 2);
     } catch (error) {
       loadingMsg(); // Close loading message
       console.error("Export Excel error:", error);
-      message.error("Lá»—i xuáº¥t Excel");
+      message.error("Lỗi xuất Excel");
     } finally {
       setExporting(false);
     }
@@ -459,8 +459,8 @@ const SessionDetailPage: React.FC = () => {
   // Breadcrumb
   const breadcrumbItems = [
     { title: "Dashboard", href: "/teacher" },
-    { title: "Quáº£n lÃ½ Lá»›p", href: "/teacher/classes" },
-    { title: "Chi tiáº¿t PhiÃªn Äiá»ƒm danh" }
+    { title: "Quản lý Lớp", href: "/teacher/classes" },
+    { title: "Chi tiết Phiên Điểm danh" }
   ];
 
   // Loading state
@@ -475,7 +475,7 @@ const SessionDetailPage: React.FC = () => {
           background: "linear-gradient(135deg, #f6f9fc 0%, #e9f3ff 100%)"
         }}
       >
-        <Spin size="large" tip="Äang táº£i chi tiáº¿t phiÃªn Ä‘iá»ƒm danh..." />
+        <Spin size="large" tip="Đang tải chi tiết phiên điểm danh..." />
       </div>
     );
   }
@@ -493,7 +493,7 @@ const SessionDetailPage: React.FC = () => {
         <Breadcrumb items={breadcrumbItems} />
         <Card style={{ marginTop: 24, textAlign: "center" }}>
           <Empty
-            description={error || "KhÃ´ng tÃ¬m tháº¥y dá»¯ liá»‡u"}
+            description={error || "Không tìm thấy dữ liệu"}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           >
             <Button 
@@ -508,7 +508,7 @@ const SessionDetailPage: React.FC = () => {
                 }
               }}
             >
-              Quay láº¡i
+              Quay lại
             </Button>
           </Empty>
         </Card>
@@ -535,7 +535,7 @@ const SessionDetailPage: React.FC = () => {
             type="text"
             icon={<ArrowLeftOutlined />}
             onClick={() => {
-              // âœ… Navigate back with preserved tab
+              // ✅ Navigate back with preserved tab
               const state = location.state as { from?: string; tab?: string } | null;
               if (state?.from && state?.tab) {
                 // Go back to specific class detail page with tab
@@ -561,25 +561,25 @@ const SessionDetailPage: React.FC = () => {
         }}
       >
         <Title level={3} style={{ marginBottom: 24 }}>
-          ðŸ“‹ {session.session_name || `PhiÃªn Äiá»ƒm danh #${session.id}`}
+          📋 {session.session_name || `Phiên Điểm danh #${session.id}`}
         </Title>
 
         <Descriptions bordered column={{ xs: 1, sm: 2, md: 3 }}>
-          <Descriptions.Item label={<><CalendarOutlined /> Giá» báº¯t Ä‘áº§u</>}>
+          <Descriptions.Item label={<><CalendarOutlined /> Giờ bắt đầu</>}>
             {dayjs(session.start_time).format("HH:mm - DD/MM/YYYY")}
           </Descriptions.Item>
-          <Descriptions.Item label={<><CalendarOutlined /> Giá» káº¿t thÃºc</>}>
+          <Descriptions.Item label={<><CalendarOutlined /> Giờ kết thúc</>}>
             {session.end_time
               ? dayjs(session.end_time).format("HH:mm - DD/MM/YYYY")
-              : "Äang diá»…n ra"}
+              : "Đang diễn ra"}
           </Descriptions.Item>
-          <Descriptions.Item label="Tráº¡ng thÃ¡i">
+          <Descriptions.Item label="Trạng thái">
             <Tag color={session.status === "finished" ? "success" : "processing"}>
-              {session.status === "finished" ? "HoÃ n thÃ nh" : "Äang diá»…n ra"}
+              {session.status === "finished" ? "Hoàn thành" : "Đang diễn ra"}
             </Tag>
           </Descriptions.Item>
           {session.location && (
-            <Descriptions.Item label={<><EnvironmentOutlined /> Äá»‹a Ä‘iá»ƒm</>} span={2}>
+            <Descriptions.Item label={<><EnvironmentOutlined /> Địa điểm</>} span={2}>
               {session.location}
             </Descriptions.Item>
           )}
@@ -591,7 +591,7 @@ const SessionDetailPage: React.FC = () => {
         <Col xs={24} sm={12} md={6} lg={4.8}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
-              title="Tá»•ng sinh viÃªn"
+              title="Tổng sinh viên"
               value={statistics.total_students}
               prefix={<UserOutlined />}
               valueStyle={{ color: "#2563eb" }}
@@ -601,7 +601,7 @@ const SessionDetailPage: React.FC = () => {
         <Col xs={24} sm={12} md={6} lg={4.8}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
-              title="CÃ³ máº·t"
+              title="Có mặt"
               value={statistics.present_count}
               prefix={<CheckCircleOutlined />}
               valueStyle={{ color: "#10b981" }}
@@ -611,7 +611,7 @@ const SessionDetailPage: React.FC = () => {
         <Col xs={24} sm={12} md={6} lg={4.8}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
-              title="Chá»"
+              title="Chờ"
               value={statistics.pending_count || 0}
               prefix={<ClockCircleOutlined />}
               valueStyle={{ color: "#faad14" }}
@@ -621,7 +621,7 @@ const SessionDetailPage: React.FC = () => {
         <Col xs={24} sm={12} md={6} lg={4.8}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
-              title="Váº¯ng máº·t"
+              title="Vắng mặt"
               value={statistics.absent_count}
               prefix={<CloseCircleOutlined />}
               valueStyle={{ color: "#ef4444" }}
@@ -631,7 +631,7 @@ const SessionDetailPage: React.FC = () => {
         <Col xs={24} sm={12} md={6} lg={4.8}>
           <Card style={{ borderRadius: 12, textAlign: "center" }}>
             <Statistic
-              title="Nghá»‰ phÃ©p"
+              title="Nghỉ phép"
               value={statistics.excused_count || 0}
               prefix={<CheckCircleOutlined />}
               valueStyle={{ color: "#8b5cf6" }}
@@ -645,7 +645,7 @@ const SessionDetailPage: React.FC = () => {
         <Row align="middle" gutter={24}>
           <Col flex="auto">
             <Title level={4} style={{ marginBottom: 8 }}>
-              Tá»· lá»‡ Ä‘iá»ƒm danh
+              Tỷ lệ điểm danh
             </Title>
             <Progress
               percent={statistics.attendance_rate}
@@ -671,7 +671,7 @@ const SessionDetailPage: React.FC = () => {
 
       {/* Attendance Table */}
       <Card
-        title="ðŸ“Š Danh sÃ¡ch Äiá»ƒm danh Chi tiáº¿t"
+        title="📊 Danh sách Điểm danh Chi tiết"
         style={{ borderRadius: 16, boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
         extra={
           <Space>
@@ -689,7 +689,7 @@ const SessionDetailPage: React.FC = () => {
                   color: '#fff'
                 }}
               >
-                XÃ¡c nháº­n Táº¥t cáº£ ({sessionData.statistics.pending_count})
+                Xác nhận Tất cả ({sessionData.statistics.pending_count})
               </Button>
             )}
             <Button
@@ -724,39 +724,39 @@ const SessionDetailPage: React.FC = () => {
         />
       </Card>
 
-      {/* â”€â”€ Reject Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Reject Modal ─────────────────────────── */}
       <Modal
         open={!!rejectModal?.open}
         title={
           <Space>
             <ExclamationCircleOutlined style={{ color: '#ef4444' }} />
-            <span>Tá»« chá»‘i Äiá»ƒm danh</span>
+            <span>Từ chối Điểm danh</span>
           </Space>
         }
-        okText="XÃ¡c nháº­n Váº¯ng"
-        cancelText="Há»§y"
+        okText="Xác nhận Vắng"
+        cancelText="Hủy"
         okButtonProps={{ danger: true, loading: rejectModal ? (actionLoading[rejectModal.recordId] || false) : false }}
         onOk={doRejectAttendance}
         onCancel={() => setRejectModal(null)}
       >
         <p>
-          Báº¡n cÃ³ cháº¯c muá»‘n Ä‘Ã¡nh dáº¥u{' '}
+          Bạn có chắc muốn đánh dấu{' '}
           <strong>{rejectModal?.studentName}</strong>{' '}
-          lÃ  <strong style={{ color: '#ef4444' }}>Váº¯ng máº·t</strong>?
+          là <strong style={{ color: '#ef4444' }}>Vắng mặt</strong>?
         </p>
       </Modal>
 
-      {/* â”€â”€ Override Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Override Modal ───────────────────────── */}
       <Modal
         open={!!overrideModal?.open}
         title={
           <Space>
             <EditOutlined style={{ color: '#2563eb' }} />
-            <span>Chá»‰nh sá»­a Äiá»ƒm danh (AI Miss)</span>
+            <span>Chỉnh sửa Điểm danh (AI Miss)</span>
           </Space>
         }
-        okText="XÃ¡c nháº­n CÃ³ máº·t"
-        cancelText="Há»§y"
+        okText="Xác nhận Có mặt"
+        cancelText="Hủy"
         okButtonProps={{
           style: { backgroundColor: '#10b981', borderColor: '#10b981' },
           loading: overrideModal ? (actionLoading[overrideModal.recordId] || false) : false
@@ -770,9 +770,9 @@ const SessionDetailPage: React.FC = () => {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
           <p style={{ margin: 0 }}>
-            Báº¡n cÃ³ cháº¯c muá»‘n Ä‘Ã¡nh dáº¥u{' '}
+            Bạn có chắc muốn đánh dấu{' '}
             <strong>{overrideModal?.studentName}</strong>{' '}
-            lÃ  <strong style={{ color: '#10b981' }}>CÃ³ máº·t</strong>?
+            là <strong style={{ color: '#10b981' }}>Có mặt</strong>?
           </p>
 
           <div 
@@ -788,12 +788,12 @@ const SessionDetailPage: React.FC = () => {
             }}
           >
             <span style={{ fontWeight: 600, color: '#475569', fontSize: 13 }}>
-              áº¢nh Ä‘á»‘i chiáº¿u Ä‘Äƒng kÃ½ gá»‘c (ÄÃ£ duyá»‡t)
+              Ảnh đối chiếu đăng ký gốc (Đã duyệt)
             </span>
             
             {loadingFaceImage ? (
               <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Spin tip="Äang táº£i áº£nh Ä‘á»‘i chiáº¿u..." size="small" />
+                <Spin tip="Đang tải ảnh đối chiếu..." size="small" />
               </div>
             ) : studentFaceImage ? (
               <Image
@@ -809,7 +809,7 @@ const SessionDetailPage: React.FC = () => {
                 preview={{
                   mask: (
                     <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
-                      <EyeOutlined /> Xem áº£nh gá»‘c
+                      <EyeOutlined /> Xem ảnh gốc
                     </div>
                   )
                 }}
@@ -831,29 +831,29 @@ const SessionDetailPage: React.FC = () => {
               >
                 <WarningOutlined style={{ fontSize: 24, color: '#64748b', marginBottom: 8 }} />
                 <span style={{ fontSize: 11, color: '#64748b' }}>
-                  KhÃ´ng tÃ¬m tháº¥y áº£nh Ä‘Äƒng kÃ½ Ä‘á»‘i chiáº¿u
+                  Không tìm thấy ảnh đăng ký đối chiếu
                 </span>
               </div>
             )}
           </div>
 
           <p style={{ color: '#64748b', fontSize: 12, margin: 0 }}>
-            * Vui lÃ²ng Ä‘á»‘i chiáº¿u gÆ°Æ¡ng máº·t cá»§a sinh viÃªn trÆ°á»›c khi xÃ¡c nháº­n cÃ³ máº·t thá»§ cÃ´ng Ä‘á»ƒ Ä‘áº£m báº£o tÃ­nh trung thá»±c.
+            * Vui lòng đối chiếu gương mặt của sinh viên trước khi xác nhận có mặt thủ công để đảm bảo tính trung thực.
           </p>
         </div>
       </Modal>
 
-      {/* â”€â”€ Confirm All Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Confirm All Modal ────────────────────── */}
       <Modal
         open={confirmAllModal}
         title={
           <Space>
             <CheckCircleOutlined style={{ color: '#10b981' }} />
-            <span>XÃ¡c nháº­n Táº¥t cáº£</span>
+            <span>Xác nhận Tất cả</span>
           </Space>
         }
-        okText="XÃ¡c nháº­n Táº¥t cáº£"
-        cancelText="Há»§y"
+        okText="Xác nhận Tất cả"
+        cancelText="Hủy"
         okButtonProps={{
           style: { backgroundColor: '#10b981', borderColor: '#10b981' },
           loading: confirmingAll
@@ -862,9 +862,9 @@ const SessionDetailPage: React.FC = () => {
         onCancel={() => setConfirmAllModal(false)}
       >
         <p>
-          Báº¡n cÃ³ muá»‘n xÃ¡c nháº­n táº¥t cáº£{' '}
+          Bạn có muốn xác nhận tất cả{' '}
           <strong>{sessionData?.statistics.pending_count ?? 0}</strong>{' '}
-          sinh viÃªn Ä‘ang chá» lÃ  <strong style={{ color: '#10b981' }}>CÃ³ máº·t</strong>?
+          sinh viên đang chờ là <strong style={{ color: '#10b981' }}>Có mặt</strong>?
         </p>
       </Modal>
     </div>

@@ -373,6 +373,8 @@ const StudentClassDetailPage: React.FC = () => {
   const presentCount = classAttendanceSummary?.attended_sessions || 0;
   const lateCount = classAttendanceSummary?.late_sessions || 0;
   const absentCount = classAttendanceSummary?.absent_sessions || 0;
+  const excusedCount = classAttendanceSummary?.excused_sessions || 0;
+  const purePresentCount = presentCount - lateCount;
   const attendanceRate = classAttendanceSummary?.attendance_rate
     ? Math.round(classAttendanceSummary.attendance_rate)
     : 0;
@@ -544,25 +546,30 @@ const StudentClassDetailPage: React.FC = () => {
 
           <Tabs.TabPane tab={<span><CalendarOutlined /> Điểm danh</span>} key="attendance">
             <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-              <Col xs={12} md={6}>
+              <Col xs={12} sm={12} md={8} lg={4.8}>
                 <Card style={{ borderRadius: 12 }}>
                   <Statistic title="Tỷ lệ" value={attendanceRate} suffix="%" />
                   <Progress percent={attendanceRate} size="small" showInfo={false} />
                 </Card>
               </Col>
-              <Col xs={12} md={6}>
+              <Col xs={12} sm={12} md={8} lg={4.8}>
                 <Card style={{ borderRadius: 12 }}>
-                  <Statistic title="Có mặt" value={presentCount} suffix={`/${totalSessions}`} prefix={<CheckCircleOutlined />} />
+                  <Statistic title="Có mặt" value={purePresentCount} suffix={`/${totalSessions}`} prefix={<CheckCircleOutlined />} />
                 </Card>
               </Col>
-              <Col xs={12} md={6}>
+              <Col xs={12} sm={12} md={8} lg={4.8}>
                 <Card style={{ borderRadius: 12 }}>
                   <Statistic title="Đi trễ" value={lateCount} suffix={`/${totalSessions}`} prefix={<ClockCircleOutlined />} />
                 </Card>
               </Col>
-              <Col xs={12} md={6}>
+              <Col xs={12} sm={12} md={8} lg={4.8}>
                 <Card style={{ borderRadius: 12 }}>
                   <Statistic title="Vắng mặt" value={absentCount} suffix={`/${totalSessions}`} prefix={<ExclamationCircleOutlined />} />
+                </Card>
+              </Col>
+              <Col xs={12} sm={12} md={8} lg={4.8}>
+                <Card style={{ borderRadius: 12 }}>
+                  <Statistic title="Nghỉ phép" value={excusedCount} suffix={`/${totalSessions}`} prefix={<CheckCircleOutlined style={{ color: '#8b5cf6' }} />} />
                 </Card>
               </Col>
             </Row>

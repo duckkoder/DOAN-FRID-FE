@@ -46,6 +46,7 @@ export interface StudentClassAttendanceSummary {
     attended_sessions: number;
     absent_sessions: number;
     late_sessions: number;
+    excused_sessions: number;
     attendance_rate: number;
     sessions: StudentAttendanceSessionSummarySchema[];
 }
